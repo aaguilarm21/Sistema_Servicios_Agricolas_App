@@ -8,14 +8,17 @@ from django.contrib import messages
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+# Vistas principales del sistema agrícola y de administración.
+
 from accounts.forms import AdminUserCreationForm
 from accounts.models import Empleado, UserProfile, RegistroOperativo, Proveedor, Maquinaria, Auxiliar, Labor, Variedad, Municipio
 
 
+# Determina si un usuario tiene permisos administrativos.
 def user_is_admin(user):
     return user.is_authenticated and (user.is_superuser or user.groups.filter(name='Admin').exists())
 
-
+# Determina si un usuario pertenece a un rol permitido para operar el sistema.
 def user_is_user_or_admin(user):
     return user.is_authenticated and (
         user_is_admin(user) or user.groups.filter(name='Usuario').exists()

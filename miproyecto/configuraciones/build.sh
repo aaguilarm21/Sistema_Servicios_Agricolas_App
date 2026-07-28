@@ -14,4 +14,7 @@ python manage.py collectstatic --noinput
 echo ">>> Ejecutando migraciones..."
 python manage.py migrate
 
+echo ">>> Creando usuario administrador inicial..."
+python manage.py ensureadmin
+
 echo ">>> Build completado exitosamente!"

@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
-  <rect width="1200" height="800" rx="20" ry="20" fill="#f4f6f8" stroke="#ccd7e0" stroke-width="4"/>
-  <rect x="80" y="80" width="1040" height="120" rx="16" fill="#2f4b7c"/>
-  <text x="120" y="150" font-family="Segoe UI, Arial, sans-serif" font-size="44" fill="#ffffff">Home - Pantalla Principal</text>
-  <rect x="80" y="230" width="380" height="520" rx="16" fill="#ffffff" stroke="#d1d9de" stroke-width="2"/>
-  <rect x="490" y="230" width="600" height="520" rx="16" fill="#ffffff" stroke="#d1d9de" stroke-width="2"/>
-  <text x="110" y="280" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#2f4b7c">Resumen de usuario</text>
-  <text x="520" y="280" font-family="Segoe UI, Arial, sans-serif" font-size="28" fill="#2f4b7c">Accesos rápidos a módulos</text>
-</svg>

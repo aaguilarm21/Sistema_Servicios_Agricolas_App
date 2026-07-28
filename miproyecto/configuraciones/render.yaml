@@ -12,4 +12,8 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.7
       - key: DJANGO_ALLOWED_HOSTS
-        sync: false
+        value: sistema-servicios-agricolas.onrender.com
+      - key: RENDER
+        value: "true"
+      - key: DEBUG
+        value: "false"

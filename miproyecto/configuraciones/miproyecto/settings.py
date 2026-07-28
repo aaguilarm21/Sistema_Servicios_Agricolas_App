@@ -11,16 +11,26 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
 
 # Construye rutas dentro del proyecto así: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# La configuración está ubicada en configuraciones/miproyecto/settings.py,
+# por lo que la ruta base debe ser la raíz del proyecto.
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 # Cargar variables de entorno desde .env
 load_dotenv(BASE_DIR / '.env')
+
+# Añadir las carpetas reorganizadas al path de Python para que Django encuentre
+# los módulos de backend, frontend y configuraciones.
+ROOT_PROJECT_DIR = BASE_DIR
+sys.path.insert(0, str(ROOT_PROJECT_DIR / 'Backend'))
+sys.path.insert(0, str(ROOT_PROJECT_DIR / 'Frontend'))
+sys.path.insert(0, str(ROOT_PROJECT_DIR / 'configuraciones'))
 
 
 # Configuración de inicio rápido para desarrollo - no apta para producción
@@ -29,19 +39,23 @@ load_dotenv(BASE_DIR / '.env')
 # ADVERTENCIA DE SEGURIDAD: mantiene la clave secreta usada en producción en privado!
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-btqhcotsy+wni(ajh5=stc-)hhy6dddthr7^dia)0ayxjm94dc')
 
-# ADVERTENCIA DE SEGURIDAD: no ejecutes con DEBUG activado en producción!
-DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
+# ADVERTENCIA DE SEGURIDAD: no ejecutes con DEBUG activado en producción.
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
-# Hosts permitidos
-ALLOWED_HOSTS = []
-RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME')
+# Hosts permitidos para desarrollo y producción.
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+
+RENDER_EXTERNAL_HOSTNAME = os.getenv('RENDER_EXTERNAL_HOSTNAME', '').strip()
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
 # Hosts adicionales (separados por coma en la variable de entorno)
 EXTRA_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '')
 if EXTRA_HOSTS:
-    ALLOWED_HOSTS.extend(EXTRA_HOSTS.split(','))
+    for host in EXTRA_HOSTS.split(','):
+        host = host.strip()
+        if host and host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(host)
 
 
 # Definición de aplicaciones
@@ -94,40 +108,45 @@ WSGI_APPLICATION = 'miproyecto.wsgi.application'
 
 
 # Base de datos
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-# Usa DATABASE_URL si existe (Render/Supabase), sino usa variables individuales
+# En producción se usa PostgreSQL a través de Render/Supabase cuando exista
+# una URL o variables DB_* en el entorno. Si no se configuró una base de datos
+# externa, se usa SQLite para que el servidor pueda arrancar localmente.
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
+DB_HOST = os.getenv('DB_HOST', '').strip()
+DB_NAME = os.getenv('DB_NAME', '').strip()
+DB_USER = os.getenv('DB_USER', '').strip()
+DB_PASSWORD = os.getenv('DB_PASSWORD', '').strip()
+DB_PORT = os.getenv('DB_PORT', '').strip()
 
-# Priorizar entorno de desarrollo: si DEBUG=True usamos SQLite local
-if DEBUG:
+USE_EXTERNAL_POSTGRES = bool(DATABASE_URL) or bool(DB_HOST) or bool(DB_NAME) or bool(DB_USER) or bool(DB_PASSWORD) or bool(DB_PORT)
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True if 'postgres' in DATABASE_URL.lower() and 'render' in DATABASE_URL.lower() else False,
+        )
+    }
+elif USE_EXTERNAL_POSTGRES:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': DB_NAME or 'postgres',
+            'USER': DB_USER or 'postgres',
+            'PASSWORD': DB_PASSWORD,
+            'HOST': DB_HOST or 'localhost',
+            'PORT': DB_PORT or '5432',
+        }
+    }
+else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
-else:
-    # Si DB_HOST es una URL completa, la tratamos como DATABASE_URL
-    if not DATABASE_URL and os.getenv('DB_HOST', '').startswith(('postgresql://', 'postgres://')):
-        DATABASE_URL = os.getenv('DB_HOST')
-
-    if DATABASE_URL:
-        DATABASES = {
-            'default': dj_database_url.parse(DATABASE_URL)
-        }
-    else:
-        # En producción exigimos variables de conexión a Postgres
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.postgresql',
-                'NAME': os.getenv('DB_NAME', 'sistema_agricola'),
-                'USER': os.getenv('DB_USER', 'postgres'),
-                'PASSWORD': os.getenv('DB_PASSWORD', ''),
-                'HOST': os.getenv('DB_HOST', 'localhost'),
-                'PORT': os.getenv('DB_PORT', '5432'),
-            }
-        }
 
 
 # Validación de contraseñas
@@ -175,15 +194,26 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # WhiteNoise: compresión y cache de archivos estáticos
 STORAGES = {
     'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
     },
 }
 
 # Tipo de campo de clave primaria predeterminado
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CSRF — Confiar en el dominio de Render
-CSRF_TRUSTED_ORIGINS = []
-RENDER_HOST = os.getenv('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_HOST:
-    CSRF_TRUSTED_ORIGINS.append(f'https://{RENDER_HOST}')
+# CSRF y seguridad para Render / proxy reverso.
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+
+for host in ALLOWED_HOSTS:
+    if not host:
+        continue
+    if host.startswith('http://') or host.startswith('https://'):
+        CSRF_TRUSTED_ORIGINS.append(host)
+    else:
+        CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
+
+if os.getenv('RENDER', '').lower() == 'true':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
