@@ -16,6 +16,7 @@ from pathlib import Path
 
 import dj_database_url
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 # Construye rutas dentro del proyecto así: BASE_DIR / 'subdir'.
 # La configuración está ubicada en configuraciones/miproyecto/settings.py,
@@ -37,10 +38,13 @@ sys.path.insert(0, str(ROOT_PROJECT_DIR / 'configuraciones'))
 # Ver https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # ADVERTENCIA DE SEGURIDAD: mantiene la clave secreta usada en producción en privado!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-btqhcotsy+wni(ajh5=stc-)hhy6dddthr7^dia)0ayxjm94dc')
-
-# ADVERTENCIA DE SEGURIDAD: no ejecutes con DEBUG activado en producción.
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG or 'test' in sys.argv or os.getenv('DJANGO_SETTINGS_MODULE') == 'configuraciones.miproyecto.settings':
+        SECRET_KEY = 'dev-only-insecure-secret-key'
+    else:
+        raise ImproperlyConfigured('La variable de entorno SECRET_KEY es obligatoria en producción.')
 
 # Hosts permitidos para desarrollo y producción.
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
@@ -81,6 +85,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'miproyecto.middleware.SafeExceptionMiddleware',
 ]
 
 ROOT_URLCONF = 'miproyecto.urls'
@@ -201,6 +206,20 @@ STORAGES = {
 # Tipo de campo de clave primaria predeterminado
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Límites de intentos de login para evitar fuerza bruta.
+LOGIN_RATE_LIMIT_ATTEMPTS = int(os.getenv('LOGIN_RATE_LIMIT_ATTEMPTS', '5'))
+LOGIN_RATE_LIMIT_LOCKOUT_SECONDS = int(os.getenv('LOGIN_RATE_LIMIT_LOCKOUT_SECONDS', '300'))
+
+# Configuración de seguridad básica para sesiones y cookies.
+SESSION_COOKIE_AGE = int(os.getenv('SESSION_COOKIE_AGE', '3600'))
+SESSION_EXPIRE_AT_BROWSER_CLOSE = os.getenv('SESSION_EXPIRE_AT_BROWSER_CLOSE', 'True').lower() in ('true', '1', 'yes')
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'DENY'
+
+USE_HTTPS = os.getenv('USE_HTTPS', 'False').lower() in ('true', '1', 'yes') or os.getenv('RENDER', '').lower() == 'true'
+
 # CSRF y seguridad para Render / proxy reverso.
 CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
 
@@ -212,8 +231,13 @@ for host in ALLOWED_HOSTS:
     else:
         CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
 
-if os.getenv('RENDER', '').lower() == 'true':
+if os.getenv('RENDER', '').lower() == 'true' or USE_HTTPS:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True').lower() in ('true', '1', 'yes')
+    SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'True').lower() in ('true', '1', 'yes')
+else:
+    SECURE_HSTS_SECONDS = 0

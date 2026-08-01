@@ -22,6 +22,22 @@ class CustomLoginView(LoginView):
     template_name = 'registration/login.html'
     redirect_authenticated_user = False
 
+    def form_valid(self, form):
+        try:
+            return super().form_valid(form)
+        except Exception:
+            return render(self.request, self.template_name, {'form': form})
+
+    def form_invalid(self, form):
+        try:
+            if form.errors.get('__all__'):
+                for error in form.errors['__all__']:
+                    if 'demasiados intentos' in str(error).lower():
+                        form.add_error(None, error)
+            return super().form_invalid(form)
+        except Exception:
+            return render(self.request, self.template_name, {'form': form})
+
 
 # Verifica si un usuario tiene permisos de administrador.
 def is_admin_user(user):

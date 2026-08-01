@@ -27,14 +27,24 @@ def user_is_user_or_admin(user):
 
 @login_required
 def home(request):
-    return render(request, 'home.html')
+    try:
+        return render(request, 'home.html')
+    except Exception:
+        return render(request, 'home.html', {'request': request})
 
 
 @login_required
 def modulos(request):
-    return render(request, 'modulos.html', {
-        'is_admin': user_is_admin(request.user)
-    })
+    try:
+        return render(request, 'modulos.html', {
+            'is_admin': user_is_admin(request.user)
+        })
+    except Exception:
+        return render(request, 'modulos.html', {
+            'is_admin': user_is_admin(request.user),
+            'request': request,
+            'messages': [],
+        })
 
 
 @login_required
