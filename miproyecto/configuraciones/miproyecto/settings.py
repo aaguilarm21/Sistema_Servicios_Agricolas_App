@@ -200,12 +200,13 @@ STATICFILES_DIRS = [
 # Directorio donde collectstatic recopila archivos para producción
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# WhiteNoise: compresión y cache de archivos estáticos
-STORAGES = {
-    'staticfiles': {
-        'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
-    },
-}
+# WhiteNoise: compresión y cache de archivos estáticos (solo en producción)
+if not DEBUG:
+    STORAGES = {
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage',
+        },
+    }
 
 # Tipo de campo de clave primaria predeterminado
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
