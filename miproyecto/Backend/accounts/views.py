@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 import json
 
+from .jwt_utils import generate_jwt_token
 from .forms import AdminUserCreationForm, CustomAuthenticationForm
 from .models import (
     UserProfile, Proveedor, Empleado, Maquinaria, Bodega, Articulo,
@@ -24,16 +25,23 @@ class CustomLoginView(LoginView):
 
     def form_valid(self, form):
         try:
-            return super().form_valid(form)
+            response = super().form_valid(form)
+            user = form.get_user()
+            if user:
+                token = generate_jwt_token(user)
+                response.set_cookie(
+                    key='jwt_token',
+                    value=token,
+                    httponly=True,
+                    samesite='Lax',
+                    max_age=8 * 3600,
+                )
+            return response
         except Exception:
             return render(self.request, self.template_name, {'form': form})
 
     def form_invalid(self, form):
         try:
-            if form.errors.get('__all__'):
-                for error in form.errors['__all__']:
-                    if 'demasiados intentos' in str(error).lower():
-                        form.add_error(None, error)
             return super().form_invalid(form)
         except Exception:
             return render(self.request, self.template_name, {'form': form})
@@ -44,7 +52,7 @@ def is_admin_user(user):
     return user.is_active and user.is_superuser
 
 
-# Endpoint de autenticación para el modal de cambio de usuario.
+# Endpoint de autenticación para el modal de cambio de usuario / AJAX login.
 @csrf_exempt
 @require_http_methods(['GET', 'POST'])
 def ajax_login(request):
@@ -63,20 +71,31 @@ def ajax_login(request):
     if not username or not password:
         return JsonResponse({'success': False, 'error': 'Debes ingresar usuario y contraseña.'}, status=400)
 
-    user = authenticate(request, username=username, password=password)
-    if user is None:
-        fallback_user = None
-        if username.lower() == 'admin':
-            fallback_user = User.objects.filter(username='admin').first()
-            if fallback_user and fallback_user.check_password(password):
-                user = fallback_user
-        if user is None:
-            return JsonResponse({'success': False, 'error': 'Usuario o contraseña incorrectos.'}, status=401)
-    if not user.is_active:
-        return JsonResponse({'success': False, 'error': 'USUARIO INACTIVO, COMUNIQUESE CON EL ADMIN, PARA ACTIVARLO'}, status=403)
+    form = CustomAuthenticationForm(request, data={'username': username, 'password': password})
+    if form.is_valid():
+        user = form.get_user()
+        login(request, user)
+        token = generate_jwt_token(user)
+        response = JsonResponse({'success': True, 'token': token})
+        response.set_cookie(
+            key='jwt_token',
+            value=token,
+            httponly=True,
+            samesite='Lax',
+            max_age=8 * 3600,
+        )
+        return response
+    else:
+        error_msg = 'Usuario o contraseña incorrectos.'
+        if form.non_field_errors():
+            error_msg = form.non_field_errors()[0]
+        elif form.errors:
+            for field, errors in form.errors.items():
+                if errors:
+                    error_msg = errors[0]
+                    break
+        return JsonResponse({'success': False, 'error': str(error_msg)}, status=401)
 
-    login(request, user)
-    return JsonResponse({'success': True})
 
 
 # Vista para el registro de nuevos usuarios desde el panel administrativo.

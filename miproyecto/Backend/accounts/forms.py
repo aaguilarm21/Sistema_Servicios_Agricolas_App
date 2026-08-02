@@ -2,11 +2,13 @@ from django import forms
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
 import re
 import unicodedata
+
+from .validators import PasswordStandardValidator
 
 
 class CustomAuthenticationForm(AuthenticationForm):
@@ -15,10 +17,10 @@ class CustomAuthenticationForm(AuthenticationForm):
             'Por favor ingresa un usuario y contraseña correctos.'
         ),
         'inactive': _(
-            'USUARIO INACTIVO, COMUNIQUESE CON EL ADMIN, PARA ACTIVARLO'
+            'USUARIO INACTIVO/BLOQUEADO, COMUNÍQUESE CON EL ADMINISTRADOR PARA ACTIVARLO'
         ),
         'rate_limited': _(
-            'Demasiados intentos de inicio de sesión. Intente de nuevo en unos minutos.'
+            'El usuario ha sido bloqueado por haber superado los 3 intentos fallidos de inicio de sesión. Por favor comuníquese con el administrador.'
         ),
     }
 
@@ -40,7 +42,7 @@ class CustomAuthenticationForm(AuthenticationForm):
         return f'login_attempts:{ip_address}'
 
     def _get_rate_limit_settings(self):
-        attempts = getattr(settings, 'LOGIN_RATE_LIMIT_ATTEMPTS', 5)
+        attempts = getattr(settings, 'LOGIN_RATE_LIMIT_ATTEMPTS', 3)
         timeout = getattr(settings, 'LOGIN_RATE_LIMIT_LOCKOUT_SECONDS', 300)
         return attempts, timeout
 
@@ -55,10 +57,11 @@ class CustomAuthenticationForm(AuthenticationForm):
     def _record_failure(self, username):
         key = self._rate_limit_key(username)
         if not key:
-            return
+            return 1
         _, timeout = self._get_rate_limit_settings()
-        current_attempts = cache.get(key, 0)
-        cache.set(key, current_attempts + 1, timeout=timeout)
+        current_attempts = cache.get(key, 0) + 1
+        cache.set(key, current_attempts, timeout=timeout)
+        return current_attempts
 
     def _clear_attempts(self, username):
         key = self._rate_limit_key(username)
@@ -76,7 +79,20 @@ class CustomAuthenticationForm(AuthenticationForm):
         if not username or not password:
             return self.cleaned_data
 
+        user_obj = User.objects.filter(username__iexact=username).first()
+
+        # Si el usuario ya está inactivo/bloqueado
+        if user_obj and not user_obj.is_active:
+            raise forms.ValidationError(
+                self.error_messages['inactive'],
+                code='inactive',
+            )
+
+        # Si ya superó los 3 intentos previamente
         if self._is_locked(username):
+            if user_obj and user_obj.is_active:
+                user_obj.is_active = False
+                user_obj.save(update_fields=['is_active'])
             raise forms.ValidationError(
                 self.error_messages['rate_limited'],
                 code='rate_limited',
@@ -84,14 +100,21 @@ class CustomAuthenticationForm(AuthenticationForm):
 
         user = authenticate(self.request, username=username, password=password)
         if user is None:
-            self._record_failure(username)
-            if self._is_locked(username):
+            failed_count = self._record_failure(username)
+            max_attempts, _ = self._get_rate_limit_settings()
+
+            if failed_count >= max_attempts:
+                if user_obj and user_obj.is_active:
+                    user_obj.is_active = False
+                    user_obj.save(update_fields=['is_active'])
                 raise forms.ValidationError(
                     self.error_messages['rate_limited'],
                     code='rate_limited',
                 )
+
+            remaining = max_attempts - failed_count
             raise forms.ValidationError(
-                self.error_messages['invalid_login'],
+                f"Por favor ingresa un usuario y contraseña correctos. (Intento fallido {failed_count} de {max_attempts}. Le quedan {remaining} intento(s)).",
                 code='invalid_login',
             )
 
@@ -154,6 +177,11 @@ class AdminUserCreationForm(forms.Form):
         pwd2 = cleaned_data.get('password2')
         if pwd1 and pwd2 and pwd1 != pwd2:
             raise forms.ValidationError('Las contraseñas no coinciden.')
+
+        if pwd1:
+            validator = PasswordStandardValidator()
+            validator.validate(pwd1)
+
         return cleaned_data
 
     def generate_username(self, full_name):
@@ -166,4 +194,3 @@ class AdminUserCreationForm(forms.Form):
         username = f'{first_initial}{first_surname}'
         username = re.sub(r'[^a-z0-9]', '', username)
         return username
-

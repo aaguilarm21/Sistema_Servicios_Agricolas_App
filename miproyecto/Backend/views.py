@@ -10,7 +10,9 @@ from django.views.decorators.http import require_http_methods
 
 # Vistas principales del sistema agrícola y de administración.
 
+from django.core.exceptions import ValidationError
 from accounts.forms import AdminUserCreationForm
+from accounts.validators import PasswordStandardValidator
 from accounts.models import Empleado, UserProfile, RegistroOperativo, Proveedor, Maquinaria, Auxiliar, Labor, Variedad, Municipio
 
 
@@ -232,7 +234,15 @@ def crear_usuario(request):
     if not codigo or not email or not password or not rol:
         return JsonResponse({'success': False, 'error': 'Faltan datos requeridos.'}, status=400)
 
+    try:
+        validator = PasswordStandardValidator()
+        validator.validate(password)
+    except ValidationError as e:
+        error_msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+        return JsonResponse({'success': False, 'error': error_msg}, status=400)
+
     empleado = Empleado.objects.filter(puesto=codigo).first()
+
     if not empleado:
         return JsonResponse({'success': False, 'error': 'Empleado no encontrado.'}, status=404)
 

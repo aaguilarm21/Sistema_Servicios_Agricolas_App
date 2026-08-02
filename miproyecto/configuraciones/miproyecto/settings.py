@@ -83,6 +83,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'accounts.middleware.JWTMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'miproyecto.middleware.SafeExceptionMiddleware',
@@ -170,6 +171,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
+    {
+        'NAME': 'accounts.validators.PasswordStandardValidator',
+    },
 ]
 
 
@@ -207,7 +211,7 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Límites de intentos de login para evitar fuerza bruta.
-LOGIN_RATE_LIMIT_ATTEMPTS = int(os.getenv('LOGIN_RATE_LIMIT_ATTEMPTS', '5'))
+LOGIN_RATE_LIMIT_ATTEMPTS = int(os.getenv('LOGIN_RATE_LIMIT_ATTEMPTS', '3'))
 LOGIN_RATE_LIMIT_LOCKOUT_SECONDS = int(os.getenv('LOGIN_RATE_LIMIT_LOCKOUT_SECONDS', '300'))
 
 # Configuración de seguridad básica para sesiones y cookies.
