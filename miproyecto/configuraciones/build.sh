@@ -4,9 +4,14 @@
 
 set -o errexit  # Salir si algún comando falla
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cd "$ROOT_DIR"
+
 echo ">>> Instalando dependencias..."
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r "$SCRIPT_DIR/requirements.txt"
 
 echo ">>> Recolectando archivos estáticos..."
 python manage.py collectstatic --noinput
