@@ -1,40 +1,35 @@
 import os
+import sys
 import json
-import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'miproyecto.settings')
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'configuraciones.miproyecto.settings')
+import django
 django.setup()
 
 from accounts.models import Proveedor, Empleado, Maquinaria, Labor, Cuenta, UnidadMedida, Variedad, TipoMaquina, Marca, Municipio, Auxiliar
 
 proveedores = [
-    {'codigo': '10001', 'nit': '2065487120115', 'razon_social': 'Agroservicios Peteneros, S.A.', 'nombre_propietario': 'Juan Carlos Pérez', 'regimen_tributario': 'General', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 30},
-    {'codigo': '10002', 'nit': '3498812100115', 'razon_social': 'Agroindustrias del Sur', 'nombre_propietario': 'María Elena Cifuentes', 'regimen_tributario': 'Pequeño Contribuyente', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 15},
-    {'codigo': '10003', 'nit': '1675024130117', 'razon_social': 'Fertilizantes y Servicios Guatemala', 'nombre_propietario': 'Carlos Eduardo Morales', 'regimen_tributario': 'General', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 60},
-    {'codigo': '10004', 'nit': '3487920150113', 'razon_social': 'Corredores Agrícolas del Norte', 'nombre_propietario': 'Ana Sofía López', 'regimen_tributario': 'Pequeño Contribuyente', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 20},
-    {'codigo': '10005', 'nit': '5893167200114', 'razon_social': 'Corporación Agrícola Alta Verapaz', 'nombre_propietario': 'Roberto Miguel Ortiz', 'regimen_tributario': 'General', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 45},
-    {'codigo': '10006', 'nit': '1186529340116', 'razon_social': 'Distribuidora Campesina', 'nombre_propietario': 'Leticia Marisol Ramírez', 'regimen_tributario': 'Pequeño Contribuyente', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 10},
-    {'codigo': '10007', 'nit': '5264190830112', 'razon_social': 'Agroinsumos Santa Rosa', 'nombre_propietario': 'Miguel Ángel Hernández', 'regimen_tributario': 'General', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 30},
-    {'codigo': '10008', 'nit': '7392841560118', 'razon_social': 'Soluciones Agrícolas del Oriente', 'nombre_propietario': 'Isabel Patricia Cruz', 'regimen_tributario': 'Pequeño Contribuyente', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 25},
-    {'codigo': '10009', 'nit': '2796018450114', 'razon_social': 'Maquinaria Campo Verde', 'nombre_propietario': 'José Manuel Díaz', 'regimen_tributario': 'General', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 40},
-    {'codigo': '10010', 'nit': '4791038250118', 'razon_social': 'Insumos del Altiplano', 'nombre_propietario': 'Gloria Teresa Méndez', 'regimen_tributario': 'Pequeño Contribuyente', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 15},
-    {'codigo': '10011', 'nit': '2045687130111', 'razon_social': 'Servicios Agropecuarios del Pacífico', 'nombre_propietario': 'Fernando Javier Santos', 'regimen_tributario': 'General', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 30},
-    {'codigo': '10012', 'nit': '3201457890119', 'razon_social': 'Distribuciones del Ixim', 'nombre_propietario': 'María Paula Méndez', 'regimen_tributario': 'Pequeño Contribuyente', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 20},
+    {'codigo': '47789', 'nit': '4561-2', 'razon_social': 'AgroSuministros del Valle, S.A.', 'nombre_propietario': '+502 5555-0101', 'regimen_tributario': 'General (Sobre Utilidades)', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 30},
+    {'codigo': '12321', 'nit': '6549-8', 'razon_social': 'TecnoRiego & Servicios', 'nombre_propietario': '+502 5555-0102', 'regimen_tributario': 'General (Opcional Simplificado)', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 15},
+    {'codigo': '89654', 'nit': '9873-1', 'razon_social': 'HidroCampo Proveedores', 'nombre_propietario': '+502 5555-0103', 'regimen_tributario': 'Pequeño Contribuyente', 'tipo_factura': 'Factura Pequeño Contribuyente (FPEQ)', 'dias_credito': 15},
+    {'codigo': '39871', 'nit': '234-5', 'razon_social': 'AgroInsumos Continental', 'nombre_propietario': '+502 5555-0104', 'regimen_tributario': 'General (Sobre Utilidades)', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 30},
+    {'codigo': '65456', 'nit': '7890-3', 'razon_social': 'Central Agrícola de Proveedores', 'nombre_propietario': '+502 5555-0105', 'regimen_tributario': 'General (Opcional Simplificado)', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 30},
 ]
 
 empleados = [
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Luis Fernando López', 'no_cui': '3000101234567', 'puesto': '3090', 'nombre_puesto': 'Operador de Tractor'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Ana María Pacheco', 'no_cui': '3789723456789', 'puesto': '4125', 'nombre_puesto': 'Auxiliar de Campo'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Carlos Alberto Ramírez', 'no_cui': '3620149876543', 'puesto': '4150', 'nombre_puesto': 'Chofer de Maquinaria'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'María Elena García', 'no_cui': '4020158765432', 'puesto': '4210', 'nombre_puesto': 'Supervisor de Campo'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Jorge Andrés Mendoza', 'no_cui': '3020145678901', 'puesto': '3300', 'nombre_puesto': 'Mecánico Agrícola'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Jessica Lorena Castillo', 'no_cui': '2998743210567', 'puesto': '3275', 'nombre_puesto': 'Asistente Administrativo'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Ricardo Estuardo Vásquez', 'no_cui': '3321987654321', 'puesto': '4180', 'nombre_puesto': 'Operador de Cosechadora'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Claudia Patricia Solís', 'no_cui': '3885601234790', 'puesto': '4300', 'nombre_puesto': 'Encargada de Inventarios'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Fernando José Torres', 'no_cui': '3200987123456', 'puesto': '3400', 'nombre_puesto': 'Auxiliar de Taller'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Yasmin Alejandra Ortiz', 'no_cui': '3165478901234', 'puesto': '4500', 'nombre_puesto': 'Coordinadora de Logística'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Édgar Manuel López', 'no_cui': '3147859021345', 'puesto': '4310', 'nombre_puesto': 'Supervisor de Maquinaria'},
-    {'empresa': 'Inversiones Agricolas Febrero, S. A.', 'empleado': 'Sandra Patricia Hernández', 'no_cui': '3765890123456', 'puesto': '4400', 'nombre_puesto': 'Asistente de Compras'},
+    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Luis Fernando López', 'segundo_apellido': 'Méndez', 'no_cui': '3000101234567', 'puesto': '3090', 'nombre_puesto': 'Operador de Tractor'},
+    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Ana María Pacheco', 'segundo_apellido': 'Villatoro', 'no_cui': '3789723456789', 'puesto': '4125', 'nombre_puesto': 'Auxiliar de Campo'},
+    {'empresa': 'HidroCampo Proveedores', 'empleado': 'Carlos Alberto Ramírez', 'segundo_apellido': 'Cifuentes', 'no_cui': '3620149876543', 'puesto': '4150', 'nombre_puesto': 'Chofer de Maquinaria'},
+    {'empresa': 'AgroInsumos Continental', 'empleado': 'María Elena García', 'segundo_apellido': 'Morales', 'no_cui': '4020158765432', 'puesto': '4210', 'nombre_puesto': 'Supervisor de Campo'},
+    {'empresa': 'Central Agrícola de Proveedores', 'empleado': 'Jorge Andrés Mendoza', 'segundo_apellido': 'Chávez', 'no_cui': '3020145678901', 'puesto': '3300', 'nombre_puesto': 'Mecánico Agrícola'},
+    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Jessica Lorena Castillo', 'segundo_apellido': 'Fuentes', 'no_cui': '2998743210567', 'puesto': '3275', 'nombre_puesto': 'Asistente Administrativo'},
+    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Ricardo Estuardo Vásquez', 'segundo_apellido': 'Escobar', 'no_cui': '3321987654321', 'puesto': '4180', 'nombre_puesto': 'Operador de Cosechadora'},
+    {'empresa': 'HidroCampo Proveedores', 'empleado': 'Claudia Patricia Solís', 'segundo_apellido': 'Roldán', 'no_cui': '3885601234790', 'puesto': '4300', 'nombre_puesto': 'Encargada de Inventarios'},
+    {'empresa': 'AgroInsumos Continental', 'empleado': 'Fernando José Torres', 'segundo_apellido': 'Maldonado', 'no_cui': '3200987123456', 'puesto': '3400', 'nombre_puesto': 'Auxiliar de Taller'},
+    {'empresa': 'Central Agrícola de Proveedores', 'empleado': 'Yasmin Alejandra Ortiz', 'segundo_apellido': 'Carrillo', 'no_cui': '3165478901234', 'puesto': '4500', 'nombre_puesto': 'Coordinadora de Logística'},
+    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Édgar Manuel López', 'segundo_apellido': 'Rosales', 'no_cui': '3147859021345', 'puesto': '4310', 'nombre_puesto': 'Supervisor de Maquinaria'},
+    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Sandra Patricia Hernández', 'segundo_apellido': 'Zamora', 'no_cui': '3765890123456', 'puesto': '4400', 'nombre_puesto': 'Asistente de Compras'},
 ]
 
 maquinaria = [
@@ -164,8 +159,11 @@ for aux in auxiliares:
 
 print('Insertando municipios...')
 municipios_file = os.path.join(os.path.dirname(__file__), 'municipios_data.json')
-with open(municipios_file, encoding='utf-8') as f:
-    municipios = json.load(f)
+if not os.path.exists(municipios_file):
+    municipios_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'base_datos', 'municipios_data.json'))
+if os.path.exists(municipios_file):
+    with open(municipios_file, encoding='utf-8') as f:
+        municipios = json.load(f)
 for muni in municipios:
     Municipio.objects.update_or_create(
         codigo=muni['codigo'],

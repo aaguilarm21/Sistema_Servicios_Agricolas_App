@@ -1,6 +1,8 @@
 import os
 import sys
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'miproyecto.settings')
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'configuraciones.miproyecto.settings')
 
 import django
 django.setup()

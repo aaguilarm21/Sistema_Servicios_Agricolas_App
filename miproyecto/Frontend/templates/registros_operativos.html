@@ -258,7 +258,7 @@
                     <div class="form-row full">
                         <div class="form-group">
                             <label for="observaciones">Notas Adicionales</label>
-                            <textarea id="observaciones" name="observaciones" placeholder="Escriba aquí cualquier comentario o nota importante..." required></textarea>
+                            <textarea id="observaciones" name="observaciones" placeholder="Escriba aquí cualquier comentario o nota importante..."></textarea>
                         </div>
                     </div>
                 </div>
@@ -371,7 +371,7 @@
                 const alerts = messagesDiv.querySelectorAll('.alert');
                 alerts.forEach(alert => {
                     const isSuccess = alert.classList.contains('alert-success');
-                    const isFailed = alert.classList.contains('alert-failed');
+                    const isFailed = alert.classList.contains('alert-failed') || alert.classList.contains('alert-error') || alert.classList.contains('alert-warning') || alert.classList.contains('alert-danger');
                     const message = alert.textContent.trim();
                     
                     if (isSuccess) {

@@ -1,4 +1,4 @@
-/* Styles for the login page */
+/* Estilos para la página de inicio de sesión */
 
 :root {
   --bg: #e8f5e8;
@@ -117,7 +117,7 @@ body {
   }
 }
 
-/* Modal styles */
+/* Estilos para el modal */
 .modal {
   display: none;
   position: fixed;

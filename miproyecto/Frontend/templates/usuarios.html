@@ -55,6 +55,7 @@
       <a href="{% url 'modulos' %}" class="btn-volver">Volver a Módulos</a>
     </header>
 
+    {% if is_admin %}
     <section class="form-card">
       <h2>Crear Nuevo Usuario</h2>
       <div class="form-grid grid-3-cols">
@@ -100,6 +101,15 @@
         <button class="btn btn-secondary" id="btnVerUsuariosCreados" type="button">Ver Usuarios Creados</button>
       </div>
     </section>
+    {% else %}
+    <section class="form-card">
+      <h2>Acceso restringido</h2>
+      <p>Solo el usuario admin puede crear, modificar o eliminar usuarios. Puedes ver los usuarios creados desde el módulo correspondiente.</p>
+      <div class="button-row">
+        <button class="btn btn-secondary" id="btnVerUsuariosCreados" type="button">Ver Usuarios Creados</button>
+      </div>
+    </section>
+    {% endif %}
 
     <div id="infoModal" class="modal">
       <div class="modal-content">

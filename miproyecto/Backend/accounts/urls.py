@@ -11,6 +11,7 @@ from .views import (
     api_labores, api_labor_detalle,
     api_cuentas, api_cuenta_detalle,
     api_unidades, api_unidad_detalle,
+    api_nombres_puesto, api_nombre_puesto_detalle,
     api_variedades, api_variedad_detalle,
     api_tipos_maquina, api_tipo_maquina_detalle,
     api_marcas, api_marca_detalle,
@@ -48,6 +49,9 @@ urlpatterns = [
 
     path('api/unidades/', api_unidades, name='api_unidades'),
     path('api/unidades/<int:pk>/', api_unidad_detalle, name='api_unidad_detalle'),
+
+    path('api/nombres-puesto/', api_nombres_puesto, name='api_nombres_puesto'),
+    path('api/nombres-puesto/<int:pk>/', api_nombre_puesto_detalle, name='api_nombre_puesto_detalle'),
 
     path('api/variedades/', api_variedades, name='api_variedades'),
     path('api/variedades/<int:pk>/', api_variedad_detalle, name='api_variedad_detalle'),

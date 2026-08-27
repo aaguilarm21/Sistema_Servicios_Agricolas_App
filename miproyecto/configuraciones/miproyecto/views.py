@@ -3,6 +3,7 @@ from Backend import views as backend_views
 home = backend_views.home
 modulos = backend_views.modulos
 configuracion_catalogos = backend_views.configuracion_catalogos
+datos_registrados = backend_views.datos_registrados
 registros_operativos = backend_views.registros_operativos
 registros_operativos_data = backend_views.registros_operativos_data
 editar_registro_operativo = backend_views.editar_registro_operativo

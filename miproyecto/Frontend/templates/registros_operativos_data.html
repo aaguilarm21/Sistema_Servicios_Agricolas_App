@@ -46,45 +46,6 @@
         .text-right {
             text-align: right !important;
         }
-        .btn-acciones {
-            display: flex;
-            gap: 6px;
-            justify-content: center;
-            white-space: nowrap;
-        }
-        .btn-editar, .btn-eliminar {
-            padding: 5px 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            transition: all 0.2s ease;
-        }
-        .btn-editar {
-            background: #2e7d32;
-            color: white;
-        }
-        .btn-editar:hover {
-            background: #1b5e20;
-            transform: translateY(-1px);
-        }
-        .btn-eliminar {
-            background: #d32f2f;
-            color: white;
-        }
-        .btn-eliminar:hover {
-            background: #b71c1c;
-            transform: translateY(-1px);
-        }
-        .btn-eliminar:active {
-            transform: translateY(0);
-        }
-
         @media (max-width: 768px) {
             .records-table {
                 font-size: 0.75rem;
@@ -92,10 +53,6 @@
             }
             .records-table th, .records-table td {
                 padding: 8px 10px;
-            }
-            .btn-editar, .btn-eliminar {
-                padding: 4px 8px;
-                font-size: 0.7rem;
             }
         }
 
@@ -107,10 +64,6 @@
             .records-table th, .records-table td {
                 padding: 6px 8px;
             }
-            .btn-editar, .btn-eliminar {
-                padding: 3px 6px;
-                font-size: 0.6rem;
-            }
         }
     </style>
 </head>
@@ -119,7 +72,7 @@
         <div class="header">
             <div>
                 <h1>📋 Registros Operativos en Base de Datos</h1>
-                <p>Administración de registros: editar o eliminar</p>
+                <p>{% if is_admin %}Administración de registros: editar o eliminar{% else %}Vista de registros operativos en solo lectura.{% endif %}</p>
             </div>
             <a href="{% url 'modulos' %}" class="btn-volver">Volver a Módulos</a>
         </div>
@@ -134,6 +87,12 @@
             {% endif %}
 
             <div class="form-section" style="margin-bottom: 0; padding: 10px;">
+                {% if is_admin %}
+                <div class="datos-acciones-toolbar registros-acciones-toolbar">
+                    <button id="registro-btn-modificar" class="btn-secondary" type="button" disabled>Modificar</button>
+                    <button id="registro-btn-eliminar" class="btn-secondary" type="button" disabled>Eliminar</button>
+                </div>
+                {% endif %}
                 <div class="table-container">
                     <table class="records-table">
                         <thead>
@@ -151,12 +110,11 @@
                                 <th>Labor</th>
                                 <th class="text-right">Peso Kg</th>
                                 <th class="text-center">Creado</th>
-                                <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for registro in registros %}
-                                <tr>
+                                <tr data-registro-id="{{ registro.id }}">
                                     <td class="text-center" style="font-weight: 600; color: #1b5e20;">{{ registro.no_boleta }}</td>
                                     <td class="text-center">{{ registro.fecha_labor|date:"d/m/Y" }}</td>
                                     <td>{{ registro.tipo_servicio }}</td>
@@ -170,16 +128,10 @@
                                     <td>{{ registro.labor|default:"-" }}</td>
                                     <td class="text-right" style="font-family: monospace;">{{ registro.peso_kg|default:"-" }}</td>
                                     <td class="text-center" style="color: #666; font-size: 0.78rem;">{{ registro.created_at|date:"d/m/Y H:i" }}</td>
-                                    <td class="text-center">
-                                        <div class="btn-acciones">
-                                            <a href="{% url 'editar_registro' registro.id %}" class="btn-editar" title="Editar registro">✏️ Editar</a>
-                                            <a href="{% url 'borrar_registro' registro.id %}" class="btn-eliminar" onclick="return confirm('¿Está seguro de que desea eliminar este registro ({{ registro.no_boleta }})? Esta acción no se puede deshacer.');" title="Eliminar registro">🗑️ Eliminar</a>
-                                        </div>
-                                    </td>
                                 </tr>
                             {% empty %}
                                 <tr>
-                                    <td colspan="14" class="text-center" style="padding: 20px; color: #666;">No hay registros operativos guardados.</td>
+                                    <td colspan="13" class="text-center" style="padding: 20px; color: #666;">No hay registros operativos guardados.</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -193,12 +145,32 @@
     <script src="{% static 'js/notificaciones.js' %}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            let registroSeleccionado = null;
+            const btnModificar = document.getElementById('registro-btn-modificar');
+            const btnEliminar = document.getElementById('registro-btn-eliminar');
+            document.querySelectorAll('.records-table tbody tr[data-registro-id]').forEach(fila => {
+                fila.addEventListener('click', function() {
+                    document.querySelectorAll('.records-table tbody tr').forEach(registro => registro.classList.remove('registro-seleccionado'));
+                    this.classList.add('registro-seleccionado');
+                    registroSeleccionado = this.dataset.registroId;
+                    if (btnModificar) btnModificar.disabled = false;
+                    if (btnEliminar) btnEliminar.disabled = false;
+                });
+            });
+            if (btnModificar) btnModificar.addEventListener('click', () => {
+                if (!registroSeleccionado) return alert('Selecciona un dato antes de modificarlo.');
+                window.location.href = `/registros/${registroSeleccionado}/editar/`;
+            });
+            if (btnEliminar) btnEliminar.addEventListener('click', () => {
+                if (!registroSeleccionado) return alert('Selecciona un dato antes de eliminarlo.');
+                if (confirm('¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.')) window.location.href = `/registros/${registroSeleccionado}/borrar/`;
+            });
             const messagesDiv = document.querySelector('.messages');
             if (messagesDiv) {
                 const alerts = messagesDiv.querySelectorAll('.alert');
                 alerts.forEach(alert => {
                     const isSuccess = alert.classList.contains('alert-success');
-                    const isFailed = alert.classList.contains('alert-failed');
+                    const isFailed = alert.classList.contains('alert-failed') || alert.classList.contains('alert-error') || alert.classList.contains('alert-warning') || alert.classList.contains('alert-danger');
                     const message = alert.textContent.trim();
                     
                     if (isSuccess) {

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Datos Registrados</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=10" />
+  <style>
+    .datos-toolbar {
+      display: flex;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .datos-toolbar label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: #1b5e20;
+      font-weight: 600;
+    }
+
+    .datos-toolbar select {
+      min-width: 260px;
+      padding: 10px;
+      border: 1px solid #a5d6a7;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 1rem;
+    }
+
+    .datos-vacio {
+      padding: 20px;
+      color: #55705a;
+    }
+
+    @media (max-width: 600px) {
+      .datos-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .datos-toolbar select {
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main-wrapper">
+    <header>
+      <div>
+        <h1>Datos Registrados</h1>
+        <p>Consulta la información guardada en configuraciones y catálogos.</p>
+      </div>
+      <a href="{% url 'configuracion' %}" class="btn-volver">Volver a Configuración y Catálogos</a>
+    </header>
+
+    <section class="card">
+      <div class="datos-toolbar">
+        <label for="datos-seleccion">Selecciona una tabla
+          <select id="datos-seleccion"></select>
+        </label>
+        {% if is_admin %}
+          <div class="datos-acciones-toolbar">
+            <button id="datos-btn-modificar" class="btn-secondary" type="button" disabled>Modificar</button>
+            <button id="datos-btn-eliminar" class="btn-secondary" type="button" disabled>Eliminar</button>
+          </div>
+        {% endif %}
+      </div>
+      <div class="datos-tabla">
+        <table>
+          <thead id="datos-thead"></thead>
+          <tbody id="datos-tbody"></tbody>
+        </table>
+        <div id="datos-vacio" class="datos-vacio" hidden>No hay datos registrados.</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="{% static 'js/common.js' %}"></script>
+  <script>
+    const isAdmin = {% if is_admin %}true{% else %}false{% endif %};
+    const tablas = {
+      proveedores: { titulo: 'Proveedores', api: '/accounts/api/proveedores/', columnas: [['codigo', 'Código'], ['razon_social', 'Razón Social'], ['nit', 'NIT'], ['nombre_propietario', 'Nombre Propietario'], ['regimen_tributario', 'Régimen Tributario'], ['tipo_factura', 'Tipo Factura'], ['dias_credito', 'Días Crédito']] },
+      maquinaria: { titulo: 'Maquinaria', api: '/accounts/api/maquinaria/', columnas: [['id', 'ID'], ['codigo_maquina', 'Código Máquina'], ['combustible', 'Combustible'], ['id_proveedor', 'ID Proveedor'], ['tipo_maquina', 'Tipo Máquina'], ['marca_maquina', 'Marca Máquina'], ['serie_maquina', 'Serie'], ['placa_matricula', 'Placa/Matrícula'], ['observaciones', 'Observaciones']] },
+      bodegas: { titulo: 'Bodegas', api: '/accounts/api/bodegas/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['nombre_bodega', 'Nombre Bodega'], ['unidad_medida', 'Unidad de Medida'], ['capacidad', 'Capacidad'], ['observaciones', 'Observaciones']] },
+      articulos: { titulo: 'Artículos', api: '/accounts/api/articulos/', columnas: [['id', 'ID'], ['codigo_articulo', 'Código Artículo'], ['descripcion', 'Descripción'], ['unidad_medida', 'Unidad de Medida'], ['categoria', 'Categoría'], ['stock', 'Stock']] },
+      empleados: { titulo: 'Empleados', api: '/accounts/api/empleados/', columnas: [['id', 'ID'], ['empresa', 'Empresa'], ['puesto', 'Código'], ['empleado', 'Nombres y Apellidos'], ['no_cui', 'No. CUI'], ['nombre_puesto', 'Nombre Puesto']] },
+      labores: { titulo: 'Labores', api: '/accounts/api/labores/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción']] },
+      cuentas: { titulo: 'Cuentas', api: '/accounts/api/cuentas/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción'], ['tipo', 'Tipo']] },
+      unidades: { titulo: 'Unidades de Medida', api: '/accounts/api/unidades/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción']] },
+      nombres_puesto: { titulo: 'Nombres de Puesto', api: '/accounts/api/nombres-puesto/', columnas: [['id', 'ID'], ['nombre', 'Nombre Puesto']] },
+      variedades: { titulo: 'Variedades', api: '/accounts/api/variedades/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción']] },
+      tipos_maquina: { titulo: 'Tipos de Máquina', api: '/accounts/api/tipos-maquina/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción']] },
+      marcas: { titulo: 'Marcas', api: '/accounts/api/marcas/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción']] },
+      municipios: { titulo: 'Municipios', api: '/accounts/api/municipios/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['nombre', 'Nombre'], ['departamento', 'Departamento']] },
+      auxiliares: { titulo: 'Auxiliares', api: '/accounts/api/auxiliares/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['nombre', 'Nombre']] }
+    };
+
+    const seleccion = document.getElementById('datos-seleccion');
+    const thead = document.getElementById('datos-thead');
+    const tbody = document.getElementById('datos-tbody');
+    const vacio = document.getElementById('datos-vacio');
+    const btnModificar = document.getElementById('datos-btn-modificar');
+    const btnEliminar = document.getElementById('datos-btn-eliminar');
+    let datoSeleccionado = null;
+
+    Object.entries(tablas).forEach(([clave, tabla]) => {
+      const opcion = document.createElement('option');
+      opcion.value = clave;
+      opcion.textContent = tabla.titulo;
+      seleccion.appendChild(opcion);
+    });
+
+    seleccion.value = 'empleados';
+
+    function mostrarTabla(clave) {
+      const tabla = tablas[clave];
+      thead.innerHTML = `<tr>${tabla.columnas.map(([, etiqueta]) => `<th>${etiqueta}</th>`).join('')}</tr>`;
+      tbody.innerHTML = '';
+      vacio.hidden = true;
+      datoSeleccionado = null;
+      actualizarAcciones();
+
+      fetch(tabla.api)
+        .then(respuesta => {
+          if (!respuesta.ok) throw new Error(`Error HTTP ${respuesta.status}`);
+          return respuesta.json();
+        })
+        .then(datos => {
+          vacio.hidden = datos.length > 0;
+          datos.forEach(dato => {
+            const fila = document.createElement('tr');
+            fila.innerHTML = tabla.columnas.map(([campo]) => {
+              const valor = clave === 'empleados' && campo === 'empleado'
+                ? [dato.empleado, dato.segundo_apellido].filter(Boolean).join(' ')
+                : dato[campo];
+              return `<td>${valor ?? ''}</td>`;
+            }).join('');
+            fila.addEventListener('click', () => {
+              document.querySelectorAll('#datos-tbody tr').forEach(registro => registro.classList.remove('registro-seleccionado'));
+              fila.classList.add('registro-seleccionado');
+              datoSeleccionado = dato;
+              actualizarAcciones();
+            });
+            tbody.appendChild(fila);
+          });
+        })
+        .catch(error => {
+          tbody.innerHTML = `<tr><td colspan="${tabla.columnas.length}">No se pudieron cargar los datos: ${error.message}</td></tr>`;
+        });
+    }
+
+    function actualizarAcciones() {
+      if (btnModificar) btnModificar.disabled = !datoSeleccionado;
+      if (btnEliminar) btnEliminar.disabled = !datoSeleccionado;
+    }
+
+    function construirDatosEdicion(clave, dato) {
+      const valores = {};
+      tablas[clave].columnas.forEach(([campo]) => {
+        if (campo !== 'id') valores[campo] = prompt(`Modificar ${campo.replaceAll('_', ' ')}`, dato[campo] ?? '');
+      });
+      if (Object.values(valores).some(valor => valor === null)) return null;
+      if (clave === 'empleados') {
+        valores.segundo_apellido = dato.segundo_apellido;
+      }
+      if (clave === 'proveedores') {
+        return {
+          codigo: valores.codigo,
+          nit: valores.nit,
+          razonSocial: valores.razon_social,
+          nombrePropietario: valores.nombre_propietario,
+          regimenTributario: valores.regimen_tributario,
+          tipoFactura: valores.tipo_factura,
+          diasCredito: valores.dias_credito
+        };
+      }
+      return valores;
+    }
+
+    function modificarRegistro(clave, dato) {
+      window.location.href = `{% url 'configuracion' %}?modificar=${clave}&id=${dato.id}`;
+    }
+
+    function eliminarRegistro(clave, id) {
+      if (!confirm('¿Deseas eliminar este registro?')) return;
+      fetch(`${tablas[clave].api}${id}/`, {
+        method: 'DELETE',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+      })
+        .then(respuesta => respuesta.ok ? respuesta.json() : respuesta.json().then(error => Promise.reject(error)))
+        .then(() => mostrarTabla(clave))
+        .catch(error => alert(error.error || 'No se pudo eliminar el registro.'));
+    }
+
+    if (btnModificar) btnModificar.addEventListener('click', () => {
+      if (!datoSeleccionado) return alert('Selecciona un dato antes de modificarlo.');
+      modificarRegistro(seleccion.value, datoSeleccionado);
+    });
+
+    if (btnEliminar) btnEliminar.addEventListener('click', () => {
+      if (!datoSeleccionado) return alert('Selecciona un dato antes de eliminarlo.');
+      eliminarRegistro(seleccion.value, datoSeleccionado.id);
+    });
+
+    seleccion.addEventListener('change', () => mostrarTabla(seleccion.value));
+    mostrarTabla(seleccion.value);
+  </script>
+</body>
+
+</html>

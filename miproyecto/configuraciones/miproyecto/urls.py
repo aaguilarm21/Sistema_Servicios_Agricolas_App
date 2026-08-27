@@ -30,6 +30,7 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('modulos/', views.modulos, name='modulos'),
     path('configuracion/', views.configuracion_catalogos, name='configuracion'),
+    path('datos-registrados/', views.datos_registrados, name='datos_registrados'),
     path('registros/', views.registros_operativos, name='registros'),
     path('registros-data/', views.registros_operativos_data, name='registros_data'),
     path('registros/<int:registro_id>/editar/', views.editar_registro_operativo, name='editar_registro'),

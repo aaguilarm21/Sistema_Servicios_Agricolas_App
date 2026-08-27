@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MaxLengthValidator, RegexValidator
 
 
 class UserProfile(models.Model):
@@ -40,7 +41,15 @@ class Proveedor(models.Model):
 class Empleado(models.Model):
     empresa = models.CharField(max_length=200, verbose_name='Empresa')
     empleado = models.CharField(max_length=150, verbose_name='Empleado')
-    no_cui = models.CharField(max_length=20, verbose_name='No. CUI')
+    segundo_apellido = models.CharField(max_length=100, verbose_name='Segundo Apellido')
+    no_cui = models.CharField(
+        max_length=13,
+        verbose_name='No. CUI',
+        validators=[
+            MaxLengthValidator(13),
+            RegexValidator(r'^\d{1,13}$', 'El No. CUI debe contener únicamente dígitos y no superar 13 caracteres.'),
+        ],
+    )
     puesto = models.CharField(max_length=100, verbose_name='Puesto')
     nombre_puesto = models.CharField(max_length=150, verbose_name='Nombre Puesto')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -156,6 +165,18 @@ class UnidadMedida(models.Model):
 
     def __str__(self):
         return f"{self.codigo} - {self.descripcion}"
+
+
+class NombrePuesto(models.Model):
+    nombre = models.CharField(max_length=150, unique=True, verbose_name='Nombre Puesto')
+
+    class Meta:
+        verbose_name = 'Nombre de Puesto'
+        verbose_name_plural = 'Nombres de Puesto'
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
 
 
 class Variedad(models.Model):

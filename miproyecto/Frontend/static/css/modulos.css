@@ -653,13 +653,19 @@ header p {
 }
 
 .tab-button {
+  display: inline-block;
+  box-sizing: border-box;
   border: 1px solid #a5d6a7;
   background: #f1f8e9;
   color: #2e7d32;
   padding: 8px 14px;
   border-radius: 8px;
   font-weight: 600;
+  font: inherit;
+  text-align: center;
+  line-height: normal;
   cursor: pointer;
+  text-decoration: none;
   transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
@@ -668,6 +674,29 @@ header p {
   color: #fff;
   transform: translateY(-1px);
   border-color: #1b5e20;
+}
+
+.tabs .datos-registrados-button,
+.tabs .datos-registrados-button:visited {
+  color: #2e7d32;
+  background: #f1f8e9;
+  border-color: #a5d6a7;
+  text-decoration: none;
+}
+
+.tabs .datos-registrados-button:hover {
+  color: #2e7d32;
+  background: #e8f5e9;
+  border-color: #81c784;
+  text-decoration: none;
+}
+
+.tabs .datos-registrados-button:active,
+.tabs .datos-registrados-button:focus-visible {
+  color: #fff;
+  background: #2e7d32;
+  border-color: #1b5e20;
+  text-decoration: none;
 }
 
 .tab-content {
@@ -940,8 +969,13 @@ textarea {
   overflow-x: auto;
 }
 
+.catalogos-panel .data-grid {
+  overflow-x: hidden;
+}
+
 .data-grid table {
   width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
   background: #fff;
   border: 1px solid #a5d6a7;
@@ -954,10 +988,115 @@ textarea {
   padding: 8px 12px;
   text-align: left;
   border-bottom: 1px solid #E8EAF6;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.datos-tabla {
+  overflow-x: hidden;
+}
+
+.datos-tabla table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.datos-tabla th,
+.datos-tabla td {
+  padding: 10px 14px;
+  border: 1px solid #a5d6a7;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  vertical-align: top;
+}
+
+.datos-tabla th {
+  background: #c8e6c9;
+  color: #1b5e20;
+}
+
+.datos-tabla th:first-child,
+.datos-tabla td:first-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.datos-acciones-toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.datos-acciones-toolbar button {
+  white-space: nowrap;
+}
+
+.datos-tabla tbody tr {
+  cursor: pointer;
+}
+
+.datos-tabla tbody tr.registro-seleccionado {
+  background: #a5d6a7;
+  color: #1b5e20;
+}
+
+.registros-acciones-toolbar {
+  margin-bottom: 12px;
+}
+
+.usuarios-acciones-toolbar {
+  margin-bottom: 16px;
+}
+
+.usuarios-acciones-toolbar select {
+  padding: 8px 10px;
+  border: 1px solid #a5d6a7;
+  border-radius: 6px;
+  background: #fff;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.records-table tbody tr[data-registro-id],
+.data-grid tbody tr[data-user-id] {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.data-grid tbody tr[data-user-id]:hover {
+  background: #e8f5e9;
+}
+
+.data-grid tbody tr[data-user-id][aria-selected="true"] {
+  background: #a5d6a7 !important;
+  color: #1b5e20;
+  outline: 2px solid #2e7d32;
+  outline-offset: -2px;
+}
+
+.records-table tbody tr.registro-seleccionado,
+.data-grid tbody tr.registro-seleccionado {
+  background: #a5d6a7;
+  color: #1b5e20;
+}
+
+.cat-form #cfg-btn-modificar,
+.cat-form #cfg-btn-eliminar,
+.cat-form #cat-btn-modificar,
+.cat-form #cat-btn-eliminar {
+  display: none;
 }
 
 .data-grid th {
   background: #C8E6C9;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  vertical-align: top;
   color: #1b5e20;
   font-weight: 700;
 }
@@ -1156,6 +1295,7 @@ textarea {
 .data-grid table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .data-grid th,
@@ -1163,7 +1303,10 @@ textarea {
   border: 1px solid #d2d9e8;
   padding: 7px 10px;
   text-align: left;
-  font-size: 0.94rem;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  vertical-align: top;
+  overflow-wrap: break-word;
 }
 
 .data-grid thead {
@@ -1260,9 +1403,6 @@ textarea {
   align-items: center;
   gap: 8px;
   padding: 9px 14px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #2e7d32;
   cursor: pointer;
   border-left: 3px solid transparent;
   transition: background 0.18s, border-color 0.18s, color 0.18s;

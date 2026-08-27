@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import Group, User
+from .models import Empleado
 from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
 import re
@@ -173,6 +174,18 @@ class AdminUserCreationForm(forms.Form):
 
         cleaned_data['username'] = self.generate_username(full_name)
 
+        username = cleaned_data.get('username')
+        if username:
+            username_base = username
+            contador = 1
+            while User.objects.filter(username__iexact=username).exists():
+                contador += 1
+                username = f'{username_base}{contador}'
+            cleaned_data['username'] = username
+        # Validación: evitar que el username coincida con el código de un Empleado (puesto)
+        if username and Empleado.objects.filter(puesto__iexact=username).exists():
+            raise forms.ValidationError('Ya existe un empleado con ese código. No se puede crear usuario con el mismo código de empleado.')
+
         pwd1 = cleaned_data.get('password1')
         pwd2 = cleaned_data.get('password2')
         if pwd1 and pwd2 and pwd1 != pwd2:
@@ -184,13 +197,14 @@ class AdminUserCreationForm(forms.Form):
 
         return cleaned_data
 
-    def generate_username(self, full_name):
+    def generate_username(self, full_name, first_surname=None):
         name = unicodedata.normalize('NFKD', full_name).encode('ascii', 'ignore').decode('ascii')
         parts = [part for part in name.lower().split() if part]
         if not parts:
             return ''
         first_initial = parts[0][0]
-        first_surname = parts[1] if len(parts) > 1 else parts[0]
+        first_surname = first_surname or (parts[-1] if len(parts) > 1 else parts[0])
+        first_surname = unicodedata.normalize('NFKD', first_surname).encode('ascii', 'ignore').decode('ascii').lower()
         username = f'{first_initial}{first_surname}'
         username = re.sub(r'[^a-z0-9]', '', username)
         return username

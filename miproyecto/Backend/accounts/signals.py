@@ -7,7 +7,7 @@ from django.dispatch import receiver
 
 @receiver(post_migrate)
 def ensure_default_groups(sender, **kwargs):
-    """Create default groups and a default admin user after migrations run."""
+    """Crea los grupos por defecto y el usuario administrador por defecto tras ejecutar las migraciones."""
     if sender.name != apps.get_app_config('accounts').name:
         return
 

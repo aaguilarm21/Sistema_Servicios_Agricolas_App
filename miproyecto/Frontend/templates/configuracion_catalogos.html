@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Configuración y Catálogos</title>
   {% load static %}
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=4" />
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=10" />
 </head>
 
 <body>
@@ -14,14 +14,15 @@
     <header>
       <div>
         <h1>Configuración y Catálogos</h1>
-        <p>Elige Un Submódulo Y Gestiona Tus Datos.</p>
+        <p>Elige un submódulo y gestiona tus datos.</p>
       </div>
-      <a href="{% url 'modulos' %}" class="btn-volver">Volver A Módulos</a>
+      <a href="{% url 'modulos' %}" class="btn-volver">Volver a Módulos</a>
     </header>
 
     <div class="tabs">
       <button class="tab-button active" data-tab="configuraciones">⚙️ Configuraciones</button>
       <button class="tab-button" data-tab="catalogos">📋 Catálogos</button>
+      <a href="{% url 'datos_registrados' %}" class="tab-button datos-registrados-button">📄 Datos Registrados</a>
     </div>
 
     <!-- ========== PESTAÑA CONFIGURACIONES ========== -->
@@ -69,17 +70,6 @@
             </div>
           </div>
 
-          <!-- Tabla de datos -->
-          <div class="data-grid">
-            <table id="cfg-tabla">
-              <thead id="cfg-thead">
-                <tr>
-                  <th>ID</th>
-                </tr>
-              </thead>
-              <tbody id="cfg-tbody"></tbody>
-            </table>
-          </div>
         </div>
       </div>
     </section>
@@ -100,6 +90,9 @@
             </li>
             <li class="catalogo-item" data-catalogo="unidades">
               <span class="cat-icon">📐</span> U/Medida
+            </li>
+            <li class="catalogo-item" data-catalogo="nombres-puesto">
+              <span class="cat-icon">💼</span> Nombres de Puesto
             </li>
             <li class="catalogo-item" data-catalogo="variedades">
               <span class="cat-icon">🌿</span> Variedades
@@ -141,18 +134,6 @@
             </div>
           </div>
 
-          <!-- Tabla de datos -->
-          <div class="data-grid">
-            <table id="cat-tabla">
-              <thead id="cat-thead">
-                <tr>
-                  <th>Código</th>
-                  <th>Descripción</th>
-                </tr>
-              </thead>
-              <tbody id="cat-tbody"></tbody>
-            </table>
-          </div>
         </div>
 
       </div>
@@ -163,8 +144,7 @@
 
   <script src="{% static 'js/common.js' %}"></script>
   <script>
-    // ==================== FUNCIONES GLOBALES ====================
-
+    const isAdmin = {% if is_admin %}true{% else %} false{% endif %};
     // ==================== FUNCIONALIDAD DE PESTAÑAS ====================
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -287,21 +267,24 @@
           { id: 'codigo_articulo', label: 'Código Artículo', tipo: 'text', requerido: true },
           { id: 'descripcion', label: 'Descripción', tipo: 'text', requerido: true },
           { id: 'unidad_medida', label: 'Unidad De Medida', tipo: 'select_api', apiUrl: '/accounts/api/unidades/', campoValor: 'descripcion', requerido: false },
-          { id: 'categoria', label: 'Categoría', tipo: 'select', opciones: ['Seleccionar', 'Fertilizante', 'Herbicida', 'Insecticida', 'Fungicida', 'Semilla', 'Herramienta', 'Repuesto', 'Combustible', 'Otro'], requerido: false }
+          { id: 'categoria', label: 'Categoría', tipo: 'select', opciones: ['Seleccionar', 'Fertilizante', 'Herbicida', 'Insecticida', 'Fungicida', 'Semilla', 'Herramienta', 'Repuesto', 'Combustible', 'Otro'], requerido: false },
+          { id: 'stock', label: 'Stock / Existencia', tipo: 'text', requerido: false }
         ],
-        cols: ['Código', 'Descripción', 'Unidad De Medida', 'Categoría'],
-        getRow: r => [r.codigo_articulo, r.descripcion, r.unidad_medida || 'Ninguno', r.categoria || 'Ninguno'],
+        cols: ['Código', 'Descripción', 'Unidad De Medida', 'Categoría', 'Stock'],
+        getRow: r => [r.codigo_articulo, r.descripcion, r.unidad_medida || 'Ninguno', r.categoria || 'Ninguno', r.stock ?? '0'],
         setData: (form) => ({
           codigo_articulo: form.codigo_articulo.value,
           descripcion: form.descripcion.value,
           unidad_medida: form.unidad_medida.value,
-          categoria: form.categoria.value
+          categoria: form.categoria.value,
+          stock: form.stock ? form.stock.value : 0
         }),
         setRow: (r, form) => {
           form.codigo_articulo.value = r.codigo_articulo;
           form.descripcion.value = r.descripcion;
           form.unidad_medida.value = r.unidad_medida || '';
           form.categoria.value = r.categoria || 'Seleccionar';
+          if (form.stock) form.stock.value = r.stock ?? 0;
         }
       },
       'empleados': {
@@ -309,18 +292,20 @@
         icono: '👷',
         api: '/accounts/api/empleados/',
         campos: [
-          { id: 'empresa', label: 'Empresa', tipo: 'text', requerido: true },
+          { id: 'empresa', label: 'Empresa', tipo: 'select_api', apiUrl: '/accounts/api/proveedores/', campoValor: 'razon_social', requerido: true },
           { id: 'puesto', label: 'Código', tipo: 'text', requerido: true },
-          { id: 'empleado', label: 'Empleado', tipo: 'text', requerido: true },
-          { id: 'no_cui', label: 'No. CUI', tipo: 'text', requerido: true },
-          { id: 'nombre_puesto', label: 'Nombre Puesto', tipo: 'text', requerido: false }
+          { id: 'empleado', label: 'Nombres', tipo: 'text', requerido: true },
+          { id: 'segundo_apellido', label: 'Apellidos', tipo: 'text', requerido: true },
+          { id: 'no_cui', label: 'No. CUI', tipo: 'text', requerido: true, maxLength: 13, pattern: '\\d{1,13}', inputMode: 'numeric' },
+          { id: 'nombre_puesto', label: 'Nombre Puesto', tipo: 'select_api', apiUrl: '/accounts/api/nombres-puesto/', campoValor: 'nombre', requerido: true }
         ],
-        cols: ['No.', 'Empresa', 'Código', 'Empleado', 'No. CUI', 'Nombre Puesto'],
-        getRow: (r, idx) => [idx + 1, r.empresa, r.puesto, r.empleado, r.no_cui, r.nombre_puesto || 'Ninguno'],
+        cols: ['No.', 'Empresa', 'Código', 'Nombres y Apellidos', 'No. CUI', 'Nombre Puesto'],
+        getRow: (r, idx) => [idx + 1, r.empresa, r.puesto, [r.empleado, r.segundo_apellido].filter(Boolean).join(' '), r.no_cui, r.nombre_puesto || 'Ninguno'],
         setData: (form) => ({
           empresa: form.empresa.value,
           puesto: form.puesto.value,
           empleado: form.empleado.value,
+          segundo_apellido: form.segundo_apellido.value,
           no_cui: form.no_cui.value,
           nombre_puesto: form.nombre_puesto.value
         }),
@@ -328,6 +313,7 @@
           form.empresa.value = r.empresa;
           form.puesto.value = r.puesto;
           form.empleado.value = r.empleado;
+          form.segundo_apellido.value = r.segundo_apellido || '';
           form.no_cui.value = r.no_cui;
           form.nombre_puesto.value = r.nombre_puesto || '';
         }
@@ -340,6 +326,21 @@
     let cfgEditando = null;
     let cfgFormElements = {};
 
+    function textoConInicialesMayusculas(valor) {
+      if (typeof valor !== 'string' || !valor.trim() || /^\d+$/.test(valor.trim())) return valor;
+      return valor.trim().split(/\s+/).map(palabra => {
+        if (palabra === palabra.toUpperCase() && palabra.length <= 4) return palabra;
+        return palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase();
+      }).join(' ');
+    }
+
+    function normalizarRegistro(datos) {
+      return Object.fromEntries(Object.entries(datos).map(([campo, valor]) => [
+        campo,
+        textoConInicialesMayusculas(valor)
+      ]));
+    }
+
     function crearFormularioDinamico(config) {
       const grid = document.getElementById('cfg-form-grid');
       grid.innerHTML = '';
@@ -350,6 +351,7 @@
           const label = document.createElement('label');
           const select = document.createElement('select');
           select.id = 'cfg-' + campo.id;
+          select.required = campo.requerido;
           // Opción por defecto
           const defaultOpt = document.createElement('option');
           defaultOpt.value = '';
@@ -375,6 +377,7 @@
           const label = document.createElement('label');
           const select = document.createElement('select');
           select.id = 'cfg-' + campo.id;
+          select.required = campo.requerido;
           campo.opciones.forEach(opt => {
             const option = document.createElement('option');
             option.value = opt;
@@ -389,6 +392,7 @@
           const label = document.createElement('label');
           const textarea = document.createElement('textarea');
           textarea.id = 'cfg-' + campo.id;
+          textarea.required = campo.requerido;
           textarea.rows = 2;
           label.textContent = campo.label;
           label.appendChild(textarea);
@@ -399,6 +403,10 @@
           const input = document.createElement('input');
           input.type = campo.tipo;
           input.id = 'cfg-' + campo.id;
+          input.required = campo.requerido;
+          if (campo.maxLength) input.maxLength = campo.maxLength;
+          if (campo.pattern) input.pattern = campo.pattern;
+          if (campo.inputMode) input.inputMode = campo.inputMode;
           input.autocomplete = 'off';
           label.textContent = campo.label;
           label.appendChild(input);
@@ -417,7 +425,7 @@
       document.getElementById('cfg-badge').textContent = cfg.icono;
 
       const thead = document.getElementById('cfg-thead');
-      thead.innerHTML = '<tr>' + cfg.cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+      if (thead) thead.innerHTML = '<tr>' + cfg.cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
 
       crearFormularioDinamico(cfg);
       cfgLimpiar();
@@ -425,6 +433,7 @@
     }
 
     function cfgCargarTabla() {
+      if (!document.getElementById('cfg-tbody')) return;
       const cfg = configuracionesConfig[cfgActual];
       fetch(cfg.api)
         .then(r => {
@@ -464,8 +473,10 @@
       if (!item) return;
       cfg.setRow(item, cfgFormElements);
       cfgEditando = id;
-      document.getElementById('cfg-btn-modificar').disabled = false;
-      document.getElementById('cfg-btn-eliminar').disabled = false;
+      if (isAdmin) {
+        document.getElementById('cfg-btn-modificar').disabled = false;
+        document.getElementById('cfg-btn-eliminar').disabled = false;
+      }
     }
 
     function generarValorAutoincremental() {
@@ -488,7 +499,7 @@
           cfgFormElements.puesto.value = generarValorAutoincremental();
         }
       }
-      const datos = cfg.setData(cfgFormElements);
+      const datos = normalizarRegistro(cfg.setData(cfgFormElements));
       const requeridos = cfg.campos.filter(c => c.requerido).map(c => c.id);
       const faltantes = requeridos.filter(r => !datos[r] || !datos[r].toString().trim());
 
@@ -530,7 +541,7 @@
     document.getElementById('cfg-btn-modificar').addEventListener('click', () => {
       if (!cfgEditando) return alert('Selecciona un registro');
       const cfg = configuracionesConfig[cfgActual];
-      const datos = cfg.setData(cfgFormElements);
+      const datos = normalizarRegistro(cfg.setData(cfgFormElements));
       const requeridos = cfg.campos.filter(c => c.requerido).map(c => c.id);
       const faltantes = requeridos.filter(r => !datos[r] || !datos[r].toString().trim());
 
@@ -595,6 +606,15 @@
 
     document.getElementById('cfg-btn-limpiar').addEventListener('click', cfgLimpiar);
 
+    if (!isAdmin) {
+      document.getElementById('cfg-btn-guardar').style.display = 'none';
+      document.getElementById('cfg-btn-modificar').style.display = 'none';
+      document.getElementById('cfg-btn-eliminar').style.display = 'none';
+      document.getElementById('cat-btn-guardar').style.display = 'none';
+      document.getElementById('cat-btn-modificar').style.display = 'none';
+      document.getElementById('cat-btn-eliminar').style.display = 'none';
+    }
+
     // Click en items del sidebar de configuraciones
     document.querySelectorAll('[data-config]').forEach(li => {
       li.addEventListener('click', () => {
@@ -609,6 +629,7 @@
       'labores': { titulo: 'Labores', icono: '🌾', api: '/accounts/api/labores/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
       'cuentas': { titulo: 'Cuentas', icono: '💰', api: '/accounts/api/cuentas/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
       'unidades': { titulo: 'U/Medida', icono: '📐', api: '/accounts/api/unidades/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
+      'nombres-puesto': { titulo: 'Nombres de Puesto', icono: '💼', api: '/accounts/api/nombres-puesto/', campo2: 'Nombre Puesto', campo3: null, cols: ['ID', 'Nombre Puesto'], autoId: true, getRow: r => [r.id, r.nombre], getData: () => ({ nombre: catCampo2() }), setRow: (r) => { catSetCodigo(r.id); catSetCampo2(r.nombre); } },
       'variedades': { titulo: 'Variedades', icono: '🌿', api: '/accounts/api/variedades/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
       'tipos-maquina': { titulo: 'Tipo De Máquina', icono: '🚜', api: '/accounts/api/tipos-maquina/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
       'marcas': { titulo: 'Marcas', icono: '🏷️', api: '/accounts/api/marcas/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
@@ -643,6 +664,9 @@
       document.getElementById('cat-badge').textContent = cfg.icono;
 
       document.getElementById('cat-label-campo2').firstChild.textContent = cfg.campo2;
+      const codigoInput = document.getElementById('cat-codigo');
+      codigoInput.disabled = Boolean(cfg.autoId);
+      document.querySelector('#cat-form-grid > label:first-child').firstChild.textContent = cfg.autoId ? 'ID' : 'Código';
 
       const label3 = document.getElementById('cat-label-campo3');
       if (cfg.campo3) {
@@ -653,13 +677,14 @@
       }
 
       const thead = document.getElementById('cat-thead');
-      thead.innerHTML = '<tr>' + cfg.cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
+      if (thead) thead.innerHTML = '<tr>' + cfg.cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
 
       catLimpiar();
       catCargarTabla();
     }
 
     function catCargarTabla() {
+      if (!document.getElementById('cat-tbody')) return;
       const cfg = catalogoConfig[catActual];
       fetch(cfg.api)
         .then(r => {
@@ -698,8 +723,8 @@
 
     document.getElementById('cat-btn-guardar').addEventListener('click', () => {
       const cfg = catalogoConfig[catActual];
-      const datos = cfg.getData();
-      if (!datos.codigo) return alert('El código es requerido');
+      const datos = normalizarRegistro(cfg.getData());
+      if (!datos.codigo && !datos.nombre) return alert(cfg.autoId ? 'El nombre de puesto es requerido' : 'El código es requerido');
       const url = catEditando ? `${cfg.api}${catEditando}/` : cfg.api;
       const method = catEditando ? 'PUT' : 'POST';
       fetch(url, {
@@ -732,8 +757,8 @@
     document.getElementById('cat-btn-modificar').addEventListener('click', () => {
       if (!catEditando) return alert('Selecciona un registro');
       const cfg = catalogoConfig[catActual];
-      const datos = cfg.getData();
-      if (!datos.codigo) return alert('El código es requerido');
+      const datos = normalizarRegistro(cfg.getData());
+      if (!datos.codigo && !datos.nombre) return alert(cfg.autoId ? 'El nombre de puesto es requerido' : 'El código es requerido');
       fetch(`${cfg.api}${catEditando}/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
@@ -802,8 +827,51 @@
     });
 
     // ==================== INICIALIZACIÓN ====================
-    cfgCargar('proveedores');
-    catCargar('labores');
+    const parametros = new URLSearchParams(window.location.search);
+    const modificarClave = parametros.get('modificar');
+    const modificarId = parametros.get('id');
+
+    function cargarRegistroParaModificar() {
+      if (!modificarClave || !modificarId) {
+        cfgCargar('proveedores');
+        catCargar('labores');
+        return;
+      }
+
+      if (configuracionesConfig[modificarClave]) {
+        cfgCargar(modificarClave);
+        fetch(configuracionesConfig[modificarClave].api)
+          .then(respuesta => respuesta.json())
+          .then(registros => {
+            const registro = registros.find(item => String(item.id) === modificarId);
+            if (!registro) return;
+            setTimeout(() => {
+              configuracionesConfig[modificarClave].setRow(registro, cfgFormElements);
+              cfgEditando = registro.id;
+            }, 400);
+          });
+        return;
+      }
+
+      const claveCatalogo = modificarClave.replaceAll('_', '-');
+      if (catalogoConfig[claveCatalogo]) {
+        catCargar(claveCatalogo);
+        fetch(catalogoConfig[claveCatalogo].api)
+          .then(respuesta => respuesta.json())
+          .then(registros => {
+            const registro = registros.find(item => String(item.id) === modificarId);
+            if (!registro) return;
+            catalogoConfig[claveCatalogo].setRow(registro);
+            catEditando = registro.id;
+          });
+        return;
+      }
+
+      cfgCargar('proveedores');
+      catCargar('labores');
+    }
+
+    cargarRegistroParaModificar();
   </script>
 </body>
 

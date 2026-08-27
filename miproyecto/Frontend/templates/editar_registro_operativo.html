@@ -345,7 +345,7 @@
                 const alerts = messagesDiv.querySelectorAll('.alert');
                 alerts.forEach(alert => {
                     const isSuccess = alert.classList.contains('alert-success');
-                    const isFailed = alert.classList.contains('alert-failed');
+                    const isFailed = alert.classList.contains('alert-failed') || alert.classList.contains('alert-error') || alert.classList.contains('alert-warning') || alert.classList.contains('alert-danger');
                     const message = alert.textContent.trim();
                     
                     if (isSuccess) {

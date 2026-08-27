@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Usuarios Creados</title>
   {% load static %}
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=12" />
 </head>
 
 <body>
@@ -19,6 +19,17 @@
     </header>
 
     <section class="card">
+      {% if is_admin %}
+        <div class="datos-acciones-toolbar usuarios-acciones-toolbar">
+          <select id="usuarios-accion-estado" aria-label="Seleccionar acción de estado">
+            <option value="">Seleccionar acción</option>
+            <option value="activar">Activar</option>
+            <option value="desactivar">Desactivar</option>
+          </select>
+          <button id="usuarios-btn-estado" class="btn-secondary" type="button" disabled>Cambiar estado</button>
+          <button id="usuarios-btn-eliminar" class="btn-secondary" type="button" disabled>Eliminar</button>
+        </div>
+      {% endif %}
       <div class="data-grid">
         <table>
           <thead>
@@ -29,7 +40,6 @@
               <th>Rol</th>
               <th>Activo</th>
               <th>Creado</th>
-              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -41,18 +51,10 @@
                 <td>{{ usuario.grupos }}</td>
                 <td class="usuario-activo">{{ usuario.activo }}</td>
                 <td>{{ usuario.fecha|date:'d/m/Y H:i' }}</td>
-                <td>
-                  <button class="btn btn-secondary btn-toggle-estado" data-user-id="{{ usuario.id }}">
-                    {% if usuario.is_active %}Desactivar{% else %}Activar{% endif %}
-                  </button>
-                  <button class="btn btn-secondary btn-eliminar-usuario" data-user-id="{{ usuario.id }}">
-                    Eliminar
-                  </button>
-                </td>
               </tr>
             {% empty %}
               <tr>
-                <td colspan="7">No hay usuarios creados aún.</td>
+                <td colspan="6">No hay usuarios creados aún.</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -61,6 +63,6 @@
     </section>
   </div>
   <script src="{% static 'js/common.js' %}"></script>
-  <script src="{% static 'js/usuarios_creados.js' %}"></script>
+  <script src="{% static 'js/usuarios_creados.js' %}?v=4"></script>
 </body>
 </html>

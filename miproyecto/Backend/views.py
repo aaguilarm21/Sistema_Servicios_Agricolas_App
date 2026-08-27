@@ -9,6 +9,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 # Vistas principales del sistema agrícola y de administración.
+# Aquí se gestionan las páginas de acceso, módulos, registros operativos,
+# edición y eliminación, así como el control de permisos para cada usuario.
 
 from django.core.exceptions import ValidationError
 from accounts.forms import AdminUserCreationForm
@@ -27,16 +29,17 @@ def user_is_user_or_admin(user):
     )
 
 
-@login_required
 def home(request):
-    try:
-        return render(request, 'home.html')
-    except Exception:
-        return render(request, 'home.html', {'request': request})
+    """Redirige al usuario siempre al login.
+
+    La URL raíz debe abrir la pantalla de inicio de sesión, incluso si ya está autenticado.
+    """
+    return redirect('login')
 
 
 @login_required
 def modulos(request):
+    """Renderiza la pantalla de módulos con visibilidad condicional según el rol."""
     try:
         return render(request, 'modulos.html', {
             'is_admin': user_is_admin(request.user)
@@ -51,10 +54,37 @@ def modulos(request):
 
 @login_required
 def configuracion_catalogos(request):
-    if not user_is_admin(request.user):
-        messages.warning(request, 'No tienes permisos para acceder a este módulo.')
-        return redirect('modulos')
-    return render(request, 'configuracion_catalogos.html')
+    """Muestra la página de configuración y catálogos para el usuario autenticado."""
+    return render(request, 'configuracion_catalogos.html', {
+        'is_admin': user_is_admin(request.user)
+    })
+
+
+@login_required
+def datos_registrados(request):
+    """Muestra en una pantalla independiente los datos guardados en catálogos."""
+    return render(request, 'datos_registrados.html', {
+        'is_admin': user_is_admin(request.user)
+    })
+
+
+def to_title_case(val):
+    """
+    Convierte una cadena a formato Nombre Propio / Letra Inicial Mayúscula en cada palabra.
+    Preserva valores nulos, vacíos o numéricos.
+    """
+    if not val or not isinstance(val, str):
+        return val
+    val = val.strip()
+    if not val:
+        return val
+    words = []
+    for word in val.split():
+        if word.isupper() and len(word) <= 4:
+            words.append(word)
+        else:
+            words.append(word[:1].upper() + word[1:].lower())
+    return ' '.join(words)
 
 
 @login_required
@@ -66,16 +96,16 @@ def registros_operativos(request):
         RegistroOperativo.objects.create(
             no_boleta=request.POST.get('no_boleta', '').strip(),
             fecha_labor=request.POST.get('fecha_labor') or None,
-            tipo_servicio=request.POST.get('tipo_servicio', '').strip(),
-            proveedor=request.POST.get('proveedor', '').strip(),
+            tipo_servicio=to_title_case(request.POST.get('tipo_servicio', '')),
+            proveedor=to_title_case(request.POST.get('proveedor', '')),
             codigo_maquina=request.POST.get('codigo_maquina', '').strip() or None,
             placa=request.POST.get('placa', '').strip() or None,
-            operador=request.POST.get('operador', '').strip() or None,
-            finca=request.POST.get('finca', '').strip(),
-            lote=request.POST.get('lote', '').strip(),
+            operador=to_title_case(request.POST.get('operador', '')) or None,
+            finca=to_title_case(request.POST.get('finca', '')),
+            lote=to_title_case(request.POST.get('lote', '')),
             area_lote=request.POST.get('area_lote') or None,
-            actividad=request.POST.get('actividad', '').strip() or None,
-            labor=request.POST.get('labor', '').strip() or None,
+            actividad=to_title_case(request.POST.get('actividad', '')) or None,
+            labor=to_title_case(request.POST.get('labor', '')) or None,
             corte_semilla=request.POST.get('corte_semilla', '').strip() or None,
             unidades=request.POST.get('unidades') or None,
             horometro_inicial=request.POST.get('horometro_inicial') or None,
@@ -83,15 +113,15 @@ def registros_operativos(request):
             costo_unitario=request.POST.get('costo_unitario') or None,
             num_factura=request.POST.get('num_factura', '').strip() or None,
             cuenta_contable=request.POST.get('cuenta_contable', '').strip() or None,
-            variedad=request.POST.get('variedad', '').strip() or None,
+            variedad=to_title_case(request.POST.get('variedad', '')) or None,
             total_paquetes=request.POST.get('total_paquetes') or None,
             peso_kg=request.POST.get('peso_kg') or None,
-            caporal_01=request.POST.get('caporal_01', '').strip() or None,
-            caporal_02=request.POST.get('caporal_02', '').strip() or None,
-            mayordomo=request.POST.get('mayordomo', '').strip() or None,
-            administrador=request.POST.get('administrador', '').strip() or None,
-            lugar_origen=request.POST.get('lugar_origen', '').strip() or None,
-            lugar_destino=request.POST.get('lugar_destino', '').strip() or None,
+            caporal_01=to_title_case(request.POST.get('caporal_01', '')) or None,
+            caporal_02=to_title_case(request.POST.get('caporal_02', '')) or None,
+            mayordomo=to_title_case(request.POST.get('mayordomo', '')) or None,
+            administrador=to_title_case(request.POST.get('administrador', '')) or None,
+            lugar_origen=to_title_case(request.POST.get('lugar_origen', '')) or None,
+            lugar_destino=to_title_case(request.POST.get('lugar_destino', '')) or None,
             observaciones=request.POST.get('observaciones', '').strip() or None,
         )
         messages.success(request, 'Boleta guardada correctamente.')
@@ -116,12 +146,10 @@ def registros_operativos(request):
 
 @login_required
 def registros_operativos_data(request):
-    if not user_is_admin(request.user):
-        messages.warning(request, 'No tienes permisos para acceder a este módulo.')
-        return redirect('modulos')
     registros = RegistroOperativo.objects.all()
     return render(request, 'registros_operativos_data.html', {
         'registros': registros,
+        'is_admin': user_is_admin(request.user),
     })
 
 
@@ -209,10 +237,9 @@ def borrar_registro_operativo(request, registro_id):
 
 @login_required
 def usuarios(request):
-    if not user_is_admin(request.user):
-        messages.warning(request, 'No tienes permisos para acceder a este módulo.')
-        return redirect('modulos')
-    return render(request, 'usuarios.html')
+    return render(request, 'usuarios.html', {
+        'is_admin': user_is_admin(request.user)
+    })
 
 
 @login_required
@@ -246,21 +273,28 @@ def crear_usuario(request):
     if not empleado:
         return JsonResponse({'success': False, 'error': 'Empleado no encontrado.'}, status=404)
 
-    full_name = (empleado.empleado or '').strip()
+    # Validación: evitar crear un usuario si el código ya está asignado a otro usuario
+    if UserProfile.objects.filter(codigo__iexact=codigo).exists():
+        return JsonResponse({'success': False, 'error': 'Código ya asignado a otro usuario.'}, status=400)
+
+    employee_names = (empleado.empleado or '').strip()
+    full_name = ' '.join(filter(None, [employee_names, empleado.segundo_apellido])).strip()
     if not full_name:
         return JsonResponse({'success': False, 'error': 'El empleado no tiene nombre válido.'}, status=400)
 
     generator = AdminUserCreationForm()
-    username = generator.generate_username(full_name)
+    name_parts = [part for part in employee_names.split() if part]
+    surname_parts = [part for part in (empleado.segundo_apellido or '').split() if part]
+    first_surname = surname_parts[0] if surname_parts else (name_parts[-1] if len(name_parts) > 1 else employee_names)
+    username = generator.generate_username(employee_names, first_surname)
     username_base = username
     contador = 1
-    while User.objects.filter(username=username).exists():
+    while User.objects.filter(username__iexact=username).exists():
         contador += 1
         username = f"{username_base}{contador}"
 
-    name_parts = [part for part in full_name.split() if part]
     first_name = name_parts[0] if name_parts else ''
-    last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
+    last_name = ' '.join(name_parts[1:] + ([empleado.segundo_apellido] if empleado.segundo_apellido else []))
     is_active = estado.lower() == 'activo'
 
     usuario = User.objects.create_user(
@@ -292,9 +326,6 @@ def crear_usuario(request):
 
 @login_required
 def usuarios_creados(request):
-    if not user_is_admin(request.user):
-        return redirect('modulos')
-
     users = User.objects.all().order_by('-date_joined')
     usuarios_data = [
         {
@@ -303,13 +334,17 @@ def usuarios_creados(request):
             'email': user.email,
             'nombre': f"{user.first_name} {user.last_name}".strip() or '-',
             'grupos': ', '.join([g.name for g in user.groups.all()]) or 'Sin rol',
+            'is_admin': user.groups.filter(name='Admin').exists() or user.is_superuser,
             'fecha': timezone.localtime(user.date_joined),
             'activo': 'Sí' if user.is_active else 'No',
             'is_active': user.is_active,
         }
         for user in users
     ]
-    return render(request, 'usuarios_creados.html', {'usuarios': usuarios_data})
+    return render(request, 'usuarios_creados.html', {
+        'usuarios': usuarios_data,
+        'is_admin': user_is_admin(request.user)
+    })
 
 
 @login_required
@@ -322,10 +357,6 @@ def operacion(request):
 
 @login_required
 def reportes(request):
-    if not user_is_admin(request.user):
-        messages.warning(request, 'No tienes permisos para acceder a este módulo.')
-        return redirect('modulos')
-        
     tipo_reporte = request.GET.get('tipo_reporte')
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')

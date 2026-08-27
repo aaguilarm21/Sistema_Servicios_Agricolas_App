@@ -1,0 +1,55 @@
+REQUISTOS FUNCIONALES Y NO FUNCIONALES DEL PROYECTO
+===================================================
+Proyecto: Sistema de Servicios Agrícolas
+Fecha: 2026-08-09
+
+1. REQUISITOS FUNCIONALES
+=========================
+
+Prioridad Alta
+- RF-01: El sistema debe permitir el inicio de sesión seguro de usuarios con autenticación basada en usuario y contraseña.
+- RF-02: El sistema debe permitir cambiar de usuario desde el panel principal mediante un modal de autenticación.
+- RF-03: El sistema debe permitir crear, activar/desactivar y eliminar usuarios, con control de permisos administrativos.
+- RF-04: El sistema debe permitir gestionar proveedores, incluyendo creación, edición y eliminación de registros.
+- RF-05: El sistema debe permitir gestionar empleados, incluyendo creación, edición y eliminación de registros.
+- RF-06: El sistema debe permitir gestionar maquinaria, bodegas y artículos del inventario.
+- RF-07: El sistema debe permitir registrar operaciones agrícolas y logísticas con información como boleta, fecha, proveedor, maquinaria, finca, lote, actividad, labor, costos y observaciones.
+- RF-08: El sistema debe permitir visualizar, editar y eliminar registros operativos desde la interfaz.
+- RF-09: El sistema debe permitir administrar catálogos auxiliares como labores, cuentas, unidades de medida, variedades, tipos de máquina, marcas, municipios y auxiliares.
+- RF-10: El sistema debe permitir navegar entre módulos de usuarios, catálogos, registros operativos, operaciones, reportes y base de datos.
+- RF-11: El sistema debe permitir generar reportes e indicadores basados en las boletas y servicios registrados.
+- RF-12: El sistema debe mostrar notificaciones al usuario para informar acciones, errores o mensajes de validación.
+
+Prioridad Media
+- RF-13: El sistema debe permitir buscar información de usuarios o empleados por código para autocompletar formularios.
+- RF-14: El sistema debe permitir ver los registros operativos almacenados en base de datos con diferenciación entre vista administrativa y lectura.
+- RF-15: El sistema debe exponer APIs para la gestión de datos mediante operaciones CRUD sobre los principales módulos.
+- RF-16: El sistema debe permitir la configuración y administración de catálogos desde una interfaz dedicada.
+- RF-17: El sistema debe permitir el registro de operaciones agrícolas y logísticas desde un formulario específico del módulo de operación.
+
+Prioridad Baja
+- RF-18: El sistema debe mostrar una pantalla de bienvenida al usuario autenticado.
+- RF-19: El sistema debe permitir cerrar sesión de forma segura.
+- RF-20: El sistema debe incluir una vista de demostración para probar el comportamiento de notificaciones.
+
+2. REQUISITOS NO FUNCIONALES
+=============================
+
+Prioridad Alta
+- RNF-01: El sistema debe asegurar la autenticación mediante tokens JWT almacenados en cookies seguras y HttpOnly.
+- RNF-02: El sistema debe restringir accesos sensibles según roles y permisos de administrador y usuario.
+- RNF-03: El sistema debe proteger los formularios y endpoints contra ataques CSRF.
+- RNF-04: El sistema debe garantizar la integridad de los datos almacenados en la base de datos.
+- RNF-05: El sistema debe manejar errores de forma controlada y mostrar mensajes claros al usuario.
+
+Prioridad Media
+- RNF-06: La interfaz debe estar disponible en español para facilitar la operación por parte del usuario final.
+- RNF-07: El sistema debe ser compatible con navegadores web modernos para uso en entorno empresarial.
+- RNF-08: El sistema debe mantener una arquitectura modular y mantenible basada en Django, templates y JavaScript.
+- RNF-09: El sistema debe responder de manera aceptable para operaciones CRUD básicas sobre catálogos y registros.
+- RNF-10: El sistema debe permitir la persistencia y consulta de información de forma consistente en la base de datos.
+
+Prioridad Baja
+- RNF-11: El sistema debe ser fácil de desplegar y configurar en entornos de desarrollo y producción.
+- RNF-12: El sistema debe ser portable entre entornos Windows y Linux, dado que se usa Django y archivos de configuración estándar.
+- RNF-13: El sistema debe contar con documentación básica para soporte de módulos y procesos clave.

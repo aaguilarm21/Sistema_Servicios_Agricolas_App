@@ -119,7 +119,7 @@
             }
           });
 
-          const showModalOnSuccess = {{ show_modal|yesno:'true,false' }};
+          const showModalOnSuccess = {% if show_modal %}true{% else %}false{% endif %};
           const createdUsername = '{{ created_username|escapejs }}';
           const createdPassword = '{{ created_password|escapejs }}';
           if (showModalOnSuccess && createdUsername) {

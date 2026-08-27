@@ -4,7 +4,7 @@ from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
-    help = 'Creates or updates a default admin user for the project.'
+    help = 'Crea o actualiza el usuario administrador por defecto del proyecto.'
 
     def handle(self, *args, **options):
         User = get_user_model()
@@ -25,12 +25,12 @@ class Command(BaseCommand):
         if created:
             user.set_password(password)
             user.save()
-            self.stdout.write(self.style.SUCCESS(f'Admin user created: {username}'))
+            self.stdout.write(self.style.SUCCESS(f'Usuario administrador creado: {username}'))
         else:
             if not user.check_password(password):
                 user.set_password(password)
                 user.save()
-            self.stdout.write(self.style.WARNING(f'Admin user already exists: {username}'))
+            self.stdout.write(self.style.WARNING(f'El usuario administrador ya existe: {username}'))
 
         Group.objects.get_or_create(name='Admin')
         Group.objects.get_or_create(name='Usuario')

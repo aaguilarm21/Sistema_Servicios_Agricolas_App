@@ -8,17 +8,40 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 import json
+import re
 
 from .jwt_utils import generate_jwt_token
 from .forms import AdminUserCreationForm, CustomAuthenticationForm
 from .models import (
     UserProfile, Proveedor, Empleado, Maquinaria, Bodega, Articulo,
-    Labor, Cuenta, UnidadMedida, Variedad, TipoMaquina, Marca, Municipio, Auxiliar
+    Labor, Cuenta, UnidadMedida, NombrePuesto, Variedad, TipoMaquina, Marca, Municipio, Auxiliar
 )
+
+
+def normalizar_texto(valor):
+    if not isinstance(valor, str) or not valor.strip() or valor.strip().isdigit():
+        return valor
+    return ' '.join(
+        palabra if palabra.isupper() and len(palabra) <= 4
+        else palabra[:1].upper() + palabra[1:].lower()
+        for palabra in valor.strip().split()
+    )
+
+
+def normalizar_datos(data):
+    return {campo: normalizar_texto(valor) for campo, valor in data.items()}
+
+# Vistas de autenticación, registro de usuarios y APIs internas.
+# Aquí se centraliza el inicio de sesión, el cambio de usuario desde el panel,
+# la creación de nuevos usuarios y la administración de estados y roles.
 
 
 # Vista personalizada para el inicio de sesión del sistema.
 class CustomLoginView(LoginView):
+    """
+    Vista personalizada de inicio de sesión.
+    Genera y guarda el token JWT en cookie segura tras autenticación exitosa.
+    """
     authentication_form = CustomAuthenticationForm
     template_name = 'registration/login.html'
     redirect_authenticated_user = False
@@ -48,11 +71,14 @@ class CustomLoginView(LoginView):
 
 
 # Verifica si un usuario tiene permisos de administrador.
+# Un usuario administrador debe estar activo, autenticado y ser superusuario o pertenecer al grupo Admin.
 def is_admin_user(user):
-    return user.is_active and user.is_superuser
+    return user is not None and user.is_authenticated and user.is_active and (user.is_superuser or user.groups.filter(name='Admin').exists())
+
 
 
 # Endpoint de autenticación para el modal de cambio de usuario / AJAX login.
+# Recibe JSON con credenciales y devuelve resultado de inicio de sesión.
 @csrf_exempt
 @require_http_methods(['GET', 'POST'])
 def ajax_login(request):
@@ -99,6 +125,7 @@ def ajax_login(request):
 
 
 # Vista para el registro de nuevos usuarios desde el panel administrativo.
+# Crea usuarios y perfiles asociados, y genera credenciales.
 def signup(request):
     mensaje = ''
 
@@ -115,11 +142,17 @@ def signup(request):
             password = form.cleaned_data['password1']
             username = form.cleaned_data['username']
 
-            username_base = username
-            contador = 1
-            while User.objects.filter(username=username).exists():
-                contador += 1
-                username = f"{username_base}{contador}"
+            # Validación: evitar duplicidad de usuarios.
+            # Si el username ya existe, devolver error y no crear usuario.
+            if User.objects.filter(username=username).exists():
+                form.add_error('username', 'Usuario ya existe. Elige otro nombre o verifica el usuario.')
+                return render(request, 'registration/signup.html', {
+                    'form': form,
+                    'mensaje': mensaje,
+                    'created_username': created_username,
+                    'created_password': created_password,
+                    'show_modal': show_modal,
+                })
 
             name_parts = full_name.strip().split()
             first_name = name_parts[0] if name_parts else ''
@@ -132,7 +165,11 @@ def signup(request):
                 last_name=last_name,
             )
 
-            usuario.groups.add(rol)
+            if isinstance(rol, Group):
+                usuario.groups.add(rol)
+            elif rol:
+                group, _ = Group.objects.get_or_create(name=str(rol))
+                usuario.groups.add(group)
             usuario.save()
 
             UserProfile.objects.create(
@@ -167,6 +204,7 @@ def signup(request):
 
 
 # Busca un usuario o empleado por código para completar formularios.
+# Esta vista devuelve información útil para autocompletar campos en el frontend.
 @login_required
 @require_http_methods(["GET"])
 def buscar_usuario_por_codigo(request):
@@ -183,7 +221,7 @@ def buscar_usuario_por_codigo(request):
 
         return JsonResponse({
             'success': True,
-            'nombre': empleado.empleado,
+            'nombre': ' '.join(filter(None, [empleado.empleado, empleado.segundo_apellido])),
             'puesto': empleado.nombre_puesto,
             'codigo': empleado.puesto,
             'email': '',
@@ -193,6 +231,7 @@ def buscar_usuario_por_codigo(request):
 
 
 # Administra el estado de usuarios desde la interfaz administrativa.
+# Permite activar/desactivar o eliminar usuarios según permisos administrativos.
 @login_required
 @require_http_methods(["POST"])
 def api_usuario(request, user_id):
@@ -204,6 +243,9 @@ def api_usuario(request, user_id):
     if usuario == request.user:
         return JsonResponse({'error': 'No puedes modificar tu propio usuario aquí.'}, status=400)
 
+    if not is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
+
     try:
         data = json.loads(request.body or '{}')
     except json.JSONDecodeError:
@@ -211,6 +253,10 @@ def api_usuario(request, user_id):
 
     action = data.get('action')
     if action == 'toggle_estado':
+        if usuario.groups.filter(name='Admin').exists() or usuario.is_superuser:
+            return JsonResponse({'error': 'No se puede bloquear a un usuario administrador.'}, status=403)
+        if not usuario.groups.filter(name='Usuario').exists():
+            return JsonResponse({'error': 'Solo se pueden bloquear usuarios con rol de Usuario.'}, status=403)
         usuario.is_active = not usuario.is_active
         usuario.save()
         return JsonResponse({'success': True, 'activo': usuario.is_active})
@@ -232,8 +278,11 @@ def api_proveedores(request):
         return JsonResponse(list(proveedores), safe=False)
 
     elif request.method == 'POST':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
+            data = normalizar_datos(data)
             if not data.get('codigo') or not data.get('nit') or not data.get('razonSocial'):
                 return JsonResponse({'error': 'Faltan campos requeridos'}, status=400)
             dias_credito = data.get('diasCredito', '')
@@ -260,9 +309,13 @@ def api_proveedor_detalle(request, proveedor_id):
     except Proveedor.DoesNotExist:
         return JsonResponse({'error': 'Proveedor no encontrado'}, status=404)
 
+    if not is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
+
     if request.method == 'PUT':
         try:
             data = json.loads(request.body)
+            data = normalizar_datos(data)
             proveedor.codigo = data.get('codigo', proveedor.codigo)
             proveedor.nit = data.get('nit', proveedor.nit)
             proveedor.razon_social = data.get('razonSocial', proveedor.razon_social)
@@ -290,15 +343,25 @@ def api_empleados(request):
         return JsonResponse(list(empleados), safe=False)
 
     elif request.method == 'POST':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
-            if not data.get('empresa') or not data.get('empleado') or not data.get('no_cui'):
+            data = normalizar_datos(data)
+            no_cui = str(data.get('no_cui', '')).strip()
+            if not data.get('empresa') or not data.get('empleado') or not data.get('segundo_apellido', '').strip() or not no_cui or not str(data.get('puesto', '')).strip():
                 return JsonResponse({'error': 'Faltan campos requeridos'}, status=400)
+            if not re.fullmatch(r'\d{1,13}', no_cui):
+                return JsonResponse({'error': 'El No. CUI debe contener únicamente dígitos y no superar 13 caracteres'}, status=400)
+            codigo = str(data.get('puesto', '')).strip()
+            if Empleado.objects.filter(puesto=codigo).exists():
+                return JsonResponse({'error': 'Ese código ya fue registrado'}, status=400)
             empleado = Empleado.objects.create(
                 empresa=data.get('empresa'),
                 empleado=data.get('empleado'),
-                no_cui=data.get('no_cui'),
-                puesto=data.get('puesto', ''),
+                segundo_apellido=data['segundo_apellido'].strip(),
+                no_cui=no_cui,
+                puesto=codigo,
                 nombre_puesto=data.get('nombre_puesto', '')
             )
             return JsonResponse({'success': True, 'message': 'Empleado creado correctamente', 'id': empleado.id}, status=201)
@@ -314,13 +377,30 @@ def api_empleado_detalle(request, empleado_id):
     except Empleado.DoesNotExist:
         return JsonResponse({'error': 'Empleado no encontrado'}, status=404)
 
+    if not is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
+
     if request.method == 'PUT':
         try:
             data = json.loads(request.body)
+            data = normalizar_datos(data)
             empleado.empresa = data.get('empresa', empleado.empresa)
             empleado.empleado = data.get('empleado', empleado.empleado)
-            empleado.no_cui = data.get('no_cui', empleado.no_cui)
-            empleado.puesto = data.get('puesto', empleado.puesto)
+            if 'segundo_apellido' in data:
+                segundo_apellido = data['segundo_apellido'].strip()
+                if not segundo_apellido:
+                    return JsonResponse({'error': 'El segundo apellido es obligatorio'}, status=400)
+                empleado.segundo_apellido = segundo_apellido
+            if 'no_cui' in data:
+                no_cui = str(data['no_cui']).strip()
+                if not re.fullmatch(r'\d{1,13}', no_cui):
+                    return JsonResponse({'error': 'El No. CUI debe contener únicamente dígitos y no superar 13 caracteres'}, status=400)
+                empleado.no_cui = no_cui
+            if 'puesto' in data:
+                codigo = str(data['puesto']).strip()
+                if Empleado.objects.filter(puesto=codigo).exclude(id=empleado.id).exists():
+                    return JsonResponse({'error': 'Ese código ya fue registrado'}, status=400)
+                empleado.puesto = codigo
             empleado.nombre_puesto = data.get('nombre_puesto', empleado.nombre_puesto)
             empleado.save()
             return JsonResponse({'success': True, 'message': 'Empleado actualizado correctamente'})
@@ -341,6 +421,8 @@ def api_maquinaria(request):
         return JsonResponse(list(maquinaria), safe=False)
 
     elif request.method == 'POST':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             if not data.get('codigo_maquina') or not data.get('tipo_maquina'):
@@ -367,6 +449,9 @@ def api_maquinaria_detalle(request, maquinaria_id):
         maquinaria = Maquinaria.objects.get(id=maquinaria_id)
     except Maquinaria.DoesNotExist:
         return JsonResponse({'error': 'Máquina no encontrada'}, status=404)
+
+    if not is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
 
     if request.method == 'PUT':
         try:
@@ -398,6 +483,8 @@ def api_bodegas(request):
         return JsonResponse(list(bodegas), safe=False)
 
     elif request.method == 'POST':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             if not data.get('codigo') or not data.get('nombre_bodega'):
@@ -421,6 +508,9 @@ def api_bodega_detalle(request, bodega_id):
         bodega = Bodega.objects.get(id=bodega_id)
     except Bodega.DoesNotExist:
         return JsonResponse({'error': 'Bodega no encontrada'}, status=404)
+
+    if not is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
 
     if request.method == 'PUT':
         try:
@@ -449,6 +539,8 @@ def api_articulos(request):
         return JsonResponse(list(articulos), safe=False)
 
     elif request.method == 'POST':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             if not data.get('codigo_articulo') or not data.get('descripcion'):
@@ -472,6 +564,9 @@ def api_articulo_detalle(request, articulo_id):
         articulo = Articulo.objects.get(id=articulo_id)
     except Articulo.DoesNotExist:
         return JsonResponse({'error': 'Artículo no encontrado'}, status=404)
+
+    if not is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
 
     if request.method == 'PUT':
         try:
@@ -497,8 +592,13 @@ def _api_catalogo_list_create(request, ModelClass, required_fields, create_fn):
     if request.method == 'GET':
         items = list(ModelClass.objects.all().values())
         return JsonResponse(items, safe=False)
+
+    if not is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
+
     try:
         data = json.loads(request.body)
+        data = normalizar_datos(data)
         for field in required_fields:
             if not data.get(field):
                 return JsonResponse({'error': f'Campo requerido: {field}'}, status=400)
@@ -513,9 +613,14 @@ def _api_catalogo_detail(request, ModelClass, obj_id, update_fn, nombre='Registr
         obj = ModelClass.objects.get(id=obj_id)
     except ModelClass.DoesNotExist:
         return JsonResponse({'error': f'{nombre} no encontrado'}, status=404)
+
+    if not is_admin_user(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
+
     if request.method == 'PUT':
         try:
             data = json.loads(request.body)
+            data = normalizar_datos(data)
             update_fn(obj, data)
             obj.save()
             return JsonResponse({'success': True})
@@ -579,6 +684,24 @@ def api_unidad_detalle(request, pk):
         obj.codigo = d.get('codigo', obj.codigo)
         obj.descripcion = d.get('descripcion', obj.descripcion)
     return _api_catalogo_detail(request, UnidadMedida, pk, upd, 'Unidad de Medida')
+
+
+# --- NOMBRES DE PUESTO ---
+@login_required
+@require_http_methods(["GET", "POST"])
+def api_nombres_puesto(request):
+    return _api_catalogo_list_create(
+        request, NombrePuesto, ['nombre'],
+        lambda d: NombrePuesto.objects.create(nombre=d['nombre'].strip())
+    )
+
+
+@login_required
+@require_http_methods(["PUT", "DELETE"])
+def api_nombre_puesto_detalle(request, pk):
+    def upd(obj, d):
+        obj.nombre = d.get('nombre', obj.nombre).strip()
+    return _api_catalogo_detail(request, NombrePuesto, pk, upd, 'Nombre de puesto')
 
 
 # --- VARIEDADES ---
