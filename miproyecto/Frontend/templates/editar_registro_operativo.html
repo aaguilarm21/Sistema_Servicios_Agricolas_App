@@ -82,7 +82,7 @@
                         </div>
                         <div class="form-group">
                             <label for="placa">Placa</label>
-                            <input type="text" id="placa" name="placa" value="{{ registro.placa }}">
+                            <input type="text" id="placa" name="placa" value="{{ registro.placa }}" readonly>
                         </div>
                     </div>
                     <div class="form-row two-cols">
@@ -116,7 +116,7 @@
                         </div>
                         <div class="form-group">
                             <label for="area_lote">Área Lote (Ha)</label>
-                            <input type="number" id="area_lote" name="area_lote" step="0.01" value="{{ registro.area_lote|default:'' }}">
+                            <input type="number" id="area_lote" name="area_lote" step="0.01" value="{{ registro.area_lote|default:'' }}" readonly>
                         </div>
                     </div>
                     <div class="form-row three-cols">
@@ -163,7 +163,7 @@
                         </div>
                         <div class="form-group">
                             <label for="cuenta_contable">Cuenta Contable</label>
-                            <input type="text" id="cuenta_contable" name="cuenta_contable" value="{{ registro.cuenta_contable|default:'' }}">
+                            <input type="text" id="cuenta_contable" name="cuenta_contable" value="{{ registro.cuenta_contable|default:'' }}" readonly>
                         </div>
                     </div>
                 </div>
@@ -236,7 +236,7 @@
                             <select id="lugar_origen" name="lugar_origen">
                                 <option value="">Seleccionar Municipio</option>
                                 {% for m in municipios %}
-                                <option value="{{ m.nombre }}" {% if registro.lugar_origen == m.nombre %}selected{% endif %}>{{ m.codigo }} - {{ m.nombre }}</option>
+                                <option value="{{ m.nombre }}" {% if registro.lugar_origen == m.nombre %}selected{% endif %}>{{ m.nombre }} - {{ m.departamento }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -245,7 +245,7 @@
                             <select id="lugar_destino" name="lugar_destino">
                                 <option value="">Seleccionar Municipio</option>
                                 {% for m in municipios %}
-                                <option value="{{ m.nombre }}" {% if registro.lugar_destino == m.nombre %}selected{% endif %}>{{ m.codigo }} - {{ m.nombre }}</option>
+                                <option value="{{ m.nombre }}" {% if registro.lugar_destino == m.nombre %}selected{% endif %}>{{ m.nombre }} - {{ m.departamento }}</option>
                                 {% endfor %}
                             </select>
                         </div>

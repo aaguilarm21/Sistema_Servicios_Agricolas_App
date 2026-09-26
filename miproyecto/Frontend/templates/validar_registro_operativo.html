@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Validación de Registros Operativos</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <style>
+    .boleta-search {
+      display: flex;
+      align-items: end;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .boleta-search label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: #1b5e20;
+      font-weight: 600;
+      min-width: min(300px, 100%);
+      flex: 1;
+    }
+
+    .boleta-search input {
+      min-height: 40px;
+      padding: 8px 10px;
+      border: 1px solid #a5d6a7;
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    .boleta-detail {
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid #c8e6c9;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .boleta-detail h2 {
+      margin: 0 0 14px;
+      color: #1b5e20;
+    }
+
+    .detail-section + .detail-section {
+      margin-top: 18px;
+    }
+
+    .detail-section h3 {
+      padding-bottom: 7px;
+      border-bottom: 1px solid #c8e6c9;
+      color: #2e7d32;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+    }
+
+    .detail-item {
+      min-width: 0;
+      padding: 10px;
+      background: #f7fbf7;
+      border: 1px solid #e1eee1;
+      border-radius: 6px;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-item strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #55705a;
+      font-size: 0.82rem;
+    }
+
+    .detail-item span {
+      color: #202820;
+    }
+
+    .lookup-message {
+      margin-top: 18px;
+      padding: 14px;
+      border: 1px solid #c8e6c9;
+      border-radius: 6px;
+      background: #f7fbf7;
+      color: #355b39;
+    }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <div class="header">
+      <div>
+        <h1>🔎 Validación de Registros Operativos</h1>
+        <p>Consulta el detalle de una boleta por su número.</p>
+      </div>
+      <a href="{% url 'modulos' %}" class="btn-volver">Volver a Módulos</a>
+    </div>
+
+    <main class="form-wrapper">
+      <section class="form-section">
+        <form method="get" action="{% url 'validar_registro_operativo' %}" class="boleta-search">
+          <label for="no_boleta">Número de boleta
+            <input type="search" id="no_boleta" name="no_boleta" value="{{ numero_boleta }}" autocomplete="off" required />
+          </label>
+          <button type="submit" class="btn-submit">Buscar Boleta</button>
+        </form>
+      </section>
+
+      {% if numero_boleta %}
+        {% if registros %}
+          {% for registro in registros %}
+          <article class="boleta-detail">
+            <h2>Boleta {{ registro.no_boleta }}{% if registros|length > 1 %} (coincidencia {{ forloop.counter }} de {{ registros|length }}){% endif %}</h2>
+
+            <section class="detail-section">
+              <h3>Encabezado</h3>
+              <div class="detail-grid">
+                <div class="detail-item"><strong>Número de boleta</strong><span>{{ registro.no_boleta }}</span></div>
+                <div class="detail-item"><strong>Fecha de labor</strong><span>{{ registro.fecha_labor|date:"d/m/Y" }}</span></div>
+                <div class="detail-item"><strong>Tipo de servicio</strong><span>{{ registro.tipo_servicio }}</span></div>
+                <div class="detail-item"><strong>Fecha de registro</strong><span>{{ registro.created_at|date:"d/m/Y H:i" }}</span></div>
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <h3>Proveedor y maquinaria</h3>
+              <div class="detail-grid">
+                <div class="detail-item"><strong>Proveedor</strong><span>{{ registro.proveedor }}</span></div>
+                <div class="detail-item"><strong>Código de máquina</strong><span>{{ registro.codigo_maquina|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Placa</strong><span>{{ registro.placa|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Operador</strong><span>{{ registro.operador|default:"-" }}</span></div>
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <h3>Finca, lote y labor</h3>
+              <div class="detail-grid">
+                <div class="detail-item"><strong>Finca</strong><span>{{ registro.finca }}</span></div>
+                <div class="detail-item"><strong>Lote</strong><span>{{ registro.lote }}</span></div>
+                <div class="detail-item"><strong>Área del lote</strong><span>{{ registro.area_lote|default:"-" }}{% if registro.area_lote %} Ha{% endif %}</span></div>
+                <div class="detail-item"><strong>Actividad</strong><span>{{ registro.actividad|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Labor</strong><span>{{ registro.labor|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Corte de semilla</strong><span>{{ registro.corte_semilla|default:"-" }}</span></div>
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <h3>Pago y producción</h3>
+              <div class="detail-grid">
+                <div class="detail-item"><strong>Unidades</strong><span>{{ registro.unidades|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Horómetro inicial</strong><span>{{ registro.horometro_inicial|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Horómetro final</strong><span>{{ registro.horometro_final|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Costo unitario</strong><span>{{ registro.costo_unitario|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Número de factura</strong><span>{{ registro.num_factura|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Cuenta contable</strong><span>{{ registro.cuenta_contable|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Variedad</strong><span>{{ registro.variedad|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Total de paquetes/cajas</strong><span>{{ registro.total_paquetes|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Peso (kg)</strong><span>{{ registro.peso_kg|default:"-" }}</span></div>
+              </div>
+            </section>
+
+            <section class="detail-section">
+              <h3>Supervisores y transporte</h3>
+              <div class="detail-grid">
+                <div class="detail-item"><strong>Caporal 01</strong><span>{{ registro.caporal_01|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Caporal 02</strong><span>{{ registro.caporal_02|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Mayordomo</strong><span>{{ registro.mayordomo|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Administrador</strong><span>{{ registro.administrador|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Lugar de origen</strong><span>{{ registro.lugar_origen|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Lugar de destino</strong><span>{{ registro.lugar_destino|default:"-" }}</span></div>
+                <div class="detail-item"><strong>Observaciones</strong><span>{{ registro.observaciones|default:"-" }}</span></div>
+              </div>
+            </section>
+          </article>
+          {% endfor %}
+        {% else %}
+          <p class="lookup-message" role="status">No se encontró una boleta con el número “{{ numero_boleta }}”.</p>
+        {% endif %}
+      {% endif %}
+    </main>
+  </div>
+</body>
+</html>

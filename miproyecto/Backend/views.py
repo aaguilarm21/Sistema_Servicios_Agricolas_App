@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Sum
 
 # Vistas principales del sistema agrícola y de administración.
 # Aquí se gestionan las páginas de acceso, módulos, registros operativos,
@@ -15,7 +16,7 @@ from django.views.decorators.http import require_http_methods
 from django.core.exceptions import ValidationError
 from accounts.forms import AdminUserCreationForm
 from accounts.validators import PasswordStandardValidator
-from accounts.models import Empleado, UserProfile, RegistroOperativo, Proveedor, Maquinaria, Auxiliar, Labor, Variedad, Municipio
+from accounts.models import Empleado, UserProfile, RegistroOperativo, Proveedor, Maquinaria, Auxiliar, Labor, Variedad, Municipio, ProgramacionOperacion, FirmaAutorizada
 
 
 # Determina si un usuario tiene permisos administrativos.
@@ -88,6 +89,47 @@ def to_title_case(val):
 
 
 @login_required
+@require_http_methods(['GET', 'POST'])
+def firmas_autorizadas(request):
+    if not user_is_admin(request.user):
+        messages.warning(request, 'No tienes permisos para acceder a este módulo.')
+        return redirect('modulos')
+
+    form_data = {'codigo': '', 'nombre': '', 'puesto': '', 'area': ''}
+    if request.method == 'POST':
+        codigo = request.POST.get('codigo', '').strip()
+        empleado = Empleado.objects.filter(puesto__iexact=codigo).first() if codigo else None
+
+        if not codigo:
+            messages.error(request, 'Escribe el código del empleado.')
+        elif not empleado:
+            messages.error(request, 'No se encontró un empleado con ese código.')
+            form_data['codigo'] = codigo
+        elif FirmaAutorizada.objects.filter(codigo__iexact=empleado.puesto).exists():
+            messages.error(request, 'Ya existe una firma autorizada con ese código.')
+            form_data = {
+                'codigo': empleado.puesto,
+                'nombre': to_title_case(' '.join(filter(None, [empleado.empleado, empleado.segundo_apellido]))),
+                'puesto': to_title_case(empleado.nombre_puesto),
+                'area': to_title_case(empleado.empresa),
+            }
+        else:
+            FirmaAutorizada.objects.create(
+                codigo=empleado.puesto,
+                nombre=to_title_case(' '.join(filter(None, [empleado.empleado, empleado.segundo_apellido]))),
+                puesto=to_title_case(empleado.nombre_puesto),
+                area=to_title_case(empleado.empresa),
+            )
+            messages.success(request, 'Firma autorizada registrada correctamente.')
+            return redirect('firmas_autorizadas')
+
+    return render(request, 'firmas_autorizadas.html', {
+        'firmas': FirmaAutorizada.objects.all(),
+        'form_data': form_data,
+    })
+
+
+@login_required
 def registros_operativos(request):
     if not user_is_user_or_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
@@ -154,6 +196,22 @@ def registros_operativos_data(request):
 
 
 @login_required
+def validar_registro_operativo(request):
+    numero_boleta = request.GET.get('no_boleta', '').strip()
+    registros = None
+
+    if numero_boleta:
+        registros = RegistroOperativo.objects.filter(
+            no_boleta__iexact=numero_boleta
+        ).order_by('-created_at')
+
+    return render(request, 'validar_registro_operativo.html', {
+        'numero_boleta': numero_boleta,
+        'registros': registros,
+    })
+
+
+@login_required
 def editar_registro_operativo(request, registro_id):
     if not user_is_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
@@ -171,11 +229,9 @@ def editar_registro_operativo(request, registro_id):
         registro.tipo_servicio = request.POST.get('tipo_servicio', '').strip() or registro.tipo_servicio
         registro.proveedor = request.POST.get('proveedor', '').strip() or registro.proveedor
         registro.codigo_maquina = request.POST.get('codigo_maquina', '').strip() or None
-        registro.placa = request.POST.get('placa', '').strip() or None
         registro.operador = request.POST.get('operador', '').strip() or None
         registro.finca = request.POST.get('finca', '').strip() or registro.finca
         registro.lote = request.POST.get('lote', '').strip() or registro.lote
-        registro.area_lote = request.POST.get('area_lote') or None
         registro.actividad = request.POST.get('actividad', '').strip() or None
         registro.labor = request.POST.get('labor', '').strip() or None
         registro.corte_semilla = request.POST.get('corte_semilla', '').strip() or None
@@ -184,7 +240,6 @@ def editar_registro_operativo(request, registro_id):
         registro.horometro_final = request.POST.get('horometro_final') or None
         registro.costo_unitario = request.POST.get('costo_unitario') or None
         registro.num_factura = request.POST.get('num_factura', '').strip() or None
-        registro.cuenta_contable = request.POST.get('cuenta_contable', '').strip() or None
         registro.variedad = request.POST.get('variedad', '').strip() or None
         registro.total_paquetes = request.POST.get('total_paquetes') or None
         registro.peso_kg = request.POST.get('peso_kg') or None
@@ -352,7 +407,124 @@ def operacion(request):
     if not user_is_user_or_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
-    return render(request, 'operacion.html')
+
+    if request.method == 'POST':
+        tipo_servicio = request.POST.get('tipo_servicio', '').strip()
+        fecha = request.POST.get('fecha') or timezone.now().date()
+        finca = request.POST.get('finca', '').strip()
+        lote = request.POST.get('lote', '').strip()
+        area_val = request.POST.get('area', '').strip()
+        responsable = request.POST.get('responsable', '').strip()
+        prioridad = request.POST.get('prioridad', 'Normal').strip() or 'Normal'
+        estado = request.POST.get('estado', 'Programada').strip() or 'Programada'
+        observaciones = request.POST.get('observaciones', '').strip() or None
+
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('is_ajax') == '1'
+
+        if not (tipo_servicio and finca and lote and area_val and responsable):
+            error_msg = 'Por favor completa todos los campos requeridos (Servicio, Finca, Lote, Área y Responsable).'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg}, status=400)
+            messages.error(request, error_msg)
+            return redirect('operacion')
+
+        try:
+            area = float(area_val)
+        except (ValueError, TypeError):
+            error_msg = 'La cantidad de área debe ser un número válido.'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg}, status=400)
+            messages.error(request, error_msg)
+            return redirect('operacion')
+
+        nueva_programacion = ProgramacionOperacion.objects.create(
+            tipo_servicio=tipo_servicio,
+            fecha=fecha,
+            finca=finca,
+            lote=lote,
+            area=area,
+            responsable=responsable,
+            prioridad=prioridad,
+            estado=estado,
+            observaciones=observaciones,
+            creado_por=request.user if request.user.is_authenticated else None,
+        )
+
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'message': '¡Operación programada exitosamente en Logística!',
+                'id': nueva_programacion.id,
+                'fecha': str(nueva_programacion.fecha),
+                'tipo_servicio': nueva_programacion.tipo_servicio,
+                'finca': nueva_programacion.finca,
+                'lote': nueva_programacion.lote,
+                'area': str(nueva_programacion.area),
+                'responsable': nueva_programacion.responsable,
+                'prioridad': nueva_programacion.prioridad,
+                'estado': nueva_programacion.estado,
+            })
+
+        messages.success(request, '¡Operación registrada y programada exitosamente en Logística!')
+        return redirect('/operacion/?ver=logistica')
+
+    fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
+    empleados = Empleado.objects.all().order_by('empleado')
+    programaciones = ProgramacionOperacion.objects.all().order_by('-fecha', '-created_at')
+
+    total_programadas = programaciones.count()
+    total_area = sum((p.area for p in programaciones if p.area), 0)
+    pendientes_count = programaciones.filter(estado__in=['Programada', 'En Proceso']).count()
+    realizadas_count = programaciones.filter(estado='Realizada').count()
+
+    return render(request, 'operacion.html', {
+        'fincas': fincas,
+        'empleados': empleados,
+        'programaciones': programaciones,
+        'total_programadas': total_programadas,
+        'total_area': total_area,
+        'pendientes_count': pendientes_count,
+        'realizadas_count': realizadas_count,
+        'is_admin': user_is_admin(request.user),
+        'ver_logistica': request.GET.get('ver') == 'logistica',
+    })
+
+
+@login_required
+@require_http_methods(['POST'])
+def cambiar_estado_operacion(request, operacion_id):
+    if not user_is_user_or_admin(request.user):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+    try:
+        prog = ProgramacionOperacion.objects.get(id=operacion_id)
+        nuevo_estado = request.POST.get('estado', '').strip()
+        if nuevo_estado in ['Programada', 'En Proceso', 'Realizada', 'Cancelada']:
+            prog.estado = nuevo_estado
+            prog.save()
+            return JsonResponse({'success': True, 'estado': prog.estado})
+        return JsonResponse({'success': False, 'error': 'Estado no válido'}, status=400)
+    except ProgramacionOperacion.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Operación no encontrada'}, status=404)
+
+
+@login_required
+@require_http_methods(['POST'])
+def eliminar_operacion_programada(request, operacion_id):
+    if not user_is_user_or_admin(request.user):
+        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+    try:
+        prog = ProgramacionOperacion.objects.get(id=operacion_id)
+        prog.delete()
+        messages.success(request, 'Operación programada eliminada correctamente.')
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('is_ajax') == '1':
+            return JsonResponse({'success': True})
+        return redirect('/operacion/?ver=logistica')
+    except ProgramacionOperacion.DoesNotExist:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('is_ajax') == '1':
+            return JsonResponse({'success': False, 'error': 'Operación no encontrada'}, status=404)
+        messages.error(request, 'La operación a eliminar no existe.')
+        return redirect('/operacion/?ver=logistica')
+
 
 
 @login_required
@@ -374,4 +546,29 @@ def reportes(request):
         
     return render(request, 'reportes.html', {
         'registros': registros
+    })
+
+
+@login_required
+def indicadores(request):
+    registros = RegistroOperativo.objects.all()
+    totales = registros.aggregate(
+        cantidad=Count('id'),
+        area=Sum('area_lote'),
+        total_unidades=Sum('unidades'),
+        costo=Sum(ExpressionWrapper(
+            F('unidades') * F('costo_unitario'),
+            output_field=DecimalField(max_digits=24, decimal_places=2),
+        )),
+    )
+    servicios = registros.values('tipo_servicio').annotate(
+        cantidad=Count('id')
+    ).order_by('-cantidad', 'tipo_servicio')
+
+    return render(request, 'indicadores.html', {
+        'total_registros': totales['cantidad'] or 0,
+        'area_total': totales['area'] or 0,
+        'unidades_totales': totales['total_unidades'] or 0,
+        'costo_calculado': totales['costo'] or 0,
+        'servicios': servicios,
     })

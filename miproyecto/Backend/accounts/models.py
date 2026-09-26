@@ -235,7 +235,6 @@ class Municipio(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
 
-
 class Auxiliar(models.Model):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     nombre = models.CharField(max_length=200, verbose_name='Nombre')
@@ -290,3 +289,57 @@ class RegistroOperativo(models.Model):
 
     def __str__(self):
         return f"{self.no_boleta} - {self.fecha_labor}"
+
+
+class ProgramacionOperacion(models.Model):
+    ESTADO_CHOICES = [
+        ('Programada', 'Programada'),
+        ('En Proceso', 'En Proceso'),
+        ('Realizada', 'Realizada'),
+        ('Cancelada', 'Cancelada'),
+    ]
+
+    PRIORIDAD_CHOICES = [
+        ('Baja', 'Baja'),
+        ('Normal', 'Normal'),
+        ('Alta', 'Alta'),
+        ('Urgente', 'Urgente'),
+    ]
+
+    tipo_servicio = models.CharField(max_length=150, verbose_name='Tipo de Servicio')
+    fecha = models.DateField(verbose_name='Fecha Programada')
+    finca = models.CharField(max_length=200, verbose_name='Finca')
+    lote = models.CharField(max_length=100, verbose_name='Lote')
+    area = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Cantidad de Área (Ha)')
+    responsable = models.CharField(max_length=200, verbose_name='Responsable de la Operación')
+    prioridad = models.CharField(max_length=20, choices=PRIORIDAD_CHOICES, default='Normal', verbose_name='Prioridad')
+    estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='Programada', verbose_name='Estado')
+    observaciones = models.TextField(blank=True, null=True, verbose_name='Descripción / Observaciones')
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Creado por')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de Registro')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Última Modificación')
+
+    class Meta:
+        verbose_name = 'Programación de Operación'
+        verbose_name_plural = 'Programaciones de Operaciones'
+        ordering = ['-fecha', '-created_at']
+
+    def __str__(self):
+        return f"{self.tipo_servicio} - {self.finca} ({self.lote}) [{self.fecha}]"
+
+
+class FirmaAutorizada(models.Model):
+    codigo = models.CharField(max_length=50, unique=True, verbose_name='Código')
+    nombre = models.CharField(max_length=200, verbose_name='Nombre')
+    puesto = models.CharField(max_length=150, verbose_name='Puesto')
+    area = models.CharField(max_length=150, verbose_name='Área')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Firma Autorizada'
+        verbose_name_plural = 'Firmas Autorizadas'
+        ordering = ['area', 'nombre']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+

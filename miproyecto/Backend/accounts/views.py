@@ -214,7 +214,7 @@ def buscar_usuario_por_codigo(request):
         return JsonResponse({'error': 'Código requerido'}, status=400)
 
     try:
-        empleado = Empleado.objects.filter(puesto=codigo).first()
+        empleado = Empleado.objects.filter(puesto__iexact=codigo).first()
 
         if not empleado:
             return JsonResponse({'success': False, 'error': 'Empleado no encontrado en el catálogo'}, status=404)
@@ -224,6 +224,7 @@ def buscar_usuario_por_codigo(request):
             'nombre': ' '.join(filter(None, [empleado.empleado, empleado.segundo_apellido])),
             'puesto': empleado.nombre_puesto,
             'codigo': empleado.puesto,
+            'area': empleado.empresa,
             'email': '',
         })
     except Exception as e:

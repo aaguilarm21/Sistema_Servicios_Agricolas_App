@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,69 +8,586 @@
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
   <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}">
-  <style>
-      .btn-primary, .btn-secondary {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          text-decoration: none;
-          font-weight: 600;
-          border-radius: 8px;
-          border: 2px solid transparent;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          white-space: nowrap;
-          cursor: pointer;
-          gap: 8px;
-          padding: 10px 16px;
-          font-size: 0.95rem;
-      }
-      .btn-primary { background: #4CAF50; color: white; }
-      .btn-primary:hover { background: #388e3c; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); }
-      .btn-secondary { background: #e0e0e0; color: #333; }
-      .btn-secondary:hover { background: #bdbdbd; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15); }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
 </head>
-<body>
+
+<body class="operacion-body">
   <div class="main-wrapper">
-    <header>
-      <div>
-        <h1>Operación Agrícola / Logística</h1>
-        <p>Gestiona las operaciones agrícolas y logísticas.</p>
+    <!-- Header Principal -->
+    <header class="header-bar">
+      <div class="header-title-box">
+        <h1>🚜 Logística</h1>
+        <p>Programación de servicios de campo, asignación de fincas, lotes y control logístico</p>
       </div>
-      <a href="{% url 'modulos' %}" class="btn-volver">Volver A Módulos</a>
+      <div class="header-actions">
+        <a href="{% url 'modulos' %}" class="btn-volver">← Volver A Módulos</a>
+      </div>
     </header>
 
-    <section class="form-card">
-      <h2>Operaciones</h2>
-      <form id="operacion-form" onsubmit="event.preventDefault(); alert('Operación registrada exitosamente.'); this.reset();">
-          <div class="form-grid">
-            <label>Tipo de Servicio
-                <select name="tipo_servicio" required>
-                    <option value="">Seleccionar</option>
-                    <option value="Aplicaciones aereas">Aplicaciones aéreas</option>
-                    <option value="Envio de semilla de caña">Envío de semilla de caña</option>
-                    <option value="Maquinaria rentada">Maquinaria rentada</option>
-                    <option value="Servicio contratado">Servicio contratado</option>
-                    <option value="Servicios de pinchazo">Servicios de pinchazo</option>
-                    <option value="Transporte de personal">Transporte de personal</option>
-                    <option value="Viajes de material o maquinaria">Viajes de material o maquinaria</option>
-                </select>
-            </label>
-            <label>Fecha<input type="date" required /></label>
+    <!-- Notificaciones / Mensajes Django -->
+    {% if messages %}
+    <div class="messages-container">
+      {% for message in messages %}
+      <div class="alert-operacion alert-{{ message.tags }}">
+        <span>{% if message.tags == 'success' %}✓{% else %}⚠️{% endif %}</span>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de Métricas Resumen -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon">🚜</div>
+        <div class="metric-info">
+          <h4>Total Operaciones</h4>
+          <p class="metric-num" id="metric-total">{{ total_programadas }}</p>
+        </div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-icon">📐</div>
+        <div class="metric-info">
+          <h4>Área Programada</h4>
+          <p class="metric-num">{{ total_area|floatformat:2 }} <span class="metric-unit">Ha</span></p>
+        </div>
+      </div>
+      <div class="metric-card orange">
+        <div class="metric-icon">⏳</div>
+        <div class="metric-info">
+          <h4>Pendientes / En Proceso</h4>
+          <p class="metric-num" id="metric-pendientes">{{ pendientes_count }}</p>
+        </div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-icon">✅</div>
+        <div class="metric-info">
+          <h4>Realizadas</h4>
+          <p class="metric-num" id="metric-realizadas">{{ realizadas_count }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pestañas de Navegación -->
+    <div class="nav-tabs-wrapper">
+      <button type="button" class="nav-tab-btn active" id="tab-programar" onclick="activarPestana('programar')">
+        <span>📝 Programar Nueva Operación</span>
+      </button>
+      <button type="button" class="nav-tab-btn logistica-tab" id="tab-logistica" onclick="activarPestana('logistica')">
+        <span>🚚 LOGISTICA (Ver Programación)</span>
+        <span class="badge-count tab-badge">{{ total_programadas }}</span>
+      </button>
+    </div>
+
+    <!-- SECCIÓN 1: FORMULARIO DE PROGRAMACIÓN -->
+    <section id="seccion-programar" class="card-panel">
+      <form id="operacion-form" method="POST" action="{% url 'operacion' %}">
+        {% csrf_token %}
+        <input type="hidden" name="is_ajax" value="0" />
+
+        <!-- 1. SERVICIO Y FECHA -->
+        <div class="section-title">
+          <span>📋 1. Servicio y Planificación</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label for="tipo_servicio">Tipo de Servicio *</label>
+            <select name="tipo_servicio" id="tipo_servicio" class="form-control" required>
+              <option value="">-- Seleccionar Servicio --</option>
+              <option value="Aplicaciones aereas">Aplicaciones aéreas</option>
+              <option value="Envio de semilla de caña">Envío de semilla de caña</option>
+              <option value="Maquinaria rentada">Maquinaria rentada</option>
+              <option value="Servicio contratado">Servicio contratado</option>
+              <option value="Servicios de pinchazo">Servicios de pinchazo</option>
+              <option value="Transporte de personal">Transporte de personal</option>
+              <option value="Viajes de material o maquinaria">Viajes de material o maquinaria</option>
+              <option value="Preparación de suelo">Preparación de suelo</option>
+              <option value="Fertilización">Fertilización</option>
+              <option value="Riego y drenaje">Riego y drenaje</option>
+            </select>
           </div>
-          <div class="form-grid">
-            <label>Descripción<textarea rows="3" required></textarea></label>
+
+          <div class="form-group">
+            <label for="fecha">Fecha de la Operación *</label>
+            <input type="date" name="fecha" id="fecha" class="form-control" required />
           </div>
-          <div class="button-row">
-            <button type="submit" class="btn-primary">💾 Registrar Operación</button>
-            <button type="button" class="btn-secondary" onclick="document.getElementById('operacion-form').reset()">🔄 Limpiar</button>
+
+          <div class="form-group">
+            <label for="prioridad">Prioridad</label>
+            <select name="prioridad" id="prioridad" class="form-control">
+              <option value="Normal" selected>Normal</option>
+              <option value="Alta">Alta</option>
+              <option value="Urgente">Urgente</option>
+              <option value="Baja">Baja</option>
+            </select>
           </div>
+        </div>
+
+        <!-- 2. UBICACIÓN, LOTE Y ÁREA -->
+        <div class="section-title section-title-spacing">
+          <span>🌾 2. Finca, Lote y Área</span>
+        </div>
+        <div class="form-grid-3">
+          <!-- FINCA -->
+          <div class="form-group">
+            <label for="finca">Finca * <span class="hint">(Selecciona del catálogo)</span></label>
+            <select name="finca" id="finca" class="form-control" required>
+              <option value="">-- Seleccionar Finca --</option>
+              {% for f in fincas %}
+              <option value="{{ f.nombre }}">{{ f.codigo }} - {{ f.nombre }}</option>
+              {% empty %}
+              <option value="San Antonio">273 - San Antonio</option>
+              <option value="La Esperanza">274 - La Esperanza</option>
+              <option value="El Porvenir">275 - El Porvenir</option>
+              <option value="Nuevo Horizonte">276 - Nuevo Horizonte</option>
+              <option value="Santa María">277 - Santa María</option>
+              <option value="Buenavista">278 - Buenavista</option>
+              <option value="El Progreso">279 - El Progreso</option>
+              <option value="Los Pinos">280 - Los Pinos</option>
+              <option value="La Unión">281 - La Unión</option>
+              <option value="Las Delicias">282 - Las Delicias</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- LOTE -->
+          <div class="form-group">
+            <label for="lote">N.º de Lote * <span class="hint">(4 dígitos, ej: 0014)</span></label>
+            <input type="text" name="lote" id="lote" list="lotes-sugeridos" class="form-control" placeholder="Ej: 0001"
+              required autocomplete="off" pattern="\d{4}" maxlength="4" inputmode="numeric"
+              title="Ingresa exactamente 4 dígitos numéricos (ej: 0014)" />
+            <datalist id="lotes-sugeridos">
+              <option value="0001">
+              <option value="0002">
+              <option value="0003">
+              <option value="0004">
+              <option value="0005">
+              <option value="0006">
+              <option value="0007">
+              <option value="0008">
+              <option value="0009">
+              <option value="0010">
+            </datalist>
+          </div>
+
+          <!-- CANTIDAD DE ÁREA -->
+          <div class="form-group">
+            <label for="area">Cantidad de Área * <span class="hint">(Hectáreas - Ha)</span></label>
+            <div class="input-with-unit">
+              <input type="number" step="0.01" min="0.01" name="area" id="area" class="form-control"
+                placeholder="Ej: 14.50" required />
+              <span class="unit-suffix">Ha</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. RESPONSABLE Y DETALLES -->
+        <div class="section-title section-title-spacing">
+          <span>👤 3. Responsable y Observaciones</span>
+        </div>
+        <div class="form-grid-2">
+          <!-- RESPONSABLE -->
+          <div class="form-group">
+            <label for="responsable">Responsable de la Operación * <span class="hint">(Encargado /
+                Supervisor)</span></label>
+            <input type="text" name="responsable" id="responsable" list="empleados-sugeridos" class="form-control"
+              placeholder="Seleccionar o escribir nombre del responsable" required autocomplete="off" />
+            <datalist id="empleados-sugeridos">
+              {% for emp in empleados %}
+              <option value="{{ emp.empleado }}">{{ emp.empleado }} ({{ emp.nombre_puesto }})</option>
+              {% empty %}
+              <option value="Ana María Pacheco (Auxiliar de Campo)">
+              <option value="Fernando José Torres (Auxiliar de Taller)">
+              <option value="Carlos Morales (Supervisor de Cosecha)">
+              <option value="Juan Pérez (Administrador de Finca)">
+                {% endfor %}
+            </datalist>
+          </div>
+
+          <!-- ESTADO INICIAL -->
+          <div class="form-group">
+            <label for="estado">Estado Inicial</label>
+            <select name="estado" id="estado" class="form-control">
+              <option value="Programada" selected>Programada</option>
+              <option value="En Proceso">En Proceso</option>
+              <option value="Realizada">Realizada</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group form-group-spaced">
+          <label for="observaciones">Descripción / Instrucciones de Trabajo</label>
+          <textarea name="observaciones" id="observaciones" class="form-control" rows="3"
+            placeholder="Detalles sobre equipo a utilizar, especificaciones del servicio, químicos o insumos, etc..."></textarea>
+        </div>
+
+        <!-- BOTONES -->
+        <div class="button-row">
+          <button type="submit" class="btn-submit">
+            💾 Guardar y Programar Operación
+          </button>
+          <button type="button" class="btn-secondary" onclick="limpiarFormulario()">
+            🔄 Limpiar
+          </button>
+          <button type="button" class="btn-logistica btn-action-right" onclick="activarPestana('logistica')">
+            🚚 Ver Toda la Programación (LOGISTICA)
+          </button>
+        </div>
       </form>
     </section>
 
+    <!-- SECCIÓN 2: VISTA "LOGISTICA" (PROGRAMACIÓN COMPLETA) -->
+    <section id="seccion-logistica" class="card-panel is-hidden">
+      <div class="logistica-header">
+        <h2 class="logistica-title">
+          <span>🚚 Programación de Operaciones Logísticas</span>
+        </h2>
+        <div class="logistica-quick-actions">
+          <button type="button" class="btn-submit btn-sm" onclick="activarPestana('programar')">
+            ➕ Nueva Operación
+          </button>
+          <button type="button" class="btn-secondary btn-sm" onclick="printSoloTabla()">
+            🖨️ Imprimir
+          </button>
+        </div>
+      </div>
 
+      <!-- Barra de Filtros y Búsqueda -->
+      <div class="logistica-toolbar">
+        <div class="search-filter-box">
+          <input type="text" id="filtro-busqueda" class="search-input"
+            placeholder="🔍 Buscar por Finca, Lote, Responsable o Servicio..." onkeyup="filtrarTablaLogistica()" />
+          <select id="filtro-estado" class="filter-select" onchange="filtrarTablaLogistica()">
+            <option value="">Todos los Estados</option>
+            <option value="Programada">Programada</option>
+            <option value="En Proceso">En Proceso</option>
+            <option value="Realizada">Realizada</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+          <select id="filtro-finca" class="filter-select" onchange="filtrarTablaLogistica()">
+            <option value="">Todas las Fincas</option>
+            {% for f in fincas %}
+            <option value="{{ f.nombre }}">{{ f.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <span id="contador-filtrados" class="logistica-counter">
+          Mostrando {{ programaciones|length }} operaciones
+        </span>
+      </div>
+
+      <!-- Tabla de Programación Logística -->
+      <div class="table-container">
+        <table class="logistica-table" id="tabla-logistica">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th>Fecha</th>
+              <th>Servicio</th>
+              <th>Finca</th>
+              <th>Lote</th>
+              <th class="text-right">Área (Ha)</th>
+              <th>Responsable</th>
+              <th>Prioridad</th>
+              <th>Estado</th>
+              <th>Instrucciones</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-logistica-body">
+            {% for prog in programaciones %}
+            <tr data-id="{{ prog.id }}" data-estado="{{ prog.estado }}" data-finca="{{ prog.finca }}">
+              <td class="cell-id" data-num>{{ forloop.counter }}</td>
+              <td class="nowrap cell-bold">{{ prog.fecha|date:"d/m/Y" }}</td>
+              <td class="cell-service">{{ prog.tipo_servicio }}</td>
+              <td><strong>{{ prog.finca }}</strong></td>
+              <td><span class="cell-badge-code">{{ prog.lote }}</span></td>
+              <td class="text-right cell-mono-number">{{ prog.area }} Ha</td>
+              <td>{{ prog.responsable }}</td>
+              <td>
+                <span class="badge-prioridad prioridad-{{ prog.prioridad|lower }}">
+                  {{ prog.prioridad }}
+                </span>
+              </td>
+              <td>
+                <span class="badge-estado estado-{{ prog.estado|slugify }}" id="badge-estado-{{ prog.id }}">
+                  {{ prog.estado }}
+                </span>
+              </td>
+              <td class="cell-truncated" title="{{ prog.observaciones|default:'' }}">
+                {{ prog.observaciones|default:"-" }}
+              </td>
+              <td class="text-center nowrap">
+                <div class="table-actions">
+                  <select class="select-estado-mini" data-selected="{{ prog.estado }}"
+                    onchange="actualizarEstadoOperacion({{ prog.id }}, this.value)" title="Cambiar estado">
+                    <option value="Programada">Programada</option>
+                    <option value="En Proceso">En Proceso</option>
+                    <option value="Realizada">Realizada</option>
+                    <option value="Cancelada">Cancelada</option>
+                  </select>
+
+                  <form method="POST" action="{% url 'eliminar_operacion_programada' prog.id %}"
+                    class="delete-form-inline" onsubmit="eliminarOperacionAjax(event, {{ prog.id }}, this)">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-delete-mini" title="Eliminar operación">🗑️</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr id="empty-row">
+              <td colspan="11">
+                <div class="empty-state">
+                  <span class="icon">🚜</span>
+                  <h3>Aún no hay operaciones programadas</h3>
+                  <p>Registra tu primera operación agrícola o logística desde el formulario.</p>
+                  <button type="button" class="btn-submit empty-action-btn" onclick="activarPestana('programar')">
+                    📝 Programar Operación Ahora
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
+
+  <!-- Script interactivo -->
+  <script>
+    // Inicializar fecha de hoy por defecto si el campo está vacío
+    document.addEventListener('DOMContentLoaded', function () {
+      const fechaInput = document.getElementById('fecha');
+      if (fechaInput && !fechaInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        fechaInput.value = today;
+      }
+
+      // Sincronizar valor seleccionado en selectores de estado
+      document.querySelectorAll('.select-estado-mini[data-selected]').forEach(function (select) {
+        select.value = select.getAttribute('data-selected');
+      });
+
+      // Si la URL contiene ?ver=logistica o fue redirigido a logistica, activar pestaña
+      const urlParams = new URLSearchParams(window.location.search);
+      const debeVerLogistica = "{% if ver_logistica %}1{% else %}0{% endif %}" === "1";
+      if (urlParams.get('ver') === 'logistica' || debeVerLogistica) {
+        activarPestana('logistica');
+      }
+    });
+
+    // Control de pestañas: Programar vs Logística usando clases CSS
+    function activarPestana(tabName) {
+      const seccionProgramar = document.getElementById('seccion-programar');
+      const seccionLogistica = document.getElementById('seccion-logistica');
+      const tabProgramar = document.getElementById('tab-programar');
+      const tabLogistica = document.getElementById('tab-logistica');
+
+      if (tabName === 'logistica') {
+        seccionProgramar.classList.add('is-hidden');
+        seccionLogistica.classList.remove('is-hidden');
+        tabProgramar.classList.remove('active');
+        tabLogistica.classList.add('active');
+        seccionLogistica.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        seccionLogistica.classList.add('is-hidden');
+        seccionProgramar.classList.remove('is-hidden');
+        tabLogistica.classList.remove('active');
+        tabProgramar.classList.add('active');
+        seccionProgramar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // Limpiar formulario
+    function limpiarFormulario() {
+      const form = document.getElementById('operacion-form');
+      form.reset();
+      const fechaInput = document.getElementById('fecha');
+      if (fechaInput) {
+        fechaInput.value = new Date().toISOString().split('T')[0];
+      }
+    }
+
+    // Renumerar correlativo visual de la tabla (1, 2, 3...)
+    function renumerarTabla() {
+      const filas = document.querySelectorAll('#tabla-logistica-body tr[data-id]');
+      filas.forEach(function (fila, idx) {
+        const celda = fila.querySelector('td[data-num]');
+        if (celda) celda.textContent = idx + 1;
+      });
+    }
+
+    // Eliminar operación via AJAX (sin recargar página)
+    function eliminarOperacionAjax(event, operacionId, form) {
+      event.preventDefault();
+      if (!confirm('¿Estás seguro de eliminar esta programación de operación?')) return;
+
+      const formData = new FormData(form);
+      fetch(form.action, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+        body: formData
+      })
+        .then(function (response) {
+          if (response.ok || response.redirected) {
+            const fila = document.querySelector(`tr[data-id="${operacionId}"]`);
+            if (fila) {
+              fila.remove();
+              renumerarTabla();
+            }
+            // Actualizar contador del header
+            const metricTotal = document.getElementById('metric-total');
+            if (metricTotal) {
+              const actual = parseInt(metricTotal.textContent) || 0;
+              metricTotal.textContent = Math.max(0, actual - 1);
+            }
+          } else {
+            alert('No se pudo eliminar la operación.');
+          }
+        })
+        .catch(function () {
+          alert('Ocurrió un error al intentar eliminar.');
+        });
+    }
+
+    // Filtrar tabla de logística en tiempo real
+    function filtrarTablaLogistica() {
+      const inputBusqueda = document.getElementById('filtro-busqueda').value.toLowerCase();
+      const filtroEstado = document.getElementById('filtro-estado').value;
+      const filtroFinca = document.getElementById('filtro-finca').value.toLowerCase();
+      const filas = document.querySelectorAll('#tabla-logistica-body tr:not(#empty-row)');
+
+      let visibles = 0;
+
+      filas.forEach(fila => {
+        const textoFila = fila.innerText.toLowerCase();
+        const estadoFila = fila.getAttribute('data-estado') || '';
+        const fincaFila = (fila.getAttribute('data-finca') || '').toLowerCase();
+
+        const coincideTexto = !inputBusqueda || textoFila.includes(inputBusqueda);
+        const coincideEstado = !filtroEstado || estadoFila === filtroEstado;
+        const coincideFinca = !filtroFinca || fincaFila.includes(filtroFinca);
+
+        if (coincideTexto && coincideEstado && coincideFinca) {
+          fila.classList.remove('is-hidden');
+          visibles++;
+        } else {
+          fila.classList.add('is-hidden');
+        }
+      });
+
+      const contador = document.getElementById('contador-filtrados');
+      if (contador) {
+        contador.textContent = `Mostrando ${visibles} operaciones`;
+      }
+    }
+
+    // Actualizar estado de una operación mediante AJAX
+    function actualizarEstadoOperacion(operacionId, nuevoEstado) {
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      const fila = document.querySelector(`tr[data-id="${operacionId}"]`);
+      const estadoAnterior = fila?.getAttribute('data-estado');
+      const selectorEstado = fila?.querySelector('.select-estado-mini');
+      const formData = new FormData();
+      formData.append('estado', nuevoEstado);
+      formData.append('csrfmiddlewaretoken', csrfToken);
+
+      fetch(`/operacion/${operacionId}/estado/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrfToken,
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const badge = document.getElementById(`badge-estado-${operacionId}`);
+            if (badge) {
+              badge.textContent = data.estado;
+              badge.className = `badge-estado estado-${data.estado.toLowerCase().replace(/\s+/g, '-')}`;
+            }
+            const fila = document.querySelector(`tr[data-id="${operacionId}"]`);
+            if (fila) {
+              fila.setAttribute('data-estado', data.estado);
+            }
+            actualizarMetricasEstado();
+          } else {
+            if (selectorEstado && estadoAnterior) selectorEstado.value = estadoAnterior;
+            alert('No se pudo actualizar el estado: ' + (data.error || 'Error desconocido'));
+          }
+        })
+        .catch(error => {
+          if (selectorEstado && estadoAnterior) selectorEstado.value = estadoAnterior;
+          console.error('Error al actualizar estado:', error);
+          alert('Ocurrió un error al intentar actualizar el estado.');
+        });
+    }
+
+    function actualizarMetricasEstado() {
+      const filas = document.querySelectorAll('#tabla-logistica-body tr[data-id]');
+      let pendientes = 0;
+      let realizadas = 0;
+
+      filas.forEach(fila => {
+        const estado = fila.getAttribute('data-estado');
+        if (estado === 'Programada' || estado === 'En Proceso') pendientes++;
+        if (estado === 'Realizada') realizadas++;
+      });
+
+      const metricPendientes = document.getElementById('metric-pendientes');
+      const metricRealizadas = document.getElementById('metric-realizadas');
+      if (metricPendientes) metricPendientes.textContent = pendientes;
+      if (metricRealizadas) metricRealizadas.textContent = realizadas;
+    }
+
+    // Imprimir solo la tabla de logística
+    function printSoloTabla() {
+      const tabla = document.getElementById('tabla-logistica');
+      if (!tabla) return;
+
+      const ventana = window.open('', '_blank', 'width=1100,height=750');
+      ventana.document.write(`
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+          <meta charset="UTF-8" />
+          <title>Programación de Operaciones Logísticas</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10px; color: #111; padding: 20px; }
+            h2 { font-size: 13px; margin-bottom: 12px; color: #1b5e20; border-bottom: 2px solid #2e7d32; padding-bottom: 6px; }
+            table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+            th { background: #e8f5e9; color: #1b5e20; font-weight: 700; padding: 7px 8px;
+                 border: 1px solid #a5d6a7; text-align: left; white-space: nowrap; }
+            td { padding: 6px 8px; border: 1px solid #ddd; vertical-align: middle; }
+            tr:nth-child(even) td { background: #f9fbe7; }
+            .no-print { display: none !important; }
+            @page { margin: 10mm; size: landscape; }
+          </style>
+        </head>
+        <body>
+          <h2>🚚 Programación de Operaciones Logísticas</h2>
+          ${tabla.outerHTML}
+        </body>
+        </html>
+      `);
+      ventana.document.close();
+
+      // Ocultar columna de acciones antes de imprimir
+      ventana.document.querySelectorAll('th:last-child, td:last-child').forEach(el => {
+        el.style.display = 'none';
+      });
+
+      ventana.focus();
+      ventana.print();
+      ventana.close();
+    }
+  </script>
 </body>
+
 </html>

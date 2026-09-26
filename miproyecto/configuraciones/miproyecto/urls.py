@@ -33,13 +33,18 @@ urlpatterns = [
     path('datos-registrados/', views.datos_registrados, name='datos_registrados'),
     path('registros/', views.registros_operativos, name='registros'),
     path('registros-data/', views.registros_operativos_data, name='registros_data'),
+    path('validar-registro-operativo/', views.validar_registro_operativo, name='validar_registro_operativo'),
     path('registros/<int:registro_id>/editar/', views.editar_registro_operativo, name='editar_registro'),
     path('registros/<int:registro_id>/borrar/', views.borrar_registro_operativo, name='borrar_registro'),
     path('usuarios/', views.usuarios, name='usuarios'),
     path('usuarios/crear/', views.crear_usuario, name='crear_usuario'),
     path('usuarios/creados/', views.usuarios_creados, name='usuarios_creados'),
+    path('firmas-autorizadas/', views.firmas_autorizadas, name='firmas_autorizadas'),
     path('operacion/', views.operacion, name='operacion'),
+    path('operacion/<int:operacion_id>/estado/', views.cambiar_estado_operacion, name='cambiar_estado_operacion'),
+    path('operacion/<int:operacion_id>/eliminar/', views.eliminar_operacion_programada, name='eliminar_operacion_programada'),
     path('reportes/', views.reportes, name='reportes'),
+    path('indicadores/', views.indicadores, name='indicadores'),
 ]
 
 if settings.DEBUG:

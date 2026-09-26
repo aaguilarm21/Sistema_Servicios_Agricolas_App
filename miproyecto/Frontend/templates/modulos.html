@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,12 +8,13 @@
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
 </head>
+
 <body>
   <div class="main-wrapper">
     <header class="page-header">
       <div>
-        <h1>Panel de Módulos del Sistema</h1>
-        <p>Accede a cada módulo para gestionar usuarios, catálogos, operaciones y reportes.</p>
+        <h1 id="page-title">Áreas de Gestión</h1>
+
       </div>
       <div class="status-info">
         <span class="badge">Activo</span>
@@ -49,25 +51,25 @@
     </div>
 
     {% if messages %}
-      <div id="warningPopup" class="warning-popup">
-        <span class="warning-icon">⚠️</span>
-        <div>
-          {% for message in messages %}
-            <div class="warning-text">{{ message }}</div>
-          {% endfor %}
-        </div>
+    <div id="warningPopup" class="warning-popup">
+      <span class="warning-icon">⚠️</span>
+      <div>
+        {% for message in messages %}
+        <div class="warning-text">{{ message }}</div>
+        {% endfor %}
       </div>
-      <script>
-        setTimeout(function () {
-          const warningPopup = document.getElementById('warningPopup');
-          if (warningPopup) {
-            warningPopup.style.opacity = '0';
-            setTimeout(function () {
-              warningPopup.style.display = 'none';
-            }, 300);
-          }
-        }, 3000);
-      </script>
+    </div>
+    <script>
+      setTimeout(function () {
+        const warningPopup = document.getElementById('warningPopup');
+        if (warningPopup) {
+          warningPopup.style.opacity = '0';
+          setTimeout(function () {
+            warningPopup.style.display = 'none';
+          }, 300);
+        }
+      }, 3000);
+    </script>
     {% endif %}
     <script src="{% static 'js/common.js' %}"></script>
     <script>
@@ -135,17 +137,128 @@
       });
     </script>
 
-    <div class="modules-container">
+    <script>
+      // Navegación entre sectores
+      function mostrarSector(sector) {
+        document.getElementById('page-title').textContent = 'Módulos del Sistema';
+        document.getElementById('sector-picker').style.display = 'none';
+        document.getElementById('sector-agricola').classList.add('is-sector-hidden');
+        document.getElementById('sector-combustibles').classList.add('is-sector-hidden');
+        document.getElementById('sector-administracion').classList.add('is-sector-hidden');
+        document.getElementById('sector-reportes').classList.add('is-sector-hidden');
+        document.getElementById('sector-' + sector).classList.remove('is-sector-hidden');
+      }
 
+      function volverSector() {
+        document.getElementById('page-title').textContent = 'Áreas de Gestión';
+        document.getElementById('sector-agricola').classList.add('is-sector-hidden');
+        document.getElementById('sector-combustibles').classList.add('is-sector-hidden');
+        document.getElementById('sector-administracion').classList.add('is-sector-hidden');
+        document.getElementById('sector-reportes').classList.add('is-sector-hidden');
+        document.getElementById('sector-picker').style.display = '';
+      }
+    </script>
 
+    <!-- ===== PANTALLA DE SELECCIÓN DE SECTOR ===== -->
+    <div id="sector-picker" class="sector-picker">
+      <div class="sector-cards">
+
+        <button type="button" class="sector-card" id="btn-sector-agricola" onclick="mostrarSector('agricola')"
+          aria-controls="sector-agricola">
+          <span class="sector-card-icon">🌾</span>
+          <span class="sector-card-label">Operación Agrícola</span>
+          <span class="sector-card-sub">Registros Operativos y Logística</span>
+        </button>
+
+        <button type="button" class="sector-card sector-card-fuel" id="btn-sector-combustibles"
+          onclick="mostrarSector('combustibles')" aria-controls="sector-combustibles">
+          <span class="sector-card-icon">⛽</span>
+          <span class="sector-card-label">Combustibles</span>
+          <span class="sector-card-sub">Control de Consumo y Despachos</span>
+        </button>
+
+        <button type="button" class="sector-card" id="btn-sector-administracion"
+          onclick="mostrarSector('administracion')" aria-controls="sector-administracion">
+          <span class="sector-card-icon">⚙️</span>
+          <span class="sector-card-label">Administración</span>
+          <span class="sector-card-sub">Usuarios, Catálogos y Asignación de Firmas</span>
+        </button>
+
+        <button type="button" class="sector-card" id="btn-sector-reportes" onclick="mostrarSector('reportes')"
+          aria-controls="sector-reportes">
+          <span class="sector-card-icon">📊</span>
+          <span class="sector-card-label">Reportes y Base de Datos</span>
+          <span class="sector-card-sub">Indicadores y Registros Almacenados</span>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- ===== MÓDULOS: OPERACIÓN AGRÍCOLA ===== -->
+    <div id="sector-agricola" class="sector-panel is-sector-hidden">
+      <div class="sector-panel-header">
+        <button type="button" class="btn-back-sector" onclick="volverSector()">← Volver</button>
+        <h2 class="sector-panel-title">🌾 Operación Agrícola</h2>
+      </div>
+      <div class="modules-list compact">
+        <ul class="modules-menu">
+          <li><a href="{% url 'registros' %}" class="module-btn"><span class="icon">📝</span> Registros Operativos</a>
+          </li>
+          <li><a href="{% url 'validar_registro_operativo' %}" class="module-btn"><span class="icon">🔎</span> Validación de Registros Operativos</a></li>
+          <li><a href="{% url 'operacion' %}" class="module-btn"><span class="icon">🚜</span> Logística</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ===== MÓDULOS: COMBUSTIBLES ===== -->
+    <div id="sector-combustibles" class="sector-panel is-sector-hidden">
+      <div class="sector-panel-header">
+        <button type="button" class="btn-back-sector" onclick="volverSector()">← Volver</button>
+        <h2 class="sector-panel-title">⛽ Combustibles</h2>
+      </div>
+      <div class="modules-list compact">
+        <ul class="modules-menu">
+          <li>
+            <div class="module-btn module-btn-soon">
+              <span class="icon">🏗️</span>
+              <span>Módulos en construcción…<br><small>Pronto podrás gestionar despachos y consumo aquí.</small></span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ===== MÓDULOS: ADMINISTRACIÓN ===== -->
+    <div id="sector-administracion" class="sector-panel is-sector-hidden">
+      <div class="sector-panel-header">
+        <button type="button" class="btn-back-sector" onclick="volverSector()">← Volver</button>
+        <h2 class="sector-panel-title">⚙️ Administración</h2>
+      </div>
       <div class="modules-list compact">
         <ul class="modules-menu">
           <li><a href="{% url 'usuarios' %}" class="module-btn"><span class="icon">👤</span> Módulo de Usuarios</a></li>
-          <li><a href="{% url 'configuracion' %}" class="module-btn"><span class="icon">⚙️</span> Configuración y Catálogos</a></li>
-          <li><a href="{% url 'registros' %}" class="module-btn"><span class="icon">📝</span> Registros Operativos</a></li>
-          <li><a href="{% url 'operacion' %}" class="module-btn"><span class="icon">🚜</span> Operación Agrícola / Logística</a></li>
-          <li><a href="{% url 'reportes' %}" class="module-btn"><span class="icon">📊</span> Reportes e Indicadores</a></li>
-          <li><a href="{% url 'registros_data' %}" class="module-btn"><span class="icon">🗄️</span> Base de Datos Registros</a></li>
+          <li><a href="{% url 'configuracion' %}" class="module-btn"><span class="icon">⚙️</span> Configuración y
+              Catálogos</a></li>
+          <li><a href="{% url 'firmas_autorizadas' %}" class="module-btn"><span class="icon">✍️</span> Registro de
+              Firmas Autorizadas</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ===== MÓDULOS: REPORTES Y BASE DE DATOS ===== -->
+    <div id="sector-reportes" class="sector-panel is-sector-hidden">
+      <div class="sector-panel-header">
+        <button type="button" class="btn-back-sector" onclick="volverSector()">← Volver</button>
+        <h2 class="sector-panel-title">📊 Reportes y Base de Datos</h2>
+      </div>
+      <div class="modules-list compact">
+        <ul class="modules-menu">
+          <li><a href="{% url 'reportes' %}" class="module-btn"><span class="icon">📄</span> Reportes</a>
+          </li>
+          <li><a href="{% url 'indicadores' %}" class="module-btn"><span class="icon">📈</span> Indicadores</a>
+          </li>
+          <li><a href="{% url 'registros_data' %}" class="module-btn"><span class="icon">🗄️</span> Base de Datos
+              Registros</a></li>
         </ul>
       </div>
     </div>
@@ -154,4 +267,5 @@
 
 
 </body>
+
 </html>

@@ -236,7 +236,7 @@
                             <select id="lugar_origen" name="lugar_origen" required>
                                 <option value="">Seleccionar Municipio</option>
                                 {% for m in municipios %}
-                                <option value="{{ m.nombre }}">{{ m.codigo }} - {{ m.nombre }}</option>
+                                <option value="{{ m.nombre }}">{{ m.nombre }} - {{ m.departamento }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -245,7 +245,7 @@
                             <select id="lugar_destino" name="lugar_destino" required>
                                 <option value="">Seleccionar Municipio</option>
                                 {% for m in municipios %}
-                                <option value="{{ m.nombre }}">{{ m.codigo }} - {{ m.nombre }}</option>
+                                <option value="{{ m.nombre }}">{{ m.nombre }} - {{ m.departamento }}</option>
                                 {% endfor %}
                             </select>
                         </div>

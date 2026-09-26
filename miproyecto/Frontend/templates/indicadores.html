@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Indicadores</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
+</head>
+
+<body>
+  <div class="main-wrapper">
+    <header>
+      <div>
+        <h1>📈 Indicadores</h1>
+        <p>Resumen de los registros operativos almacenados.</p>
+      </div>
+      <a href="{% url 'modulos' %}" class="btn-volver">Volver a Módulos</a>
+    </header>
+
+    <section class="metrics-grid" aria-label="Indicadores generales">
+      <article class="metric-card">
+        <div class="metric-icon">🧾</div>
+        <div class="metric-info">
+          <h4>Registros Operativos</h4>
+          <p class="metric-num">{{ total_registros }}</p>
+        </div>
+      </article>
+      <article class="metric-card blue">
+        <div class="metric-icon">📐</div>
+        <div class="metric-info">
+          <h4>Área Acumulada en Registros</h4>
+          <p class="metric-num">{{ area_total|floatformat:2 }} <span class="metric-unit">Ha</span></p>
+        </div>
+      </article>
+      <article class="metric-card orange">
+        <div class="metric-icon">📦</div>
+        <div class="metric-info">
+          <h4>Unidades Registradas</h4>
+          <p class="metric-num">{{ unidades_totales|floatformat:2 }}</p>
+        </div>
+      </article>
+      <article class="metric-card green">
+        <div class="metric-icon">💰</div>
+        <div class="metric-info">
+          <h4>Costo Calculado</h4>
+          <p class="metric-num">Q{{ costo_calculado|floatformat:2 }}</p>
+          <small>Unidades × costo unitario</small>
+        </div>
+      </article>
+    </section>
+
+    <section class="form-card">
+      <h2>Registros por Tipo de Servicio</h2>
+      <div class="data-grid">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo de Servicio</th>
+              <th>Cantidad de Registros</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for servicio in servicios %}
+            <tr>
+              <td>{{ servicio.tipo_servicio }}</td>
+              <td>{{ servicio.cantidad }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="2">No hay registros operativos para calcular indicadores.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</body>
+
+</html>

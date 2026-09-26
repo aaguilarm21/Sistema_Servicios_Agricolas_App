@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registro de Firmas Autorizadas</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <style>
+    .master-field {
+      background: #f5f5f5 !important;
+    }
+
+    .lookup-status {
+      min-height: 1.2em;
+      margin: -4px 0 12px;
+      color: #55705a;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="main-wrapper">
+    <header>
+      <div>
+        <h1>Registro de Firmas Autorizadas</h1>
+        <p>Registra a las personas autorizadas para firmar.</p>
+      </div>
+      <a href="{% url 'modulos' %}" class="btn-volver">Volver a Módulos</a>
+    </header>
+
+    {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <section class="form-card">
+      <h2>Registrar Nueva Firma</h2>
+      <form method="post" action="{% url 'firmas_autorizadas' %}">
+        {% csrf_token %}
+        <div class="form-grid grid-3-cols">
+          <label for="codigo">Código
+            <input type="text" id="codigo" name="codigo" maxlength="50" value="{{ form_data.codigo }}"
+              autocomplete="off" required />
+          </label>
+          <label for="nombre">Nombre
+            <input class="master-field" type="text" id="nombre" name="nombre" maxlength="200"
+              value="{{ form_data.nombre }}" readonly required />
+          </label>
+          <label for="puesto">Puesto
+            <input class="master-field" type="text" id="puesto" name="puesto" maxlength="150"
+              value="{{ form_data.puesto }}" readonly required />
+          </label>
+          <label for="area">Área / Empresa
+            <input class="master-field" type="text" id="area" name="area" maxlength="150" value="{{ form_data.area }}"
+              readonly required />
+          </label>
+        </div>
+        <p class="lookup-status" id="employee-lookup-status" role="status" aria-live="polite"></p>
+        <div class="button-row">
+          <button class="btn" id="btn-guardar-firma" type="submit" disabled>Guardar Firma</button>
+          <button class="btn btn-secondary" id="btn-limpiar-firma" type="button">Limpiar</button>
+          <button class="btn btn-secondary" id="btn-ver-firmas" type="button" aria-expanded="false"
+            aria-controls="firmas-registradas">Ver Firmas Registradas</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="form-card" id="firmas-registradas" hidden>
+      <h2>Firmas Registradas</h2>
+      <div class="data-grid">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Nombre</th>
+              <th>Puesto</th>
+              <th>Área</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for firma in firmas %}
+            <tr>
+              <td>{{ firma.codigo }}</td>
+              <td>{{ firma.nombre }}</td>
+              <td>{{ firma.puesto }}</td>
+              <td>{{ firma.area }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4">Aún no hay firmas autorizadas registradas.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <script>
+    const codigoFirma = document.getElementById('codigo');
+    const nombreFirma = document.getElementById('nombre');
+    const puestoFirma = document.getElementById('puesto');
+    const areaFirma = document.getElementById('area');
+    const estadoBusquedaFirma = document.getElementById('employee-lookup-status');
+    const botonGuardarFirma = document.getElementById('btn-guardar-firma');
+    const formularioFirma = document.querySelector('form');
+    const botonVerFirmas = document.getElementById('btn-ver-firmas');
+    const panelFirmas = document.getElementById('firmas-registradas');
+    let temporizadorBusquedaFirma;
+    let solicitudBusquedaFirma = 0;
+
+    function limpiarDatosMaestroFirma() {
+      nombreFirma.value = '';
+      puestoFirma.value = '';
+      areaFirma.value = '';
+      botonGuardarFirma.disabled = true;
+    }
+
+    function buscarEmpleadoFirma(codigo, solicitud) {
+      fetch(`/accounts/api/buscar-usuario/?codigo=${encodeURIComponent(codigo)}`)
+        .then(async respuesta => ({ respuesta, datos: await respuesta.json() }))
+        .then(({ respuesta, datos }) => {
+          if (solicitud !== solicitudBusquedaFirma || codigoFirma.value.trim() !== codigo) return;
+          if (!respuesta.ok || !datos.success) {
+            estadoBusquedaFirma.textContent = datos.error || 'No se encontró el empleado.';
+            return;
+          }
+
+          codigoFirma.value = datos.codigo;
+          nombreFirma.value = datos.nombre;
+          puestoFirma.value = datos.puesto;
+          areaFirma.value = datos.area;
+          botonGuardarFirma.disabled = !(
+            datos.nombre && datos.puesto && datos.area
+          );
+          estadoBusquedaFirma.textContent = botonGuardarFirma.disabled
+            ? 'El empleado no tiene todos los datos requeridos en el maestro.'
+            : 'Empleado encontrado en el maestro.';
+        })
+        .catch(() => {
+          if (solicitud === solicitudBusquedaFirma) {
+            estadoBusquedaFirma.textContent = 'No se pudo consultar el maestro de empleados.';
+          }
+        });
+    }
+
+    codigoFirma.addEventListener('input', () => {
+      clearTimeout(temporizadorBusquedaFirma);
+      const solicitud = ++solicitudBusquedaFirma;
+      limpiarDatosMaestroFirma();
+      const codigo = codigoFirma.value.trim();
+      estadoBusquedaFirma.textContent = codigo ? 'Buscando empleado…' : '';
+      if (codigo) {
+        temporizadorBusquedaFirma = setTimeout(
+          () => buscarEmpleadoFirma(codigo, solicitud),
+          350
+        );
+      }
+    });
+
+    document.getElementById('btn-limpiar-firma').addEventListener('click', () => {
+      clearTimeout(temporizadorBusquedaFirma);
+      solicitudBusquedaFirma++;
+      formularioFirma.reset();
+      codigoFirma.value = '';
+      limpiarDatosMaestroFirma();
+      estadoBusquedaFirma.textContent = '';
+      codigoFirma.focus();
+    });
+
+    botonVerFirmas.addEventListener('click', () => {
+      const mostrar = panelFirmas.hidden;
+      panelFirmas.hidden = !mostrar;
+      botonVerFirmas.textContent = mostrar ? 'Ocultar Firmas Registradas' : 'Ver Firmas Registradas';
+      botonVerFirmas.setAttribute('aria-expanded', String(mostrar));
+      if (mostrar) panelFirmas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    botonGuardarFirma.disabled = !(nombreFirma.value && puestoFirma.value && areaFirma.value);
+  </script>
+</body>
+
+</html>

@@ -1361,6 +1361,175 @@ textarea {
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Selector principal de áreas y paneles de módulos. */
+.sector-picker {
+  padding: 30px 10px 24px;
+  text-align: center;
+}
+
+.sector-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.sector-card {
+  display: flex;
+  min-height: 205px;
+  padding: 28px 24px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 2px solid #a5d6a7;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffffff 0%, #f1f8e9 100%);
+  color: #1b5e20;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(46, 125, 50, 0.14);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sector-card:hover,
+.sector-card:focus-visible {
+  border-color: #388e3c;
+  box-shadow: 0 14px 28px rgba(46, 125, 50, 0.24);
+  outline: none;
+  transform: translateY(-4px);
+}
+
+.sector-card-fuel {
+  border-color: #e0b15a;
+  background: linear-gradient(145deg, #fffdf8 0%, #fff3d8 100%);
+  color: #8a5a00;
+}
+
+.sector-card-fuel:hover,
+.sector-card-fuel:focus-visible {
+  border-color: #c78300;
+  box-shadow: 0 14px 28px rgba(199, 131, 0, 0.2);
+}
+
+.sector-card-icon {
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+.sector-card-label {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.sector-card-sub {
+  max-width: 260px;
+  color: #55705a;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.sector-card-fuel .sector-card-sub {
+  color: #806b43;
+}
+
+.sector-panel {
+  animation: sector-panel-in 0.2s ease-out;
+}
+
+.is-sector-hidden {
+  display: none;
+}
+
+.sector-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 8px 0 14px;
+}
+
+.sector-panel-title {
+
+  margin: 0;
+  color: #1b5e20;
+  font-size: 1.35rem;
+}
+
+.btn-back-sector {
+  padding: 8px 14px;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1b5e20;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.btn-back-sector:hover,
+.btn-back-sector:focus-visible {
+  background: #e8f5e9;
+  outline: 2px solid #66bb6a;
+  outline-offset: 2px;
+}
+
+.module-btn-soon {
+  cursor: default;
+  align-items: flex-start;
+  background: #fff8e7;
+  border-color: #e0b15a;
+  color: #8a5a00;
+}
+
+.module-btn-soon:hover {
+  transform: none;
+  background: #fff8e7;
+  border-color: #e0b15a;
+  color: #8a5a00;
+  box-shadow: 0 3px 8px rgba(56, 142, 60, 0.2);
+}
+
+.module-btn-soon small {
+  color: #806b43;
+  font-weight: 400;
+}
+
+@keyframes sector-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 620px) {
+  .sector-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .sector-card {
+    min-height: 165px;
+  }
+
+  .sector-panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+@media (min-width: 621px) and (max-width: 900px) {
+  .sector-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* ==================== CATÁLOGOS AUXILIARES - LAYOUT DOS PANELES ==================== */
 
 .catalogos-layout {

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import UserProfile, Proveedor, Empleado, RegistroOperativo
+from .models import UserProfile, Proveedor, Empleado, RegistroOperativo, ProgramacionOperacion, FirmaAutorizada
 
 
 @admin.register(UserProfile)
@@ -84,3 +84,20 @@ class RegistroOperativoAdmin(admin.ModelAdmin):
         css = {
             'all': ('admin/css/custom_admin.css',)
         }
+
+
+@admin.register(ProgramacionOperacion)
+class ProgramacionOperacionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'fecha', 'tipo_servicio', 'finca', 'lote', 'area', 'responsable', 'prioridad', 'estado', 'created_at')
+    search_fields = ('finca', 'lote', 'responsable', 'tipo_servicio', 'observaciones')
+    list_filter = ('estado', 'prioridad', 'fecha', 'finca', 'created_at')
+    ordering = ('-fecha', '-created_at')
+
+
+@admin.register(FirmaAutorizada)
+class FirmaAutorizadaAdmin(admin.ModelAdmin):
+    list_display = ('codigo', 'nombre', 'puesto', 'area', 'created_at')
+    search_fields = ('codigo', 'nombre', 'puesto', 'area')
+    list_filter = ('area', 'created_at')
+    ordering = ('area', 'nombre')
+

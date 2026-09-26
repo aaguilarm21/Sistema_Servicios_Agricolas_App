@@ -6,10 +6,16 @@ configuracion_catalogos = backend_views.configuracion_catalogos
 datos_registrados = backend_views.datos_registrados
 registros_operativos = backend_views.registros_operativos
 registros_operativos_data = backend_views.registros_operativos_data
+validar_registro_operativo = backend_views.validar_registro_operativo
 editar_registro_operativo = backend_views.editar_registro_operativo
 borrar_registro_operativo = backend_views.borrar_registro_operativo
 usuarios = backend_views.usuarios
 crear_usuario = backend_views.crear_usuario
 usuarios_creados = backend_views.usuarios_creados
+firmas_autorizadas = backend_views.firmas_autorizadas
 operacion = backend_views.operacion
+cambiar_estado_operacion = backend_views.cambiar_estado_operacion
+eliminar_operacion_programada = backend_views.eliminar_operacion_programada
 reportes = backend_views.reportes
+indicadores = backend_views.indicadores
+
