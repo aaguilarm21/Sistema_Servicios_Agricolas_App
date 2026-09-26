@@ -114,9 +114,9 @@ WSGI_APPLICATION = 'miproyecto.wsgi.application'
 
 
 # Base de datos
-# En producción se usa PostgreSQL a través de Render/Supabase cuando exista
-# una URL o variables DB_* en el entorno. Si no se configuró una base de datos
-# externa, se usa SQLite para que el servidor pueda arrancar localmente.
+# En Render, toda escritura de Django debe ir a PostgreSQL (Supabase). SQLite
+# queda únicamente como base local de desarrollo.
+IS_RENDER_DEPLOY = os.getenv('RENDER', '').lower() == 'true'
 
 DATABASE_URL = os.getenv('DATABASE_URL', '').strip()
 DB_HOST = os.getenv('DB_HOST', '').strip()
@@ -127,12 +127,18 @@ DB_PORT = os.getenv('DB_PORT', '').strip()
 
 USE_EXTERNAL_POSTGRES = bool(DATABASE_URL) or bool(DB_HOST) or bool(DB_NAME) or bool(DB_USER) or bool(DB_PASSWORD) or bool(DB_PORT)
 
+if IS_RENDER_DEPLOY and not DATABASE_URL:
+    raise ImproperlyConfigured(
+        'DATABASE_URL debe apuntar a PostgreSQL/Supabase en el entorno de Render; '
+        'se cancela el inicio para evitar guardar registros en SQLite efímero.'
+    )
+
 if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.parse(
             DATABASE_URL,
             conn_max_age=600,
-            ssl_require=True if 'postgres' in DATABASE_URL.lower() and 'render' in DATABASE_URL.lower() else False,
+            ssl_require='postgres' in DATABASE_URL.lower(),
         )
     }
 elif USE_EXTERNAL_POSTGRES:
