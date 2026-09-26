@@ -12,24 +12,19 @@ import re
 
 from .jwt_utils import generate_jwt_token
 from .forms import AdminUserCreationForm, CustomAuthenticationForm
+from .signals import registrar_intento_acceso
 from .models import (
     UserProfile, Proveedor, Empleado, Maquinaria, Bodega, Articulo,
-    Labor, Cuenta, UnidadMedida, NombrePuesto, Variedad, TipoMaquina, Marca, Municipio, Auxiliar
+    Labor, Cuenta, UnidadMedida, NombrePuesto, Variedad, TipoMaquina, Marca, Municipio, Auxiliar,
+    CAMPOS_IDENTIFICACION, normalizar_texto,
 )
 
 
-def normalizar_texto(valor):
-    if not isinstance(valor, str) or not valor.strip() or valor.strip().isdigit():
-        return valor
-    return ' '.join(
-        palabra if palabra.isupper() and len(palabra) <= 4
-        else palabra[:1].upper() + palabra[1:].lower()
-        for palabra in valor.strip().split()
-    )
-
-
 def normalizar_datos(data):
-    return {campo: normalizar_texto(valor) for campo, valor in data.items()}
+    return {
+        campo: valor if campo in CAMPOS_IDENTIFICACION or campo == 'puesto' else normalizar_texto(valor)
+        for campo, valor in data.items()
+    }
 
 # Vistas de autenticación, registro de usuarios y APIs internas.
 # Aquí se centraliza el inicio de sesión, el cambio de usuario desde el panel,
@@ -65,6 +60,12 @@ class CustomLoginView(LoginView):
 
     def form_invalid(self, form):
         try:
+            if not getattr(self.request, '_login_attempt_logged', False):
+                registrar_intento_acceso(
+                    self.request,
+                    username=self.request.POST.get('username', ''),
+                    successful=False,
+                )
             return super().form_invalid(form)
         except Exception:
             return render(self.request, self.template_name, {'form': form})
@@ -729,7 +730,7 @@ def api_variedad_detalle(request, pk):
 def api_tipos_maquina(request):
     return _api_catalogo_list_create(
         request, TipoMaquina, ['codigo', 'descripcion'],
-        lambda d: TipoMaquina.objects.create(codigo=d['codigo'], descripcion=d['descripcion'].title())
+        lambda d: TipoMaquina.objects.create(codigo=d['codigo'], descripcion=d['descripcion'])
     )
 
 @login_required
@@ -738,8 +739,6 @@ def api_tipo_maquina_detalle(request, pk):
     def upd(obj, d):
         obj.codigo = d.get('codigo', obj.codigo)
         obj.descripcion = d.get('descripcion', obj.descripcion)
-        if isinstance(obj.descripcion, str):
-            obj.descripcion = obj.descripcion.title()
     return _api_catalogo_detail(request, TipoMaquina, pk, upd, 'Tipo de Máquina')
 
 

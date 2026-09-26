@@ -1,5 +1,32 @@
 from django.contrib import admin
-from .models import UserProfile, Proveedor, Empleado, RegistroOperativo, ProgramacionOperacion, FirmaAutorizada
+from .models import UserProfile, Proveedor, Empleado, RegistroOperativo, ProgramacionOperacion, FirmaAutorizada, LoginAttempt
+
+
+@admin.register(LoginAttempt)
+class LoginAttemptAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'username_attempt', 'successful', 'device_type', 'ip_address', 'location_status')
+    list_filter = ('successful', 'device_type', 'location_status', 'created_at')
+    search_fields = ('username_attempt', 'user__username', 'ip_address')
+    readonly_fields = (
+        'user', 'username_attempt', 'successful', 'created_at', 'updated_at', 'ip_address',
+        'user_agent', 'device_type', 'latitude', 'longitude', 'location_status',
+    )
+    ordering = ('-created_at',)
+
+    def has_module_permission(self, request):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(UserProfile)

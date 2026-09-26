@@ -91,7 +91,7 @@
     }
   </style>
 </head>
-<body>
+<body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
   <div class="main-container">
     <div class="header">
       <div>

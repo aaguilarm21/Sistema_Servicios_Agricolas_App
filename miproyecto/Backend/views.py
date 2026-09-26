@@ -16,7 +16,7 @@ from django.db.models import Count, DecimalField, ExpressionWrapper, F, Sum
 from django.core.exceptions import ValidationError
 from accounts.forms import AdminUserCreationForm
 from accounts.validators import PasswordStandardValidator
-from accounts.models import Empleado, UserProfile, RegistroOperativo, Proveedor, Maquinaria, Auxiliar, Labor, Variedad, Municipio, ProgramacionOperacion, FirmaAutorizada
+from accounts.models import Empleado, UserProfile, RegistroOperativo, Proveedor, Maquinaria, Auxiliar, Labor, Variedad, Municipio, ProgramacionOperacion, FirmaAutorizada, normalizar_texto
 
 
 # Determina si un usuario tiene permisos administrativos.
@@ -70,22 +70,7 @@ def datos_registrados(request):
 
 
 def to_title_case(val):
-    """
-    Convierte una cadena a formato Nombre Propio / Letra Inicial Mayúscula en cada palabra.
-    Preserva valores nulos, vacíos o numéricos.
-    """
-    if not val or not isinstance(val, str):
-        return val
-    val = val.strip()
-    if not val:
-        return val
-    words = []
-    for word in val.split():
-        if word.isupper() and len(word) <= 4:
-            words.append(word)
-        else:
-            words.append(word[:1].upper() + word[1:].lower())
-    return ' '.join(words)
+    return normalizar_texto(val)
 
 
 @login_required

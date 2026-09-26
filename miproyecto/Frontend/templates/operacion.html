@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
 </head>
 
-<body class="operacion-body">
+<body class="operacion-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
   <div class="main-wrapper">
     <!-- Header Principal -->
     <header class="header-bar">

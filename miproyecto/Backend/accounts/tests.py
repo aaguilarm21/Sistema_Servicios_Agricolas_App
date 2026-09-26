@@ -3,12 +3,62 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User
-from datetime import date
+from django.apps import apps
+from datetime import date, timedelta
 from decimal import Decimal
 
-from .models import Empleado, FirmaAutorizada, RegistroOperativo
+from .models import Empleado, FirmaAutorizada, LoginAttempt, RegistroOperativo, normalizar_texto
 from .validators import PasswordStandardValidator
 from .jwt_utils import generate_jwt_token, decode_jwt_token
+
+
+class TimestampAuditFieldTests(TestCase):
+    def test_every_accounts_model_has_creation_and_update_timestamps(self):
+        for model in apps.get_app_config('accounts').get_models():
+            with self.subTest(model=model.__name__):
+                self.assertTrue(model._meta.get_field('created_at').auto_now_add)
+                self.assertTrue(model._meta.get_field('updated_at').auto_now)
+
+    def test_update_refreshes_timestamp_without_changing_creation_time(self):
+        firma = FirmaAutorizada.objects.create(
+            codigo='FIR-TIMESTAMP',
+            nombre='Ana Lopez',
+            puesto='Gerente',
+            area='Operaciones',
+        )
+        created_at = firma.created_at
+        self.assertGreaterEqual(firma.updated_at, created_at)
+        previous_update = created_at - timedelta(days=1)
+        FirmaAutorizada.objects.filter(pk=firma.pk).update(updated_at=previous_update)
+
+        firma.refresh_from_db()
+        firma.nombre = 'Ana Maria Lopez'
+        firma.save()
+
+        self.assertEqual(firma.created_at, created_at)
+        self.assertGreater(firma.updated_at, previous_update)
+
+
+class TextNormalizationOnSaveTests(TestCase):
+    def test_text_is_normalized_on_create_and_update(self):
+        self.assertEqual(normalizar_texto('it'), 'IT')
+        self.assertEqual(normalizar_texto('IT'), 'IT')
+
+        firma = FirmaAutorizada.objects.create(
+            codigo='FIR-001',
+            nombre='aNA lOPEZ',
+            puesto='gERENTE it',
+            area='oPERACIONES',
+        )
+
+        self.assertEqual(firma.nombre, 'Ana Lopez')
+        self.assertEqual(firma.puesto, 'Gerente IT')
+        self.assertEqual(firma.area, 'Operaciones')
+
+        firma.nombre = 'mARÍA rUIZ'
+        firma.save()
+
+        self.assertEqual(firma.nombre, 'María Ruiz')
 
 
 class PasswordStandardValidatorTests(TestCase):
@@ -75,6 +125,69 @@ class JWTTokenTests(TestCase):
         self.client.cookies['jwt_token'] = token
         response = self.client.get(reverse('modulos'))
         self.assertEqual(response.status_code, 200)
+
+
+class LoginAttemptTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='login-audit-user',
+            password='TestPassword@123',
+        )
+
+    def test_successful_mobile_login_records_consented_gps_location(self):
+        response = self.client.post(reverse('login'), {
+            'username': 'login-audit-user',
+            'password': 'TestPassword@123',
+            'share_location': 'yes',
+            'latitude': '14.634915',
+            'longitude': '-90.506882',
+            'location_status': 'captured',
+        }, HTTP_USER_AGENT='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148', REMOTE_ADDR='203.0.113.10')
+
+        self.assertEqual(response.status_code, 302)
+        attempt = LoginAttempt.objects.get(username_attempt='login-audit-user')
+        self.assertTrue(attempt.successful)
+        self.assertEqual(attempt.device_type, 'mobile')
+        self.assertEqual(attempt.ip_address, '203.0.113.10')
+        self.assertEqual(attempt.latitude, Decimal('14.634915'))
+        self.assertEqual(attempt.longitude, Decimal('-90.506882'))
+        self.assertEqual(attempt.location_status, 'captured')
+
+    def test_failed_pc_login_records_attempt_without_location_consent(self):
+        response = self.client.post(reverse('login'), {
+            'username': 'login-audit-user',
+            'password': 'WrongPassword@123',
+        }, HTTP_USER_AGENT='Mozilla/5.0 (Windows NT 10.0; Win64; x64)', REMOTE_ADDR='203.0.113.11')
+
+        self.assertEqual(response.status_code, 200)
+        attempt = LoginAttempt.objects.get(username_attempt='login-audit-user')
+        self.assertFalse(attempt.successful)
+        self.assertEqual(attempt.device_type, 'pc')
+        self.assertEqual(attempt.ip_address, '203.0.113.11')
+        self.assertIsNone(attempt.latitude)
+        self.assertIsNone(attempt.longitude)
+        self.assertEqual(attempt.location_status, 'not_shared')
+
+
+class DeviceDetectionTests(TestCase):
+    def test_mobile_user_agent_is_exposed_to_templates(self):
+        response = self.client.get(
+            reverse('login'),
+            HTTP_USER_AGENT='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148',
+        )
+
+        self.assertContains(response, 'data-device-type="mobile"')
+        self.assertContains(response, 'data-mobile-device="true"')
+        self.assertIn('User-Agent', response.headers['Vary'])
+
+    def test_pc_user_agent_is_exposed_to_templates(self):
+        response = self.client.get(
+            reverse('login'),
+            HTTP_USER_AGENT='Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        )
+
+        self.assertContains(response, 'data-device-type="pc"')
+        self.assertContains(response, 'data-mobile-device="false"')
 
 
 class LockoutTests(TestCase):
@@ -274,4 +387,4 @@ class EditarRegistroOperativoTests(TestCase):
         self.assertEqual(self.registro.placa, 'P-123ABC')
         self.assertEqual(self.registro.area_lote, Decimal('12.50'))
         self.assertEqual(self.registro.cuenta_contable, 'CTA-100')
-        self.assertEqual(self.registro.lote, 'Lote actualizado')
+        self.assertEqual(self.registro.lote, 'Lote Actualizado')

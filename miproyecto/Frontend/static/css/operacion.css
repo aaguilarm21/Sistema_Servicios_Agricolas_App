@@ -499,14 +499,30 @@ textarea.form-control {
 
 .table-container {
   overflow-x: auto;
+  max-width: 100%;
   border-radius: 8px;
   border: 1px solid var(--border-table);
+  -webkit-overflow-scrolling: touch;
+}
+
+body[data-mobile-device="true"] .table-container {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body[data-mobile-device="true"] .logistica-table {
+  width: max-content;
+  min-width: 100%;
+  font-size: 0.85rem;
 }
 
 .logistica-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
-  font-size: 0.76rem;
+  font-size: 0.85rem;
   text-align: left;
 }
 

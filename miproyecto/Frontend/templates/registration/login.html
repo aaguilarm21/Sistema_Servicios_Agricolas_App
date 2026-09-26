@@ -38,7 +38,7 @@
     }
   </style>
 </head>
-<body>
+<body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
   <main class="login-page">
     <section class="login-card">
       <h1>Iniciar sesión</h1>
@@ -58,7 +58,7 @@
         </div>
       {% endif %}
 
-      <form method="post" action=".">
+      <form id="login-form" method="post" action=".">
         {% csrf_token %}
         <div class="field">
           <label for="{{ form.username.id_for_label }}">Usuario</label>
@@ -68,6 +68,14 @@
           <label for="{{ form.password.id_for_label }}">Contraseña</label>
           {{ form.password }}
         </div>
+        <label class="location-consent" for="share-location">
+          <input type="checkbox" id="share-location" name="share_location" value="yes" />
+          <span>Compartir mi ubicación GPS en este intento. El permiso es opcional; puedes entrar sin compartirla.</span>
+        </label>
+        <p id="location-status" class="location-status" role="status" aria-live="polite"></p>
+        <input type="hidden" name="latitude" id="login-latitude" />
+        <input type="hidden" name="longitude" id="login-longitude" />
+        <input type="hidden" name="location_status" id="login-location-status" value="not_shared" />
         <button type="submit" class="btn">Entrar</button>
       </form>
 
@@ -77,5 +85,38 @@
     </section>
   </main>
   <script src="{% static 'js/notificaciones.js' %}"></script>
+  <script>
+    const loginForm = document.getElementById('login-form');
+    const shareLocation = document.getElementById('share-location');
+    const locationStatus = document.getElementById('location-status');
+    const locationStatusValue = document.getElementById('login-location-status');
+    let locationAttempted = false;
+
+    loginForm.addEventListener('submit', event => {
+      if (!shareLocation.checked || locationAttempted) return;
+
+      event.preventDefault();
+      locationAttempted = true;
+
+      if (!navigator.geolocation) {
+        locationStatusValue.value = 'unavailable';
+        locationStatus.textContent = 'La ubicación no está disponible en este navegador; puedes continuar.';
+        loginForm.requestSubmit();
+        return;
+      }
+
+      locationStatus.textContent = 'Solicitando permiso de ubicación…';
+      navigator.geolocation.getCurrentPosition(position => {
+        document.getElementById('login-latitude').value = position.coords.latitude.toFixed(6);
+        document.getElementById('login-longitude').value = position.coords.longitude.toFixed(6);
+        locationStatusValue.value = 'captured';
+        loginForm.requestSubmit();
+      }, () => {
+        locationStatusValue.value = 'denied';
+        locationStatus.textContent = 'No se obtuvo ubicación; puedes continuar sin ella.';
+        loginForm.requestSubmit();
+      }, { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 });
+    });
+  </script>
 </body>
 </html>

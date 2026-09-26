@@ -3,7 +3,21 @@ from django.shortcuts import redirect
 from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.urls import reverse
+from django.utils.cache import patch_vary_headers
+from .device_detection import detect_device_type
 from .jwt_utils import decode_jwt_token
+
+
+class DeviceDetectionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        request.device_type = detect_device_type(request.META.get('HTTP_USER_AGENT', ''))
+        request.is_mobile_device = request.device_type in {'mobile', 'tablet'}
+        response = self.get_response(request)
+        patch_vary_headers(response, ('User-Agent',))
+        return response
 
 
 class JWTMiddleware:

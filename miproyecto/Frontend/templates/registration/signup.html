@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{% static 'css/login.css' %}" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
 </head>
-<body>
+<body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
   <main class="login-page">
     <section class="login-card">
       <h1>Crear un nuevo usuario</h1>

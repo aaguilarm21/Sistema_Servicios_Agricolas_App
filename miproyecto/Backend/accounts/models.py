@@ -3,7 +3,60 @@ from django.contrib.auth.models import User
 from django.core.validators import MaxLengthValidator, RegexValidator
 
 
-class UserProfile(models.Model):
+SIGLAS = {
+    'api': 'API',
+    'cui': 'CUI',
+    'dpi': 'DPI',
+    'gps': 'GPS',
+    'it': 'IT',
+    'iva': 'IVA',
+    'nit': 'NIT',
+    'rtk': 'RTK',
+    's/n': 'S/N',
+    'sat': 'SAT',
+}
+
+CAMPOS_IDENTIFICACION = frozenset({
+    'codigo',
+    'codigo_articulo',
+    'codigo_maquina',
+    'cuenta_contable',
+    'id_proveedor',
+    'nit',
+    'no_boleta',
+    'no_cui',
+    'num_factura',
+    'placa',
+    'placa_matricula',
+    'serie_maquina',
+})
+
+
+def normalizar_texto(valor):
+    if not isinstance(valor, str) or not valor.strip() or valor.strip().isdigit():
+        return valor
+    return ' '.join(
+        SIGLAS.get(palabra.casefold(), palabra[:1].upper() + palabra[1:].lower())
+        for palabra in valor.strip().split()
+    )
+
+
+class ModeloTextoNormalizado(models.Model):
+    CAMPOS_IDENTIFICACION = frozenset()
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        campos_identificacion = CAMPOS_IDENTIFICACION | self.CAMPOS_IDENTIFICACION
+        for campo in self._meta.concrete_fields:
+            if isinstance(campo, (models.CharField, models.TextField)) and campo.name not in campos_identificacion:
+                valor = getattr(self, campo.attname)
+                setattr(self, campo.attname, normalizar_texto(valor))
+        super().save(*args, **kwargs)
+
+
+class UserProfile(ModeloTextoNormalizado):
     usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Código')
     puesto = models.CharField(max_length=150, verbose_name='Puesto')
@@ -18,7 +71,7 @@ class UserProfile(models.Model):
         return f"{self.usuario.get_full_name()} - {self.codigo}"
 
 
-class Proveedor(models.Model):
+class Proveedor(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Código')
     nit = models.CharField(max_length=20, verbose_name='NIT')
     razon_social = models.CharField(max_length=200, verbose_name='Razón Social')
@@ -38,7 +91,9 @@ class Proveedor(models.Model):
         return f"{self.codigo} - {self.razon_social}"
 
 
-class Empleado(models.Model):
+class Empleado(ModeloTextoNormalizado):
+    CAMPOS_IDENTIFICACION = frozenset({'puesto'})
+
     empresa = models.CharField(max_length=200, verbose_name='Empresa')
     empleado = models.CharField(max_length=150, verbose_name='Empleado')
     segundo_apellido = models.CharField(max_length=100, verbose_name='Segundo Apellido')
@@ -64,7 +119,7 @@ class Empleado(models.Model):
         return f"{self.empleado} - {self.nombre_puesto}"
 
 
-class Maquinaria(models.Model):
+class Maquinaria(ModeloTextoNormalizado):
     codigo_maquina = models.CharField(max_length=50, unique=True, verbose_name='Código Máquina')
     combustible = models.CharField(max_length=10, verbose_name='Combustible S/N')
     id_proveedor = models.CharField(max_length=50, verbose_name='ID Proveedor', blank=True, null=True)
@@ -85,7 +140,7 @@ class Maquinaria(models.Model):
         return f"{self.codigo_maquina} - {self.tipo_maquina}"
 
 
-class Bodega(models.Model):
+class Bodega(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Código')
     nombre_bodega = models.CharField(max_length=200, verbose_name='Nombre Bodega')
     unidad_medida = models.CharField(max_length=50, verbose_name='Unidad Medida')
@@ -103,7 +158,7 @@ class Bodega(models.Model):
         return f"{self.codigo} - {self.nombre_bodega}"
 
 
-class Articulo(models.Model):
+class Articulo(ModeloTextoNormalizado):
     codigo_articulo = models.CharField(max_length=50, unique=True, verbose_name='Código artículo')
     descripcion = models.CharField(max_length=250, verbose_name='Descripción')
     unidad_medida = models.CharField(max_length=50, verbose_name='Unidad de Medida')
@@ -124,10 +179,11 @@ class Articulo(models.Model):
 
 # ==================== CATALOGOS AUXILIARES ====================
 
-class Labor(models.Model):
+class Labor(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     descripcion = models.CharField(max_length=200, verbose_name='Descripcion')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Labor'
@@ -138,11 +194,12 @@ class Labor(models.Model):
         return f"{self.codigo} - {self.descripcion}"
 
 
-class Cuenta(models.Model):
+class Cuenta(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     descripcion = models.CharField(max_length=200, verbose_name='Descripcion')
     tipo = models.CharField(max_length=100, verbose_name='Tipo', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Cuenta'
@@ -153,10 +210,11 @@ class Cuenta(models.Model):
         return f"{self.codigo} - {self.descripcion}"
 
 
-class UnidadMedida(models.Model):
+class UnidadMedida(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=20, unique=True, verbose_name='Codigo')
     descripcion = models.CharField(max_length=150, verbose_name='Descripcion')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Unidad de Medida'
@@ -167,8 +225,10 @@ class UnidadMedida(models.Model):
         return f"{self.codigo} - {self.descripcion}"
 
 
-class NombrePuesto(models.Model):
+class NombrePuesto(ModeloTextoNormalizado):
     nombre = models.CharField(max_length=150, unique=True, verbose_name='Nombre Puesto')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Nombre de Puesto'
@@ -179,10 +239,11 @@ class NombrePuesto(models.Model):
         return self.nombre
 
 
-class Variedad(models.Model):
+class Variedad(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     descripcion = models.CharField(max_length=200, verbose_name='Descripcion')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Variedad'
@@ -193,10 +254,11 @@ class Variedad(models.Model):
         return f"{self.codigo} - {self.descripcion}"
 
 
-class TipoMaquina(models.Model):
+class TipoMaquina(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     descripcion = models.CharField(max_length=200, verbose_name='Descripcion')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Tipo de Maquina'
@@ -207,10 +269,11 @@ class TipoMaquina(models.Model):
         return f"{self.codigo} - {self.descripcion}"
 
 
-class Marca(models.Model):
+class Marca(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     descripcion = models.CharField(max_length=200, verbose_name='Descripcion')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Marca'
@@ -221,11 +284,12 @@ class Marca(models.Model):
         return f"{self.codigo} - {self.descripcion}"
 
 
-class Municipio(models.Model):
+class Municipio(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     nombre = models.CharField(max_length=200, verbose_name='Nombre')
     departamento = models.CharField(max_length=150, verbose_name='Departamento', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Municipio'
@@ -235,11 +299,12 @@ class Municipio(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
 
-class Auxiliar(models.Model):
+class Auxiliar(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     nombre = models.CharField(max_length=200, verbose_name='Nombre')
     tipo = models.CharField(max_length=100, verbose_name='Tipo', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Auxiliar'
@@ -250,7 +315,7 @@ class Auxiliar(models.Model):
         return f"{self.codigo} - {self.nombre}"
 
 
-class RegistroOperativo(models.Model):
+class RegistroOperativo(ModeloTextoNormalizado):
     no_boleta = models.CharField(max_length=100, verbose_name='No. Boleta')
     fecha_labor = models.DateField(verbose_name='Fecha Labor')
     tipo_servicio = models.CharField(max_length=100, verbose_name='Tipo Servicio')
@@ -281,6 +346,7 @@ class RegistroOperativo(models.Model):
     lugar_destino = models.CharField(max_length=200, verbose_name='Lugar de Destino', blank=True, null=True)
     observaciones = models.TextField(verbose_name='Observaciones', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Registro Operativo'
@@ -291,7 +357,7 @@ class RegistroOperativo(models.Model):
         return f"{self.no_boleta} - {self.fecha_labor}"
 
 
-class ProgramacionOperacion(models.Model):
+class ProgramacionOperacion(ModeloTextoNormalizado):
     ESTADO_CHOICES = [
         ('Programada', 'Programada'),
         ('En Proceso', 'En Proceso'),
@@ -328,12 +394,13 @@ class ProgramacionOperacion(models.Model):
         return f"{self.tipo_servicio} - {self.finca} ({self.lote}) [{self.fecha}]"
 
 
-class FirmaAutorizada(models.Model):
+class FirmaAutorizada(ModeloTextoNormalizado):
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Código')
     nombre = models.CharField(max_length=200, verbose_name='Nombre')
     puesto = models.CharField(max_length=150, verbose_name='Puesto')
     area = models.CharField(max_length=150, verbose_name='Área')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Firma Autorizada'
@@ -342,4 +409,50 @@ class FirmaAutorizada(models.Model):
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
+
+
+class LoginAttempt(models.Model):
+    DEVICE_CHOICES = [
+        ('mobile', 'Móvil'),
+        ('tablet', 'Tableta'),
+        ('pc', 'PC'),
+        ('unknown', 'Desconocido'),
+    ]
+
+    LOCATION_STATUS_CHOICES = [
+        ('captured', 'GPS capturado'),
+        ('not_shared', 'No compartida'),
+        ('denied', 'Permiso denegado'),
+        ('unavailable', 'No disponible'),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='login_attempts',
+        blank=True,
+        null=True,
+    )
+    username_attempt = models.CharField(max_length=150, blank=True)
+    successful = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True)
+    device_type = models.CharField(max_length=10, choices=DEVICE_CHOICES, default='unknown')
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, blank=True, null=True)
+    location_status = models.CharField(
+        max_length=12,
+        choices=LOCATION_STATUS_CHOICES,
+        default='not_shared',
+    )
+
+    class Meta:
+        verbose_name = 'Intento de inicio de sesión'
+        verbose_name_plural = 'Intentos de inicio de sesión'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.username_attempt or 'Usuario desconocido'} - {self.created_at:%Y-%m-%d %H:%M:%S}"
 

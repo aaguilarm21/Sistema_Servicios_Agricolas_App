@@ -967,14 +967,17 @@ textarea {
 .data-grid {
   margin-top: 16px;
   overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .catalogos-panel .data-grid {
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 .data-grid table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   table-layout: auto;
   border-collapse: collapse;
   background: #fff;
@@ -993,12 +996,15 @@ textarea {
 }
 
 .datos-tabla {
-  overflow-x: hidden;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .datos-tabla table {
-  width: 100%;
-  table-layout: fixed;
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
   border-collapse: collapse;
   background: #fff;
 }
@@ -1115,6 +1121,14 @@ textarea {
 @media (max-width: 760px) {
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .data-grid th,
+  .data-grid td,
+  .datos-tabla th,
+  .datos-tabla td {
+    padding: 8px 10px;
+    font-size: 0.85rem;
   }
 }
 
@@ -1293,9 +1307,10 @@ textarea {
 }
 
 .data-grid table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .data-grid th,
@@ -1768,11 +1783,44 @@ textarea {
   }
 
   .data-grid table {
-    font-size: 0.75rem;
+    font-size: 0.85rem;
   }
 
   .data-grid th,
   .data-grid td {
-    padding: 5px 6px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
   }
+}
+
+body[data-mobile-device="true"] .main-wrapper {
+  width: 100%;
+  max-width: 100%;
+  padding: 14px 10px 24px;
+}
+
+body[data-mobile-device="true"] .data-grid,
+body[data-mobile-device="true"] .datos-tabla {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+body[data-mobile-device="true"] .data-grid table,
+body[data-mobile-device="true"] .datos-tabla table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+body[data-mobile-device="true"] .data-grid th,
+body[data-mobile-device="true"] .data-grid td,
+body[data-mobile-device="true"] .datos-tabla th,
+body[data-mobile-device="true"] .datos-tabla td {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+
+body[data-mobile-device="true"] .form-grid {
+  grid-template-columns: minmax(0, 1fr);
 }

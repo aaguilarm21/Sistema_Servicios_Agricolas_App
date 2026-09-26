@@ -246,6 +246,18 @@ button {
     background: #eef7ed;
 }
 
+body[data-mobile-device="true"] .table-container {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+body[data-mobile-device="true"] .records-table {
+    width: max-content;
+    min-width: 1200px;
+    font-size: 0.82rem;
+}
+
 .btn-volver {
     display: flex;
     justify-content: center;

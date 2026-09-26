@@ -192,7 +192,7 @@
     }
   </style>
 </head>
-<body>
+<body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
   <div class="container">
     <h1>🌾 Sistema de Notificaciones</h1>
     <p>Prueba todos los tipos de notificaciones y validaciones personalizadas</p>
