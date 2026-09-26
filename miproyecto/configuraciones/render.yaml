@@ -2,6 +2,7 @@ services:
   - type: web
     name: sistema-servicios-agricolas
     runtime: python
+    rootDir: miproyecto
     buildCommand: "./build.sh"
     startCommand: "gunicorn miproyecto.wsgi:application"
     envVars:
