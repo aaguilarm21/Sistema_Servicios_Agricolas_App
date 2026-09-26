@@ -74,7 +74,7 @@
                 <h1>📋 Registros Operativos en Base de Datos</h1>
                 <p>{% if is_admin %}Administración de registros: editar o eliminar{% else %}Vista de registros operativos en solo lectura.{% endif %}</p>
             </div>
-            <a href="{% url 'modulos' %}" class="btn-volver">Volver a Módulos</a>
+            <a href="{% url 'modulos' %}?sector=reportes" class="btn-volver">Volver a Módulos</a>
         </div>
 
         <div class="form-wrapper" style="padding: 15px;">

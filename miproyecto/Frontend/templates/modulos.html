@@ -13,7 +13,7 @@
   <div class="main-wrapper">
     <header class="page-header">
       <div>
-        <h1 id="page-title">Áreas de Gestión</h1>
+        <h1 id="page-title">AREAS DE GESTION</h1>
 
       </div>
       <div class="status-info">
@@ -157,6 +157,11 @@
         document.getElementById('sector-reportes').classList.add('is-sector-hidden');
         document.getElementById('sector-picker').style.display = '';
       }
+
+      const sectorInicial = new URLSearchParams(window.location.search).get('sector');
+      if (['agricola', 'combustibles', 'administracion', 'reportes'].includes(sectorInicial)) {
+        mostrarSector(sectorInicial);
+      }
     </script>
 
     <!-- ===== PANTALLA DE SELECCIÓN DE SECTOR ===== -->
@@ -204,7 +209,8 @@
         <ul class="modules-menu">
           <li><a href="{% url 'registros' %}" class="module-btn"><span class="icon">📝</span> Registros Operativos</a>
           </li>
-          <li><a href="{% url 'validar_registro_operativo' %}" class="module-btn"><span class="icon">🔎</span> Validación de Registros Operativos</a></li>
+          <li><a href="{% url 'validar_registro_operativo' %}" class="module-btn"><span class="icon">🔎</span>
+              Validación de Registros Operativos</a></li>
           <li><a href="{% url 'operacion' %}" class="module-btn"><span class="icon">🚜</span> Logística</a></li>
         </ul>
       </div>
