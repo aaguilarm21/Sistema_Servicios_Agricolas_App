@@ -29,6 +29,7 @@ class JWTMiddleware:
     EXEMPT_URLS = [
         '/accounts/login/',
         '/accounts/ajax-login/',
+        '/accounts/signup/',
         '/accounts/logout/',
         '/admin/login/',
     ]

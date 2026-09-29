@@ -2,10 +2,10 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.views import LoginView
+from django.conf import settings
 from django.shortcuts import redirect, render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 import json
 import re
@@ -53,6 +53,7 @@ class CustomLoginView(LoginView):
                     httponly=True,
                     samesite='Lax',
                     max_age=8 * 3600,
+                    secure=settings.SESSION_COOKIE_SECURE,
                 )
             return response
         except Exception:
@@ -80,17 +81,14 @@ def is_admin_user(user):
 
 # Endpoint de autenticación para el modal de cambio de usuario / AJAX login.
 # Recibe JSON con credenciales y devuelve resultado de inicio de sesión.
-@csrf_exempt
-@require_http_methods(['GET', 'POST'])
+@require_http_methods(['POST'])
 def ajax_login(request):
     data = request.POST
-    if request.method == 'POST' and request.content_type and 'application/json' in request.content_type:
+    if request.content_type and 'application/json' in request.content_type:
         try:
             data = json.loads(request.body.decode('utf-8') or '{}')
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'error': 'JSON inválido.'}, status=400)
-    elif request.method == 'GET':
-        data = request.GET
 
     username = data.get('username', '').strip() if hasattr(data, 'get') else ''
     password = data.get('password', '') if hasattr(data, 'get') else ''
@@ -103,13 +101,14 @@ def ajax_login(request):
         user = form.get_user()
         login(request, user)
         token = generate_jwt_token(user)
-        response = JsonResponse({'success': True, 'token': token})
+        response = JsonResponse({'success': True})
         response.set_cookie(
             key='jwt_token',
             value=token,
             httponly=True,
             samesite='Lax',
             max_age=8 * 3600,
+            secure=settings.SESSION_COOKIE_SECURE,
         )
         return response
     else:
@@ -127,7 +126,11 @@ def ajax_login(request):
 
 # Vista para el registro de nuevos usuarios desde el panel administrativo.
 # Crea usuarios y perfiles asociados, y genera credenciales.
+@login_required
 def signup(request):
+    if not is_admin_user(request.user):
+        return redirect('modulos')
+
     mensaje = ''
 
     created_username = ''
@@ -341,7 +344,13 @@ def api_proveedor_detalle(request, proveedor_id):
 @require_http_methods(["GET", "POST"])
 def api_empleados(request):
     if request.method == 'GET':
-        empleados = Empleado.objects.all().values()
+        empleados = Empleado.objects.all()
+        if is_admin_user(request.user):
+            empleados = empleados.values()
+        else:
+            empleados = empleados.values(
+                'id', 'empresa', 'empleado', 'segundo_apellido', 'puesto', 'nombre_puesto',
+            )
         return JsonResponse(list(empleados), safe=False)
 
     elif request.method == 'POST':

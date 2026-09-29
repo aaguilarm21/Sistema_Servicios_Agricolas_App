@@ -1,5 +1,12 @@
+import json
+import os
+from io import StringIO
+from unittest.mock import patch
+
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.management import call_command, CommandError
+from django.test import Client
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.contrib.auth.models import User
@@ -7,7 +14,8 @@ from django.apps import apps
 from datetime import date, timedelta
 from decimal import Decimal
 
-from .models import Empleado, FirmaAutorizada, LoginAttempt, RegistroOperativo, normalizar_texto
+from .models import Empleado, FirmaAutorizada, Labor, LoginAttempt, RegistroOperativo, normalizar_texto
+from .management.commands.createuserrole import Command as CreateUserRoleCommand
 from .validators import PasswordStandardValidator
 from .jwt_utils import generate_jwt_token, decode_jwt_token
 
@@ -98,6 +106,14 @@ class PasswordStandardValidatorTests(TestCase):
         self.assertIn("carácter especial", str(ctx.exception))
 
 
+class GeneratedUserPasswordTests(TestCase):
+    def test_generated_password_meets_password_policy(self):
+        password = CreateUserRoleCommand().generate_temporary_password()
+
+        PasswordStandardValidator().validate(password)
+        self.assertGreaterEqual(len(password), 20)
+
+
 class JWTTokenTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -167,6 +183,163 @@ class LoginAttemptTests(TestCase):
         self.assertIsNone(attempt.latitude)
         self.assertIsNone(attempt.longitude)
         self.assertEqual(attempt.location_status, 'not_shared')
+
+
+class SignupAccessTests(TestCase):
+    def test_anonymous_signup_redirects_to_login(self):
+        response = self.client.get(reverse('signup'))
+
+        self.assertRedirects(response, f'{reverse("login")}?next=%2Faccounts%2Fsignup%2F')
+
+    def test_anonymous_signup_is_blocked_after_an_account_exists(self):
+        User.objects.create_user(username='existing-user', password='TestPassword@123')
+        user_count = User.objects.count()
+
+        response = self.client.post(reverse('signup'), {})
+
+        self.assertRedirects(response, f'{reverse("login")}?next=%2Faccounts%2Fsignup%2F')
+        self.assertEqual(User.objects.count(), user_count)
+
+    def test_regular_user_cannot_access_signup(self):
+        user = User.objects.create_user(username='regular-user', password='TestPassword@123')
+        self.client.force_login(user)
+        self.client.cookies['jwt_token'] = generate_jwt_token(user)
+
+        response = self.client.get(reverse('signup'))
+
+        self.assertRedirects(response, reverse('modulos'))
+
+    def test_admin_can_access_signup_after_initial_setup(self):
+        admin = User.objects.create_superuser(
+            username='admin-signup',
+            email='admin-signup@example.com',
+            password='TestPassword@123',
+        )
+        self.client.force_login(admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(admin)
+
+        response = self.client.get(reverse('signup'))
+
+        self.assertEqual(response.status_code, 200)
+
+
+class AdminProvisioningTests(TestCase):
+    def test_migrations_do_not_change_existing_admin_password(self):
+        admin = User.objects.create_superuser(
+            username='stable-admin',
+            email='stable-admin@example.com',
+            password='Existing-Admin4!Pass',
+        )
+        original_hash = admin.password
+
+        from .signals import ensure_default_groups
+        ensure_default_groups(sender=apps.get_app_config('accounts'))
+
+        admin.refresh_from_db()
+        self.assertEqual(admin.password, original_hash)
+        self.assertTrue(admin.check_password('Existing-Admin4!Pass'))
+
+    def test_ensureadmin_requires_private_credentials(self):
+        with patch.dict(os.environ, {
+            'DJANGO_ADMIN_USERNAME': '',
+            'DJANGO_ADMIN_PASSWORD': '',
+        }):
+            with self.assertRaises(CommandError):
+                call_command('ensureadmin', stdout=StringIO(), stderr=StringIO())
+
+        self.assertFalse(User.objects.filter(is_superuser=True).exists())
+
+    def test_ensureadmin_preserves_existing_admin_without_credentials(self):
+        admin = User.objects.create_superuser(
+            username='kept-admin',
+            email='kept-admin@example.com',
+            password='Existing-Admin5!Pass',
+        )
+        original_hash = admin.password
+        with patch.dict(os.environ, {
+            'DJANGO_ADMIN_USERNAME': '',
+            'DJANGO_ADMIN_PASSWORD': '',
+        }):
+            call_command('ensureadmin', stdout=StringIO())
+
+        admin.refresh_from_db()
+        self.assertEqual(admin.password, original_hash)
+
+    def test_ensureadmin_creates_first_admin_from_environment(self):
+        environment = {
+            'DJANGO_ADMIN_USERNAME': 'first-admin',
+            'DJANGO_ADMIN_EMAIL': 'first-admin@example.com',
+            'DJANGO_ADMIN_PASSWORD': 'R8!mQ4#xV2$kP7',
+        }
+        with patch.dict(os.environ, environment):
+            call_command('ensureadmin', stdout=StringIO())
+
+        admin = User.objects.get(username='first-admin')
+        self.assertTrue(admin.is_superuser)
+        self.assertTrue(admin.check_password(environment['DJANGO_ADMIN_PASSWORD']))
+
+    def test_ensureadmin_rotates_only_the_named_existing_admin(self):
+        admin = User.objects.create_superuser(
+            username='maintainer-1',
+            email='maintainer@example.com',
+            password='Old-mN8!pQ4#vT2',
+        )
+        environment = {
+            'DJANGO_ADMIN_USERNAME': 'maintainer-1',
+            'DJANGO_ADMIN_EMAIL': 'maintainer@example.com',
+            'DJANGO_ADMIN_PASSWORD': 'New-xC7@qR4!vP9',
+        }
+        with patch.dict(os.environ, environment):
+            call_command('ensureadmin', stdout=StringIO())
+
+        admin.refresh_from_db()
+        self.assertTrue(admin.check_password(environment['DJANGO_ADMIN_PASSWORD']))
+        self.assertFalse(admin.check_password('Old-mN8!pQ4#vT2'))
+        self.assertEqual(User.objects.filter(is_superuser=True).count(), 1)
+
+
+class AjaxLoginSecurityTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='ajax-security-user',
+            password='Ajax-Secure4!Password',
+        )
+        self.client = Client(enforce_csrf_checks=True)
+
+    def test_ajax_login_rejects_request_without_csrf_token(self):
+        response = self.client.post(
+            reverse('ajax_login'),
+            data=json.dumps({'username': self.user.username, 'password': 'Ajax-Secure4!Password'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_ajax_login_does_not_accept_credentials_in_get_parameters(self):
+        response = self.client.get(reverse('ajax_login'), {
+            'username': self.user.username,
+            'password': 'Ajax-Secure4!Password',
+        })
+
+        self.assertEqual(response.status_code, 405)
+
+    @override_settings(SESSION_COOKIE_SECURE=True)
+    def test_ajax_login_accepts_csrf_header_and_sets_secure_jwt_cookie(self):
+        login_page = self.client.get(reverse('login'))
+        csrf_token = login_page.cookies['csrftoken'].value
+
+        response = self.client.post(
+            reverse('ajax_login'),
+            data=json.dumps({'username': self.user.username, 'password': 'Ajax-Secure4!Password'}),
+            content_type='application/json',
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['success'])
+        self.assertNotIn('token', response.json())
+        self.assertTrue(response.cookies['jwt_token']['httponly'])
+        self.assertTrue(response.cookies['jwt_token']['secure'])
 
 
 class DeviceDetectionTests(TestCase):
@@ -276,6 +449,42 @@ class FirmaAutorizadaTests(TestCase):
         self.assertContains(response, 'Ya existe una firma autorizada con ese código.')
 
 
+class EmployeeDataPrivacyTests(TestCase):
+    def setUp(self):
+        Empleado.objects.create(
+            empresa='Operaciones',
+            empleado='Persona de Prueba',
+            segundo_apellido='Apellido',
+            no_cui='1234567890123',
+            puesto='PRIV-001',
+            nombre_puesto='Operador',
+        )
+
+    def test_regular_user_does_not_receive_employee_cui(self):
+        user = User.objects.create_user(username='employee-data-user', password='Valid-User4!Pass')
+        self.client.force_login(user)
+        self.client.cookies['jwt_token'] = generate_jwt_token(user)
+
+        response = self.client.get(reverse('api_empleados'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('no_cui', response.json()[0])
+
+    def test_admin_can_view_employee_cui_in_catalog(self):
+        admin = User.objects.create_superuser(
+            username='employee-data-admin',
+            email='employee-data-admin@example.com',
+            password='Valid-Admin4!Pass',
+        )
+        self.client.force_login(admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(admin)
+
+        response = self.client.get(reverse('api_empleados'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]['no_cui'], '1234567890123')
+
+
 class IndicadoresTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser(
@@ -374,6 +583,26 @@ class EditarRegistroOperativoTests(TestCase):
             area_lote=Decimal('12.50'),
             cuenta_contable='CTA-100',
         )
+
+    def test_create_and_edit_pages_receive_the_same_catalogs(self):
+        labor = Labor.objects.create(codigo='LAB-001', descripcion='Riego')
+
+        create_response = self.client.get(reverse('registros'))
+        edit_response = self.client.get(reverse('editar_registro', args=[self.registro.id]))
+
+        catalog_names = (
+            'proveedores', 'maquinarias', 'fincas', 'labores', 'variedades', 'municipios',
+        )
+        for catalog_name in catalog_names:
+            with self.subTest(catalog=catalog_name):
+                self.assertEqual(create_response.status_code, 200)
+                self.assertEqual(edit_response.status_code, 200)
+                self.assertEqual(
+                    list(create_response.context[catalog_name]),
+                    list(edit_response.context[catalog_name]),
+                )
+
+        self.assertEqual(list(create_response.context['labores']), [labor])
 
     def test_locked_fields_are_not_changed_by_edit_post(self):
         self.client.post(reverse('editar_registro', args=[self.registro.id]), {

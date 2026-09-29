@@ -527,10 +527,6 @@ header p {
   transform: translateY(-1px);
 }
 
-.login-modal .btn:active {
-  transform: translateY(0);
-}
-
 .login-modal .btn-secondary {
   min-width: 140px;
   height: 46px;
@@ -550,6 +546,7 @@ header p {
   transform: translateY(-1px);
 }
 
+.login-modal .btn:active,
 .login-modal .btn-secondary:active {
   transform: translateY(0);
 }
@@ -607,10 +604,6 @@ header p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.accordion-btn:hover {
-  background: linear-gradient(90deg, #C8E6C9, #e8f5e8);
 }
 
 .accordion-btn:hover {

@@ -41,7 +41,7 @@ sys.path.insert(0, str(ROOT_PROJECT_DIR / 'configuraciones'))
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:
-    if DEBUG or 'test' in sys.argv or os.getenv('DJANGO_SETTINGS_MODULE') == 'configuraciones.miproyecto.settings':
+    if DEBUG or 'test' in sys.argv:
         SECRET_KEY = 'dev-only-insecure-secret-key'
     else:
         raise ImproperlyConfigured('La variable de entorno SECRET_KEY es obligatoria en producción.')

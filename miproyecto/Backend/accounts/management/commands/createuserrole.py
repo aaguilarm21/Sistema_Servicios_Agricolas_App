@@ -3,6 +3,8 @@ import string
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
 
@@ -41,10 +43,12 @@ class Command(BaseCommand):
 
         # Generar contraseña si no se proporciona
         if not password:
-            if role == 'admin':
-                password = 'Admin2026'
-            else:
-                password = 'User2026'
+            password = self.generate_temporary_password()
+
+        try:
+            validate_password(password)
+        except ValidationError as error:
+            raise CommandError('; '.join(error.messages)) from error
 
         if User.objects.filter(username=username).exists():
             raise CommandError(f"El usuario '{username}' ya existe.")
@@ -74,5 +78,12 @@ class Command(BaseCommand):
     def generate_temporary_password(self):
         """Genera una contraseña temporal segura."""
         alphabet = string.ascii_letters + string.digits + string.punctuation
-        password = ''.join(secrets.choice(alphabet) for _ in range(12))
-        return password
+        password = [
+            secrets.choice(string.ascii_lowercase),
+            secrets.choice(string.ascii_uppercase),
+            secrets.choice(string.digits),
+            secrets.choice(string.punctuation),
+        ]
+        password.extend(secrets.choice(alphabet) for _ in range(16))
+        secrets.SystemRandom().shuffle(password)
+        return ''.join(password)

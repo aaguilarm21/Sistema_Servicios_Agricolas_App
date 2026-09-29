@@ -1,13 +1,12 @@
 import os
 import sys
-import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'configuraciones.miproyecto.settings')
 import django
 django.setup()
 
-from accounts.models import Proveedor, Empleado, Maquinaria, Labor, Cuenta, UnidadMedida, Variedad, TipoMaquina, Marca, Municipio, Auxiliar
+from accounts.models import Proveedor, Empleado, Maquinaria, Labor, Cuenta, UnidadMedida, Variedad, TipoMaquina, Marca, Auxiliar
 
 proveedores = [
     {'codigo': '47789', 'nit': '4561-2', 'razon_social': 'AgroSuministros del Valle, S.A.', 'nombre_propietario': '+502 5555-0101', 'regimen_tributario': 'General (Sobre Utilidades)', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 30},
@@ -156,21 +155,5 @@ for marca in marcas:
 print('Insertando auxiliares...')
 for aux in auxiliares:
     Auxiliar.objects.update_or_create(codigo=aux['codigo'], defaults=aux)
-
-print('Insertando municipios...')
-municipios_file = os.path.join(os.path.dirname(__file__), 'municipios_data.json')
-if not os.path.exists(municipios_file):
-    municipios_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'base_datos', 'municipios_data.json'))
-if os.path.exists(municipios_file):
-    with open(municipios_file, encoding='utf-8') as f:
-        municipios = json.load(f)
-for muni in municipios:
-    Municipio.objects.update_or_create(
-        codigo=muni['codigo'],
-        defaults={
-            'nombre': muni['nombre'],
-            'departamento': muni['departamento'],
-        }
-    )
 
 print('Datos insertados correctamente.')

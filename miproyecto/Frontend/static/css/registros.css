@@ -304,10 +304,6 @@ body[data-mobile-device="true"] .records-table {
         font-size: 12px;
     }
 
-    .btn-volver {
-        /* inherited width 100% and sizes */
-    }
-
     form {
         padding: 12px;
     }
@@ -344,10 +340,7 @@ body[data-mobile-device="true"] .records-table {
         margin-bottom: 10px;
     }
 
-    .form-row.two-cols {
-        grid-template-columns: 1fr;
-    }
-
+    .form-row.two-cols,
     .form-row.three-cols {
         grid-template-columns: 1fr;
     }
@@ -417,10 +410,6 @@ body[data-mobile-device="true"] .records-table {
         margin-top: 2px;
     }
 
-    .btn-volver {
-        /* inherited width 100% and sizes */
-    }
-
     form {
         padding: 10px;
     }
@@ -432,7 +421,6 @@ body[data-mobile-device="true"] .records-table {
     .form-section {
         padding: 10px;
         margin-bottom: 12px;
-        border: 1px solid #e0e0e0;
         border-radius: 4px;
     }
 
@@ -471,14 +459,6 @@ body[data-mobile-device="true"] .records-table {
     .form-row {
         gap: 6px;
         margin-bottom: 8px;
-    }
-
-    .form-row.two-cols {
-        grid-template-columns: 1fr;
-    }
-
-    .form-row.three-cols {
-        grid-template-columns: 1fr;
     }
 
     .button-group {

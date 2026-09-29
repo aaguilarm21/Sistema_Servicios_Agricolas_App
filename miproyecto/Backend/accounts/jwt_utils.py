@@ -21,8 +21,7 @@ def generate_jwt_token(user: User) -> str:
         'iat': int(now.timestamp()),
         'exp': int((now + timedelta(hours=JWT_EXPIRATION_HOURS)).timestamp()),
     }
-    secret_key = getattr(settings, 'SECRET_KEY', 'dev-only-insecure-secret-key')
-    token = jwt.encode(payload, secret_key, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm=JWT_ALGORITHM)
     if isinstance(token, bytes):
         token = token.decode('utf-8')
     return token
@@ -33,6 +32,5 @@ def decode_jwt_token(token: str) -> dict:
     Decodifica y valida la firma y expiración de un token JWT.
     Retorna el payload si es válido, o lanza jwt.PyJWTError si no lo es.
     """
-    secret_key = getattr(settings, 'SECRET_KEY', 'dev-only-insecure-secret-key')
-    payload = jwt.decode(token, secret_key, algorithms=[JWT_ALGORITHM])
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[JWT_ALGORITHM])
     return payload

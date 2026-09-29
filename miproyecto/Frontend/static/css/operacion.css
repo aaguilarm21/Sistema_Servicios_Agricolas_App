@@ -118,7 +118,8 @@ body.operacion-body {
   transition: all 0.2s;
 }
 
-.btn-volver:hover {
+.btn-volver:hover,
+.btn-secondary:hover {
   background: #e5e7eb;
   color: #111827;
 }
@@ -412,11 +413,6 @@ textarea.form-control {
   align-items: center;
   gap: 8px;
   transition: all 0.2s;
-}
-
-.btn-secondary:hover {
-  background: #e5e7eb;
-  color: #111827;
 }
 
 .btn-action-right {

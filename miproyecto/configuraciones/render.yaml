@@ -10,6 +10,12 @@ services:
         sync: false
       - key: SECRET_KEY
         generateValue: true
+      - key: DJANGO_ADMIN_USERNAME
+        sync: false
+      - key: DJANGO_ADMIN_PASSWORD
+        sync: false
+      - key: DJANGO_ADMIN_EMAIL
+        sync: false
       - key: PYTHON_VERSION
         value: 3.12.7
       - key: DJANGO_ALLOWED_HOSTS

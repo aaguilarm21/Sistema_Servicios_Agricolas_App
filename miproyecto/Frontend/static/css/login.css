@@ -147,10 +147,6 @@ body[data-mobile-device="true"] .login-card {
   transform: translateY(-1px);
 }
 
-.btn:active {
-  transform: translateY(0);
-}
-
 @media (max-width: 420px) {
   .login-card {
     padding: 1.8rem 1.6rem 1.4rem;
@@ -232,6 +228,7 @@ body[data-mobile-device="true"] .login-card {
   transform: translateY(-1px);
 }
 
+.btn:active,
 .btn-secondary:active {
   transform: translateY(0);
 }

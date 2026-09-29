@@ -73,6 +73,17 @@ def to_title_case(val):
     return normalizar_texto(val)
 
 
+def _catalogos_registro_operativo():
+    return {
+        'proveedores': Proveedor.objects.all().order_by('razon_social'),
+        'maquinarias': Maquinaria.objects.all().order_by('codigo_maquina'),
+        'fincas': Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre'),
+        'labores': Labor.objects.all().order_by('codigo'),
+        'variedades': Variedad.objects.all().order_by('descripcion'),
+        'municipios': Municipio.objects.all().order_by('nombre'),
+    }
+
+
 @login_required
 @require_http_methods(['GET', 'POST'])
 def firmas_autorizadas(request):
@@ -154,20 +165,8 @@ def registros_operativos(request):
         messages.success(request, 'Boleta guardada correctamente.')
         return redirect('registros')
     
-    proveedores = Proveedor.objects.all().order_by('razon_social')
-    maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
-    fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
-    labores = Labor.objects.all().order_by('codigo')
-    variedades = Variedad.objects.all().order_by('descripcion')
-    municipios = Municipio.objects.all().order_by('nombre')
-    
     return render(request, 'registros_operativos.html', {
-        'proveedores': proveedores,
-        'maquinarias': maquinarias,
-        'fincas': fincas,
-        'labores': labores,
-        'variedades': variedades,
-        'municipios': municipios,
+        **_catalogos_registro_operativo(),
     })
 
 
@@ -240,21 +239,9 @@ def editar_registro_operativo(request, registro_id):
         messages.success(request, 'Registro actualizado correctamente.')
         return redirect('registros_data')
     
-    proveedores = Proveedor.objects.all().order_by('razon_social')
-    maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
-    fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
-    labores = Labor.objects.all().order_by('codigo')
-    variedades = Variedad.objects.all().order_by('descripcion')
-    municipios = Municipio.objects.all().order_by('nombre')
-    
     return render(request, 'editar_registro_operativo.html', {
         'registro': registro,
-        'proveedores': proveedores,
-        'maquinarias': maquinarias,
-        'fincas': fincas,
-        'labores': labores,
-        'variedades': variedades,
-        'municipios': municipios,
+        **_catalogos_registro_operativo(),
     })
 
 

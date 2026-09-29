@@ -75,30 +75,9 @@ def record_failed_login(sender, credentials, request, **kwargs):
 
 @receiver(post_migrate)
 def ensure_default_groups(sender, **kwargs):
-    """Crea los grupos por defecto y el usuario administrador por defecto tras ejecutar las migraciones."""
+    """Crea los grupos de autorización requeridos por la aplicación."""
     if sender.name != apps.get_app_config('accounts').name:
         return
 
     Group.objects.get_or_create(name='Admin')
     Group.objects.get_or_create(name='Usuario')
-
-    User = get_user_model()
-    user, created = User.objects.get_or_create(
-        username='admin',
-        defaults={
-            'email': 'admin@sistema.local',
-            'is_staff': True,
-            'is_superuser': True,
-            'is_active': True,
-        },
-    )
-
-    if created:
-        user.set_password('Admin123!')
-        user.save()
-    elif not user.check_password('Admin123!'):
-        user.set_password('Admin123!')
-        user.save()
-
-    user.groups.clear()
-    user.groups.add(Group.objects.get(name='Admin'))
