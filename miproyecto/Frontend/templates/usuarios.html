@@ -61,7 +61,7 @@
       <div class="form-grid grid-3-cols">
         <label>
           Código de Usuario
-          <input type="text" id="codigoUsuario" placeholder="Ingresa el código" autocomplete="off" />
+          <input type="text" id="codigoUsuario" autocomplete="off" />
           <div class="loading" id="loadingIndicator">Buscando...</div>
           <div class="error-message" id="errorMessage"></div>
           <div class="success-message" id="successMessage"></div>
@@ -77,12 +77,12 @@
       </div>
 
       <div class="form-grid" id="formularioUsuarios">
-        <label>Email<input type="email" id="emailUsuario" placeholder="correo@ejemplo.com" /></label>
-        <label>Contraseña<input type="password" id="passwordUsuario" placeholder="Escribe la contraseña" autocomplete="new-password" />
+        <label>Correo electrónico<input type="email" id="emailUsuario" /></label>
+        <label>Contraseña<input type="password" id="passwordUsuario" autocomplete="new-password" />
           <small style="color: #666; font-size: 0.78rem; display: block; margin-top: 4px;">Mín. 8 caracteres (mayúscula, minúscula, número y carácter especial: !@#$%^&*...)</small>
         </label>
         <label>Rol<select id="rolUsuario">
-            <option>Seleccionar</option>
+            <option value="" selected disabled hidden></option>
             <option>Admin</option>
             <option>Usuario</option>
           </select></label>
@@ -255,12 +255,12 @@
       }
 
       if (email === '') {
-        notifySystem.showError('⚠ Debes ingresar un email válido', 4000);
+        notifySystem.showError('⚠ Debes ingresar un correo electrónico válido', 4000);
         return;
       }
 
       if (!notifySystem.isValidEmail(email)) {
-        notifySystem.showError('⚠ El email no es válido', 4000);
+        notifySystem.showError('⚠ El correo electrónico no es válido', 4000);
         return;
       }
 
@@ -274,8 +274,8 @@
         return;
       }
 
-      if (rol === 'Seleccionar') {
-        notifySystem.showError('⚠ Debes seleccionar un rol', 4000);
+      if (!rol) {
+        notifySystem.showError('El rol es obligatorio', 4000);
         return;
       }
 

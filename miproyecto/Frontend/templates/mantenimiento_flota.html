@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mantenimiento - Ficha Técnica y Disponibilidad de Maquinaria</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}" />
+</head>
+
+<body class="maint-body" data-device-type="{{ request.device_type|default:'unknown' }}"
+  data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
+  <div class="main-wrapper">
+    <header class="header-bar maint-header">
+      <div class="header-title-box">
+        <h1>🚜 Ficha Técnica y Disponibilidad de Maquinaria</h1>
+        <p>Estado operativo, ubicación en campo, asignación de operadores y ficha técnica de maquinaria</p>
+      </div>
+      <div class="header-actions">
+        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-volver">← Volver a Módulos</a>
+      </div>
+    </header>
+
+    {% if messages %}
+    <div class="messages-container">
+      {% for message in messages %}
+      <div class="alert-operacion alert-{{ message.tags }}">
+        <span>{% if message.tags == 'success' %}✓{% else %}⚠️{% endif %}</span>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de Métricas -->
+    <div class="metrics-grid">
+      <div class="metric-card" style="border-left: 5px solid #2e7d32;">
+        <div class="metric-icon" style="background: #e8f5e9;">🚜</div>
+        <div class="metric-info">
+          <h4>Total de Maquinaria</h4>
+          <p class="metric-num">{{ conteo_estados.total }}</p>
+        </div>
+      </div>
+      <div class="metric-card" style="border-left: 5px solid #388e3c;">
+        <div class="metric-icon" style="background: #f1f8e9;">✅</div>
+        <div class="metric-info">
+          <h4>Disponibles</h4>
+          <p class="metric-num">{{ conteo_estados.disponible }}</p>
+        </div>
+      </div>
+      <div class="metric-card" style="border-left: 5px solid #558b2f;">
+        <div class="metric-icon" style="background: #f1f8e9;">🌾</div>
+        <div class="metric-info">
+          <h4>En Campo</h4>
+          <p class="metric-num">{{ conteo_estados.en_campo }}</p>
+        </div>
+      </div>
+      <div class="metric-card" style="border-left: 5px solid #81c784;">
+        <div class="metric-icon" style="background: #e8f5e9;">🛠️</div>
+        <div class="metric-info">
+          <h4>En Taller</h4>
+          <p class="metric-num">{{ conteo_estados.en_taller }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Búsqueda y Filtros -->
+    <form method="GET" action="{% url 'estado_maquinaria' %}" class="card-panel"
+      style="padding: 16px 20px; margin-bottom: 24px; border-color: #a5d6a7;">
+      <div style="display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;">
+        <div class="form-group" style="flex: 1; min-width: 240px;">
+          <label for="q">Buscar por Código, Marca, Placa o Tipo</label>
+          <input type="text" name="q" id="q" class="form-control" value="{{ busqueda }}" />
+        </div>
+        <div class="form-group" style="min-width: 180px;">
+          <label for="filtro-estado">Estado Operativo</label>
+          <select name="estado" id="filtro-estado" class="form-control">
+            <option value="">-- Todos los Estados --</option>
+            <option value="Disponible" {% if filtro_estado == 'Disponible' %}selected{% endif %}>Disponible</option>
+            <option value="En Campo" {% if filtro_estado == 'En Campo' %}selected{% endif %}>En Campo</option>
+            <option value="En Taller" {% if filtro_estado == 'En Taller' %}selected{% endif %}>En Taller</option>
+            <option value="Fuera de Servicio" {% if filtro_estado == 'Fuera de Servicio' %}selected{% endif %}>Fuera de
+              Servicio</option>
+          </select>
+        </div>
+        <div class="form-group" style="min-width: 220px;">
+          <label for="filtro-tipo-maquina">Tipo de Máquina</label>
+          <select name="tipo_maquina" id="filtro-tipo-maquina" class="form-control">
+            <option value="">-- Todos los Tipos --</option>
+            {% for tipo in tipos_maquina %}
+            <option value="{{ tipo }}" {% if filtro_tipo_maquina == tipo %}selected{% endif %}>{{ tipo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="submit" class="btn-maint-primary">🔍 Buscar</button>
+          <a href="{% url 'estado_maquinaria' %}" class="btn-volver" style="text-decoration: none;">🔄 Limpiar</a>
+        </div>
+      </div>
+    </form>
+
+    <!-- GRID DE TARJETAS DE FLOTA -->
+    <div class="fleet-grid">
+      {% for item in flota %}
+      <div class="fleet-card">
+        <div class="fleet-card-header">
+          <span class="fleet-code">{{ item.maquina.codigo_maquina }}</span>
+          <span class="badge-status {{ item.estado|slugify }}">
+            {{ item.estado }}
+          </span>
+        </div>
+
+        <h3 class="fleet-type" style="text-transform: capitalize;">{{ item.maquina.tipo_maquina }}</h3>
+        <div style="color: #1b5e20; font-weight: 700; font-size: 0.95rem; margin-bottom: 8px;">
+          {{ item.maquina.marca_maquina }}
+        </div>
+
+        <ul class="fleet-details">
+          <li>
+            <span>Placa / Matrícula:</span>
+            <strong>{{ item.maquina.placa_matricula|default:'N/A' }}</strong>
+          </li>
+          <li>
+            <span>Serie / Chasis:</span>
+            <strong>{{ item.maquina.serie_maquina|default:'N/A' }}</strong>
+          </li>
+          <li>
+            <span>Horómetro Acumulado:</span>
+            <strong style="color: #14532d;">{{ item.horometro }} hrs</strong>
+          </li>
+          <li>
+            <span>Ubicación Actual:</span>
+            <strong>📍 {{ item.finca }}</strong>
+          </li>
+          <li>
+            <span>Operador Asignado:</span>
+            <strong>👤 {{ item.operador }}</strong>
+          </li>
+          <li>
+            <span>Combustible S/N:</span>
+            <strong>{{ item.maquina.combustible }}</strong>
+          </li>
+        </ul>
+
+        <!-- Quitado footer inline: reemplazado por fleet-card-footer class -->
+        <div class="fleet-card-footer">
+          <button type="button" class="btn-maint-primary" style="width: 100%;"
+            onclick="abrirModalAsignacion('{{ item.maquina.codigo_maquina }}', '{{ item.estado }}', '{{ item.finca }}', '{{ item.operador }}')">
+            ⚙️ Reasignar Estado / Frente
+          </button>
+        </div>
+      </div>
+      {% empty %}
+      <div
+        style="grid-column: 1 / -1; text-align: center; padding: 40px; background: white; border-radius: 12px; border: 1px solid #a5d6a7; color: #55705a;">
+        No se encontraron maquinarias con los filtros aplicados.
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Modal Reasignar Estado -->
+    <div id="modal-asignacion" class="modal-overlay">
+      <div class="modal-box">
+        <h3 id="modal-asig-title" class="modal-title">⚙️ Reasignar Maquinaria</h3>
+
+        <form method="POST" action="{% url 'estado_maquinaria' %}">
+          {% csrf_token %}
+          <input type="hidden" name="codigo_maquina" id="asig-codigo-maquina" />
+
+          <div class="form-group form-group-spaced">
+            <label for="asig-estado">Estado Operativo *</label>
+            <select name="estado" id="asig-estado" class="form-control" required>
+              <option value="Disponible">Disponible (En Patio / Espera)</option>
+              <option value="En Campo">En Campo (Trabajando en Finca)</option>
+              <option value="En Taller">En Taller (Mantenimiento / Falla)</option>
+              <option value="Fuera de Servicio">Fuera de Servicio (Inactivo)</option>
+            </select>
+          </div>
+
+          <div class="form-group form-group-spaced">
+            <label for="asig-finca">Finca</label>
+            <select name="finca_actual" id="asig-finca" class="form-control">
+              <option value="Patio Central">Patio Central</option>
+              <option value="Taller Central">Taller Central</option>
+              {% for f in fincas %}
+              <option value="{{ f.nombre }}">{{ f.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group form-group-spaced">
+            <label for="asig-operador">Operador Asignado</label>
+            <select name="operador_asignado" id="asig-operador" class="form-control">
+              <option value="Sin asignar">Sin asignar</option>
+              {% for emp in empleados %}
+              <option value="{{ emp.empleado }} {{ emp.segundo_apellido }}">{{ emp.empleado }} {{ emp.segundo_apellido
+                }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-volver" onclick="cerrarModalAsignacion()">Cancelar</button>
+            <button type="submit" class="btn-maint-primary">💾 Guardar Cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function abrirModalAsignacion(codigo, estado, finca, operador) {
+      document.getElementById('asig-codigo-maquina').value = codigo;
+      document.getElementById('modal-asig-title').textContent = '⚙️ Reasignar: ' + codigo;
+      document.getElementById('asig-estado').value = estado;
+      document.getElementById('asig-finca').value = finca;
+      document.getElementById('asig-operador').value = operador;
+      document.getElementById('modal-asignacion').classList.add('is-open');
+    }
+
+    function cerrarModalAsignacion() {
+      document.getElementById('modal-asignacion').classList.remove('is-open');
+    }
+
+    document.getElementById('modal-asignacion').addEventListener('click', function (e) {
+      if (e.target === this) cerrarModalAsignacion();
+    });
+  </script>
+</body>
+
+</html>

@@ -1,9 +1,9 @@
 """
-WSGI config for miproyecto project.
+Configuración WSGI para el proyecto miproyecto.
 
-It exposes the WSGI callable as a module-level variable named ``application``.
+Expone la aplicación WSGI mediante la variable de módulo ``application``.
 
-For more information on this file, see
+Más información:
 https://docs.djangoproject.com/en/6.0/howto/deployment/wsgi/
 """
 

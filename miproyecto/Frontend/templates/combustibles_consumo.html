@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Combustibles - Control de Consumo y Rendimiento</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/combustibles.css' %}" />
+</head>
+
+<body class="operacion-body fuel-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
+  <div class="main-wrapper">
+    <!-- Encabezado -->
+    <header class="header-bar">
+      <div class="header-title-box">
+        <h1>📊 Control de Consumo y Rendimiento</h1>
+        <p>Análisis de galones consumidos, horas de trabajo y eficiencia por maquinaria agrícola</p>
+      </div>
+      <div class="header-actions">
+        <a href="{% url 'despacho_combustible' %}" class="btn-logistica">⛽ Registrar Despacho</a>
+        <a href="{% url 'modulos' %}?sector=combustibles" class="btn-volver">← Volver A Módulos</a>
+      </div>
+    </header>
+
+    {% if messages %}
+    <div class="messages-container">
+      {% for message in messages %}
+      <div class="alert-operacion alert-{{ message.tags }}">
+        <span>{% if message.tags == 'success' %}✓{% else %}⚠️{% endif %}</span>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de Métricas Resumen -->
+    <div class="metrics-grid">
+      <div class="metric-card orange">
+        <div class="metric-icon">⛽</div>
+        <div class="metric-info">
+          <h4>Consumo Total</h4>
+          <p class="metric-num">{{ total_galones|floatformat:1 }} <span class="metric-unit">Gal</span></p>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">💰</div>
+        <div class="metric-info">
+          <h4>Costo Estimado</h4>
+          <p class="metric-num"><span class="metric-unit">Q</span> {{ costo_estimado|floatformat:2 }}</p>
+        </div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-icon">🚜</div>
+        <div class="metric-info">
+          <h4>Mayor Consumo</h4>
+          <p class="metric-num">{{ maquina_top }}</p>
+        </div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-icon">⏱️</div>
+        <div class="metric-info">
+          <h4>Rendimiento de Maquinaria</h4>
+          <p class="metric-num">{{ rendimiento_promedio|floatformat:2 }} <span class="metric-unit">Gal/Hr</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros y Busqueda -->
+    <div class="card-panel" style="padding: 18px 22px; margin-bottom: 20px;">
+      <form method="GET" action="{% url 'consumo_combustible' %}">
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label for="maquina">Filtrar por Máquina</label>
+            <select name="maquina" id="maquina" class="form-control">
+              <option value="">-- Todas las Máquinas --</option>
+              {% for maq in maquinarias %}
+              <option value="{{ maq.codigo_maquina }}" {% if filtro_maquina == maq.codigo_maquina %}selected{% endif %}>
+                {{ maq.codigo_maquina }} - {{ maq.tipo_maquina }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="fecha_inicio">Desde Fecha</label>
+            <input type="date" name="fecha_inicio" id="fecha_inicio" class="form-control" value="{{ fecha_inicio }}" />
+          </div>
+          <div class="form-group">
+            <label for="fecha_fin">Hasta Fecha</label>
+            <input type="date" name="fecha_fin" id="fecha_fin" class="form-control" value="{{ fecha_fin }}" />
+          </div>
+        </div>
+        <div class="button-row">
+          <button type="submit" class="btn-submit btn-sm">🔍 Filtrar Consumos</button>
+          <a href="{% url 'consumo_combustible' %}" class="btn-secondary btn-sm" style="text-decoration: none;">🔄 Restablecer Filtros</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- SECCIÓN 1: RESUMEN DE RENDIMIENTO POR MÁQUINA -->
+    <section class="card-panel">
+      <div class="logistica-header">
+        <h2 class="logistica-title">
+          <span>🚜 Resumen de Rendimiento y Consumo por Maquinaria</span>
+        </h2>
+        <span class="logistica-counter">{{ resumen_maquinas|length }} máquinas evaluadas</span>
+      </div>
+
+      <div class="table-container">
+        <table class="logistica-table">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th>Código Máquina</th>
+              <th class="text-right">Despachos</th>
+              <th class="text-right">Galones Consumidos</th>
+              <th>Participación de Consumo</th>
+              <th>Horas Estimadas</th>
+              <th>Rendimiento</th>
+              <th class="text-right">Costo Estimado</th>
+              <th>Operadores</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rm in resumen_maquinas %}
+            <tr>
+              <td class="cell-id" data-num>{{ forloop.counter }}</td>
+              <td><span class="cell-badge-code" style="font-size: 0.95rem;">{{ rm.codigo }}</span></td>
+              <td class="text-right cell-mono-number">{{ rm.despachos_count }} cargas</td>
+              <td class="text-right cell-mono-number" style="color: #2e7d32; font-weight: 700;">{{ rm.total_galones }} Gal</td>
+              <td style="min-width: 150px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="flex: 1; height: 10px; background: #e8f5e9; border-radius: 5px; overflow: hidden;">
+                    <div style="width: {{ rm.porcentaje }}%; height: 100%; background: #388e3c; border-radius: 5px;"></div>
+                  </div>
+                  <small style="font-weight: 700; color: #1b5e20;">{{ rm.porcentaje }}%</small>
+                </div>
+              </td>
+              <td class="cell-mono-number">{{ rm.horas_estimadas }}</td>
+              <td>
+                <span class="badge-prioridad {% if rm.rendimiento < 3 %}prioridad-baja{% else %}prioridad-media{% endif %}">
+                  {{ rm.rendimiento }} Gal/Hr
+                </span>
+              </td>
+              <td class="text-right cell-mono-number"><strong>Q {{ rm.costo_q|floatformat:2 }}</strong></td>
+              <td class="cell-truncated" title="{{ rm.operadores }}">{{ rm.operadores }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="9">
+                <div class="empty-state">
+                  <span class="icon">⛽</span>
+                  <h3>No hay registros de consumo para los filtros seleccionados</h3>
+                  <p>Intenta cambiar los parámetros de búsqueda o selecciona todas las máquinas.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 2: DETALLE DE SUMINISTROS -->
+    <section class="card-panel">
+      <div class="logistica-header">
+        <h2 class="logistica-title">
+          <span>📋 Detalle Individual de Despachos</span>
+        </h2>
+        <span class="logistica-counter">{{ despachos|length }} registros encontrados</span>
+      </div>
+
+      <div class="table-container">
+        <table class="logistica-table">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th>No. Vale</th>
+              <th>Fecha</th>
+              <th>Máquina</th>
+              <th>Combustible</th>
+              <th class="text-right">Galones</th>
+              <th class="text-right">Horómetro</th>
+              <th>Operador</th>
+              <th>Tanque Suministrador</th>
+              <th>Finca</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in despachos %}
+            <tr>
+              <td class="cell-id" data-num>{{ forloop.counter }}</td>
+              <td class="nowrap cell-bold">{{ d.no_vale }}</td>
+              <td>{{ d.fecha|date:'d/m/Y' }}</td>
+              <td><span class="cell-badge-code">{{ d.codigo_maquina }}</span></td>
+              <td>{{ d.tipo_combustible }}</td>
+              <td class="text-right cell-mono-number" style="color: #2e7d32; font-weight: 700;">{{ d.galones }} Gal</td>
+              <td class="text-right cell-mono-number">{{ d.horometro_actual }} hrs</td>
+              <td>{{ d.operador }}</td>
+              <td>{{ d.estacion_tanque }}</td>
+              <td>{{ d.finca|default:'-' }}</td>
+              <td><div class="fuel-row-actions">
+                <a class="btn-sm fuel-edit-link" href="{% url 'despacho_combustible' %}?editar={{ d.id }}&amp;return_to=consumo">Editar</a>
+                <form method="post" action="{% url 'gestionar_despacho_combustible' d.id %}" onsubmit="return confirm('¿Eliminar este vale y devolver su saldo al tanque?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete" />
+                  <input type="hidden" name="return_to" value="consumo" />
+                  <button type="submit" class="btn-sm fuel-delete-link">Eliminar</button>
+                </form>
+              </div></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="11">
+                <div class="empty-state">
+                  <span class="icon">📋</span>
+                  <h3>No hay vales para mostrar</h3>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</body>
+
+</html>

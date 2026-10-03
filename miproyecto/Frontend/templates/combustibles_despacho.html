@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Combustibles - Despacho de Combustible</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/combustibles.css' %}" />
+</head>
+
+<body class="operacion-body fuel-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
+  <div class="main-wrapper">
+    <!-- Encabezado -->
+    <header class="header-bar">
+      <div class="header-title-box">
+        <h1>⛽ Despacho de Combustible</h1>
+        <p>Registro de vales de carga, despacho a maquinaria agrícola y control por horómetro</p>
+      </div>
+      <div class="header-actions">
+        <a href="{% url 'modulos' %}?sector=combustibles" class="btn-volver">← Volver A Módulos</a>
+      </div>
+    </header>
+
+    <!-- Notificaciones / Mensajes Django -->
+    {% if messages %}
+    <div class="messages-container">
+      {% for message in messages %}
+      <div class="alert-operacion alert-{{ message.tags }}">
+        <span>{% if message.tags == 'success' %}✓{% else %}⚠️{% endif %}</span>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de Métricas Resumen -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon">⛽</div>
+        <div class="metric-info">
+          <h4>Total Despachos</h4>
+          <p class="metric-num">{{ total_despachos }}</p>
+        </div>
+      </div>
+      <div class="metric-card orange">
+        <div class="metric-icon">🛢️</div>
+        <div class="metric-info">
+          <h4>Galones Despachados</h4>
+          <p class="metric-num">{{ total_galones|floatformat:2 }} <span class="metric-unit">Gal</span></p>
+        </div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-icon">📊</div>
+        <div class="metric-info">
+          <h4>Promedio por Carga</h4>
+          <p class="metric-num">{{ promedio_despacho|floatformat:1 }} <span class="metric-unit">Gal</span></p>
+        </div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-icon">🚜</div>
+        <div class="metric-info">
+          <h4>Máquinas Atendidas</h4>
+          <p class="metric-num">{{ maquinas_atendidas }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pestañas de Navegación -->
+    <div class="nav-tabs-wrapper">
+      <button type="button" class="nav-tab-btn active" id="tab-programar" onclick="activarPestana('despacho')">
+        <span>📝 Registrar Nuevo Despacho</span>
+      </button>
+      <button type="button" class="nav-tab-btn logistica-tab" id="tab-logistica" onclick="activarPestana('historial')">
+        <span>📋 Historial de Vales</span>
+        <span class="badge-count tab-badge">{{ total_despachos }}</span>
+      </button>
+      <a href="{% url 'consumo_combustible' %}" class="nav-tab-btn" style="text-decoration: none; margin-left: auto;">
+        <span>📈 Ver Control de Consumo →</span>
+      </a>
+    </div>
+
+    <!-- SECCIÓN 1: FORMULARIO DE REGISTRO DE DESPACHO -->
+    <section id="seccion-despacho" class="card-panel">
+      <form id="despacho-form" method="POST" action="{% if despacho_edicion %}{% url 'gestionar_despacho_combustible' despacho_edicion.id %}{% else %}{% url 'despacho_combustible' %}{% endif %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="{% if despacho_edicion %}update{% else %}create{% endif %}" />
+        {% if despacho_edicion %}<input type="hidden" name="return_to" value="{% if return_to %}consumo{% else %}despachos{% endif %}" />{% endif %}
+        {% if despacho_edicion %}<input type="hidden" name="estacion_tanque" value="{{ despacho_edicion.estacion_tanque }}" />{% endif %}
+        <div class="edit-mode-banner" {% if not despacho_edicion %}hidden{% endif %}>
+          Editando el vale {{ despacho_edicion.no_vale }}
+        </div>
+
+        <!-- 1. IDENTIFICACIÓN DEL VALE Y FECHA -->
+        <div class="section-title">
+          <span>📋 1. Identificación del Vale y Fecha</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label for="no_vale">No. de Vale *</label>
+            <input type="text" name="no_vale" id="no_vale" class="form-control" maxlength="50" value="{% if despacho_edicion %}{{ despacho_edicion.no_vale }}{% else %}{{ siguiente_vale }}{% endif %}" readonly required />
+          </div>
+          <div class="form-group">
+            <label for="fecha">Fecha de Despacho *</label>
+            <input type="date" name="fecha" id="fecha" class="form-control" value="{% if despacho_edicion %}{{ despacho_edicion.fecha|date:'Y-m-d' }}{% else %}{{ fecha_hoy|date:'Y-m-d' }}{% endif %}" required />
+          </div>
+          <div class="form-group">
+            <label for="tipo_combustible">Tipo de Combustible *</label>
+            <select name="tipo_combustible" id="tipo_combustible" class="form-control" required>
+              <option value="Diésel" {% if not despacho_edicion or despacho_edicion.tipo_combustible == 'Diésel' %}selected{% endif %}>Diésel</option>
+              <option value="Gasolina Regular" {% if despacho_edicion.tipo_combustible == 'Gasolina Regular' %}selected{% endif %}>Gasolina Regular</option>
+              <option value="Gasolina Súper" {% if despacho_edicion.tipo_combustible == 'Gasolina Súper' %}selected{% endif %}>Gasolina Súper</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 2. MAQUINARIA Y SUMINISTRO -->
+        <div class="section-title section-title-spacing">
+          <span>🚜 2. Maquinaria y Despachos</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label for="codigo_maquina">Maquinaria *</label>
+            <select name="codigo_maquina" id="codigo_maquina" class="form-control" required>
+              <option value="" {% if not despacho_edicion %}selected{% endif %} disabled hidden></option>
+              {% for maq in maquinarias %}
+              <option value="{{ maq.codigo_maquina }}" {% if despacho_edicion.codigo_maquina == maq.codigo_maquina %}selected{% endif %}>{{ maq.codigo_maquina }} - {{ maq.tipo_maquina }} ({{ maq.marca_maquina }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="labor">Labor *</label>
+            <select name="labor" id="labor" class="form-control" required>
+              <option value="" {% if not despacho_edicion %}selected{% endif %} disabled hidden></option>
+              {% for item in labores %}
+              <option value="{{ item.codigo }}" {% if despacho_edicion.labor == item.descripcion %}selected{% endif %}>{{ item.proceso|capfirst }}: {{ item.codigo }} - {{ item.descripcion }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="galones">Cantidad despachada *</label>
+            <div class="input-with-unit">
+              <input type="number" step="0.01" min="0.01" name="galones" id="galones" class="form-control" value="{{ despacho_edicion.galones|default:'' }}" required />
+              <span class="unit-suffix">Gal</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="horometro_actual">Horómetro de Despacho *</label>
+            <div class="input-with-unit">
+              <input type="number" step="0.01" min="0" name="horometro_actual" id="horometro_actual" class="form-control" value="{{ despacho_edicion.horometro_actual|default:'' }}" required />
+              <span class="unit-suffix">hrs</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. OPERADOR, TANQUE Y UBICACIÓN -->
+        <div class="section-title section-title-spacing">
+          <span>👤 3. Operador y Ubicación</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label for="operador">Operador *</label>
+            <select name="operador" id="operador" class="form-control" required>
+              <option value="" {% if not despacho_edicion %}selected{% endif %} disabled hidden></option>
+              {% for emp in empleados %}
+              <option value="{{ emp.empleado }}{% if emp.segundo_apellido %} {{ emp.segundo_apellido }}{% endif %}" {% if despacho_edicion.operador == emp.empleado or despacho_edicion.operador == emp.empleado|add:' '|add:emp.segundo_apellido %}selected{% endif %}>{{ emp.empleado }}{% if emp.segundo_apellido %} {{ emp.segundo_apellido }}{% endif %} ({{ emp.nombre_puesto }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="estacion_tanque">Tanque *</label>
+            <select name="estacion_tanque" id="estacion_tanque" class="form-control" required>
+              <option value="" {% if not despacho_edicion %}selected{% endif %} disabled hidden></option>
+              {% for tq in tanques %}
+                <option value="{{ tq.codigo }}" data-tipo-combustible="{{ tq.tipo_combustible }}" data-estado="{{ tq.estado }}" {% if despacho_edicion.estacion_tanque == tq.codigo or despacho_edicion.estacion_tanque == tq.nombre %}selected{% endif %}>{{ tq.codigo }} - {{ tq.nombre }} ({{ tq.nivel_actual_galones }} Gal)</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="finca">Ubicación</label>
+            <select name="finca" id="finca" class="form-control">
+              <option value="" {% if not despacho_edicion.finca %}selected{% endif %} disabled hidden></option>
+              {% for fn in fincas %}
+              <option value="{{ fn.nombre }}" {% if despacho_edicion.finca == fn.nombre %}selected{% endif %}>{{ fn.nombre }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="proveedor">Proveedor *</label>
+            <select name="proveedor" id="proveedor" class="form-control" required>
+              <option value="" {% if not despacho_edicion %}selected{% endif %} disabled hidden></option>
+              {% for item in proveedores %}
+              <option value="{{ item.codigo }}" {% if despacho_edicion.proveedor == item.razon_social %}selected{% endif %}>{{ item.codigo }} - {{ item.razon_social }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group form-group-spaced">
+          <label for="observaciones">Observaciones</label>
+          <textarea name="observaciones" id="observaciones" class="form-control" rows="3">{{ despacho_edicion.observaciones|default:'' }}</textarea>
+        </div>
+
+        <div class="form-group form-group-spaced">
+          <label for="despachado_por">Despachado por *</label>
+          <select name="despachado_por" id="despachado_por" class="form-control" required>
+            {% if firmas_autorizadas %}
+            <option value="" {% if not despacho_edicion %}selected{% endif %} disabled hidden></option>
+            {% for firma in firmas_autorizadas %}
+            <option value="{{ firma.codigo }}" {% if despacho_edicion.despachado_por == firma.nombre %}selected{% endif %}>{{ firma.nombre }} - {{ firma.puesto }} ({{ firma.area }})</option>
+            {% endfor %}
+            {% else %}
+            <option value="">No hay firmas autorizadas configuradas</option>
+            {% endif %}
+          </select>
+        </div>
+
+        <!-- BOTONES -->
+        <div class="button-row">
+          <button type="submit" class="btn-submit">
+            {% if despacho_edicion %}💾 Guardar cambios{% else %}💾 Guardar y Registrar Despacho{% endif %}
+          </button>
+          <button type="reset" class="btn-secondary">
+            🔄 Limpiar
+          </button>
+          <button type="button" class="btn-logistica btn-action-right" onclick="activarPestana('historial')">
+            📋 Ver Historial de Vales
+          </button>
+          {% if despacho_edicion %}
+          <a id="cancelar-edicion-despacho" class="btn-secondary" href="{% if return_to %}{% url 'consumo_combustible' %}{% else %}{% url 'despacho_combustible' %}?ver=historial{% endif %}">Cancelar edición</a>
+          {% endif %}
+        </div>
+      </form>
+    </section>
+
+    <!-- SECCIÓN 2: HISTORIAL DE VALES -->
+    <section id="seccion-historial" class="card-panel is-hidden">
+      <div class="logistica-header">
+        <h2 class="logistica-title">
+          <span>📋 Historial de Vales</span>
+        </h2>
+        <div class="logistica-quick-actions">
+          <button type="button" class="btn-submit btn-sm" onclick="activarPestana('despacho')">
+            ➕ Nuevo Despacho
+          </button>
+          <button type="button" class="btn-secondary btn-sm" onclick="window.print()">
+            🖨️ Imprimir
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda -->
+      <div class="logistica-toolbar">
+        <div class="search-filter-box">
+          <input type="text" id="filtro-busqueda" class="search-input" onkeyup="filtrarTabla()" />
+          <select id="filtro-maquina" class="filter-select" onchange="filtrarTabla()">
+            <option value="">Todas las Máquinas</option>
+            {% for maq in maquinarias %}
+            <option value="{{ maq.codigo_maquina }}">{{ maq.codigo_maquina }}</option>
+            {% endfor %}
+          </select>
+          <select id="filtro-combustible" class="filter-select" onchange="filtrarTabla()">
+            <option value="">Todos los Combustibles</option>
+            <option value="Diésel">Diésel</option>
+            <option value="Gasolina Regular">Gasolina Regular</option>
+            <option value="Gasolina Súper">Gasolina Súper</option>
+          </select>
+        </div>
+        <span id="contador-filtrados" class="logistica-counter">
+          Mostrando {{ despachos|length }} registros
+        </span>
+      </div>
+
+      <!-- Tabla de Registros -->
+      <div class="table-container">
+        <table class="logistica-table" id="tabla-despachos">
+          <thead>
+            <tr>
+              <th>No. de Vale</th>
+              <th>Fecha de Despacho</th>
+              <th>Tipo de Combustible</th>
+              <th>Maquinaria</th>
+              <th>Labor</th>
+              <th>Tanque</th>
+              <th>Cantidad despachada</th>
+              <th>Horómetro de Despacho</th>
+              <th>Operador</th>
+              <th>Ubicación</th>
+              <th>Proveedor</th>
+              <th>Observaciones</th>
+              <th>Despachado por</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body">
+            {% for d in despachos %}
+            <tr data-maquina="{{ d.codigo_maquina }}" data-combustible="{{ d.tipo_combustible }}" data-texto="{{ d.no_vale }} {{ d.codigo_maquina }} {{ d.labor }} {{ d.estacion_tanque }} {{ d.operador }} {{ d.finca }} {{ d.proveedor }} {{ d.despachado_por }}">
+              <td class="nowrap cell-bold">{{ d.no_vale }}</td>
+              <td>{{ d.fecha|date:'d/m/Y' }}</td>
+              <td>{{ d.tipo_combustible }}</td>
+              <td><span class="cell-badge-code">{{ d.codigo_maquina }}</span></td>
+              <td>{{ d.labor|default:'-' }}</td>
+              <td>{{ d.estacion_tanque }}</td>
+              <td class="text-right cell-mono-number" style="color: #2e7d32; font-weight: 700;">{{ d.galones }} Gal</td>
+              <td class="text-right cell-mono-number">{{ d.horometro_actual }} hrs</td>
+              <td>{{ d.operador }}</td>
+              <td>{{ d.finca|default:'-' }}</td>
+              <td>{{ d.proveedor|default:'-' }}</td>
+              <td class="cell-truncated" title="{{ d.observaciones|default:'' }}">{{ d.observaciones|default:'-' }}</td>
+              <td>{{ d.despachado_por|default:'-' }}</td>
+              <td><div class="fuel-row-actions">
+                <a class="btn-sm fuel-edit-link" href="{% url 'despacho_combustible' %}?editar={{ d.id }}">Editar</a>
+                <form method="post" action="{% url 'gestionar_despacho_combustible' d.id %}" onsubmit="return confirm('¿Eliminar este vale y devolver su saldo al tanque?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete" />
+                  <input type="hidden" name="return_to" value="despachos" />
+                  <button type="submit" class="btn-sm fuel-delete-link">Eliminar</button>
+                </form>
+              </div></td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="14">
+                <div class="empty-state">
+                  <span class="icon">⛽</span>
+                  <h3>Aún no hay despachos de combustible registrados</h3>
+                  <p>Registra tu primer vale de suministro desde el formulario.</p>
+                  <button type="button" class="btn-submit empty-action-btn" onclick="activarPestana('despacho')">
+                    📝 Registrar Despacho Ahora
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function activarPestana(pestana) {
+      const seccionDespacho = document.getElementById('seccion-despacho');
+      const seccionHistorial = document.getElementById('seccion-historial');
+      const tabDespacho = document.getElementById('tab-programar');
+      const tabHistorial = document.getElementById('tab-logistica');
+
+      if (pestana === 'despacho') {
+        seccionDespacho.classList.remove('is-hidden');
+        seccionHistorial.classList.add('is-hidden');
+        tabDespacho.classList.add('active');
+        tabHistorial.classList.remove('active');
+      } else {
+        seccionDespacho.classList.add('is-hidden');
+        seccionHistorial.classList.remove('is-hidden');
+        tabDespacho.classList.remove('active');
+        tabHistorial.classList.add('active');
+      }
+    }
+
+    if (new URLSearchParams(window.location.search).get('ver') === 'historial') {
+      activarPestana('historial');
+    }
+
+    function filtrarTabla() {
+      const texto = document.getElementById('filtro-busqueda').value.toLowerCase();
+      const maquina = document.getElementById('filtro-maquina').value.toLowerCase();
+      const combustible = document.getElementById('filtro-combustible').value.toLowerCase();
+      const rows = document.querySelectorAll('#tabla-body tr[data-texto]');
+      let count = 0;
+
+      rows.forEach(row => {
+        const rowTexto = row.getAttribute('data-texto').toLowerCase();
+        const rowMaquina = row.getAttribute('data-maquina').toLowerCase();
+        const rowCombustible = row.getAttribute('data-combustible').toLowerCase();
+
+        const coincideTexto = !texto || rowTexto.includes(texto);
+        const coincideMaquina = !maquina || rowMaquina === maquina;
+        const coincideCombustible = !combustible || rowCombustible === combustible;
+
+        if (coincideTexto && coincideMaquina && coincideCombustible) {
+          row.style.display = '';
+          count++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      document.getElementById('contador-filtrados').textContent = `Mostrando ${count} registros`;
+    }
+
+    const tipoCombustible = document.getElementById('tipo_combustible');
+    const selectorTanque = document.getElementById('estacion_tanque');
+    const normalizarTexto = valor => (valor || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+
+    function filtrarTanquesPorCombustible() {
+      const tipoSeleccionado = normalizarTexto(tipoCombustible.value);
+      Array.from(selectorTanque.options).forEach(opcion => {
+        if (!opcion.value) return;
+          const coincide = normalizarTexto(opcion.dataset.tipoCombustible) === tipoSeleccionado
+            && normalizarTexto(opcion.dataset.estado) === 'operativo';
+        opcion.hidden = !coincide;
+        opcion.disabled = !coincide;
+        if (!coincide && opcion.selected) selectorTanque.value = '';
+      });
+    }
+
+    tipoCombustible.addEventListener('change', filtrarTanquesPorCombustible);
+    filtrarTanquesPorCombustible();
+  </script>
+</body>
+
+</html>

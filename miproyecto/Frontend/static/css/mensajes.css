@@ -6,20 +6,20 @@
   --color-success-bg: #e8f5e9;
   --color-success-border: #4caf50;
   
-  --color-error: #c62828;
-  --color-error-light: #e57373;
-  --color-error-bg: #ffebee;
-  --color-error-border: #f44336;
+  --color-error: #1b5e20;
+  --color-error-light: #81c784;
+  --color-error-bg: #e8f5e9;
+  --color-error-border: #4caf50;
   
-  --color-warning: #f57c00;
-  --color-warning-light: #ffb74d;
-  --color-warning-bg: #fff3e0;
-  --color-warning-border: #ff9800;
+  --color-warning: #558b2f;
+  --color-warning-light: #a5d6a7;
+  --color-warning-bg: #f1f8e9;
+  --color-warning-border: #81c784;
   
-  --color-info: #1565c0;
-  --color-info-light: #64b5f6;
-  --color-info-bg: #e3f2fd;
-  --color-info-border: #2196f3;
+  --color-info: #2e7d32;
+  --color-info-light: #81c784;
+  --color-info-bg: #e8f5e9;
+  --color-info-border: #66bb6a;
 }
 
 /* Mensajes de error */
@@ -35,7 +35,7 @@
   font-size: 0.95rem;
   margin-bottom: 1rem;
   animation: slideInDown 0.3s ease-out;
-  box-shadow: 0 2px 8px rgba(198, 40, 40, 0.12);
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.12);
 }
 
 .error-message.show,
@@ -79,7 +79,7 @@
   font-size: 0.95rem;
   margin-bottom: 1rem;
   animation: slideInDown 0.3s ease-out;
-  box-shadow: 0 2px 8px rgba(245, 124, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(85, 139, 47, 0.12);
 }
 
 .warning-message.show,
@@ -101,7 +101,7 @@
   font-size: 0.95rem;
   margin-bottom: 1rem;
   animation: slideInDown 0.3s ease-out;
-  box-shadow: 0 2px 8px rgba(21, 101, 192, 0.12);
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.12);
 }
 
 .info-message.show,
@@ -115,7 +115,7 @@
 .field.error select,
 .field.error textarea {
   border-color: var(--color-error) !important;
-  background-color: rgba(255, 235, 238, 0.3);
+  background-color: rgba(232, 245, 233, 0.3);
 }
 
 .field.success input,
@@ -173,7 +173,7 @@
   }
 }
 
-/* Toast notification style para mensajes flotantes */
+/* Estilos para las notificaciones emergentes */
 .toast {
   position: fixed;
   bottom: 20px;

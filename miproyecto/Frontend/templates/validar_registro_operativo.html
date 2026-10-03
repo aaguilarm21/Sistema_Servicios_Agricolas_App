@@ -89,6 +89,65 @@
       background: #f7fbf7;
       color: #355b39;
     }
+
+    .registro-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .registro-actions form {
+      margin: 0;
+    }
+
+    .registro-actions a,
+    .registro-actions button,
+    .boleta-create {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid #c8e6c9;
+      border-radius: 4px;
+      background: #dcedc8;
+      color: #1b5e20;
+      font: inherit;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .registro-actions button:hover,
+    .registro-actions a:hover,
+    .boleta-create:hover {
+      background: #c5e1a5;
+    }
+
+    .registro-actions .delete-action {
+      border-color: #81c784;
+      background: #e8f5e9;
+      color: #14532d;
+    }
+
+    .boleta-toolbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    @media (max-width: 600px) {
+      .boleta-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .boleta-create {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
@@ -96,19 +155,22 @@
     <div class="header">
       <div>
         <h1>🔎 Validación de Registros Operativos</h1>
-        <p>Consulta el detalle de una boleta por su número.</p>
+        <p>Busca boletas y gestiona sus registros operativos.</p>
       </div>
       <a href="{% url 'modulos' %}?sector=agricola" class="btn-volver">Volver a Módulos</a>
     </div>
 
     <main class="form-wrapper">
       <section class="form-section">
-        <form method="get" action="{% url 'validar_registro_operativo' %}" class="boleta-search">
-          <label for="no_boleta">Número de boleta
-            <input type="search" id="no_boleta" name="no_boleta" value="{{ numero_boleta }}" autocomplete="off" required />
-          </label>
-          <button type="submit" class="btn-submit">Buscar Boleta</button>
-        </form>
+        <div class="boleta-toolbar">
+          <form method="get" action="{% url 'validar_registro_operativo' %}" class="boleta-search">
+            <label for="no_boleta">Número de boleta
+              <input type="search" id="no_boleta" name="no_boleta" value="{{ numero_boleta }}" autocomplete="off" required />
+            </label>
+            <button type="submit" class="btn-submit">Buscar Boleta</button>
+          </form>
+          <a class="boleta-create" href="{% url 'registros' %}">Crear registro</a>
+        </div>
       </section>
 
       {% if numero_boleta %}
@@ -116,6 +178,16 @@
           {% for registro in registros %}
           <article class="boleta-detail">
             <h2>Boleta {{ registro.no_boleta }}{% if registros|length > 1 %} (coincidencia {{ forloop.counter }} de {{ registros|length }}){% endif %}</h2>
+
+            {% if is_admin %}
+            <div class="registro-actions" aria-label="Acciones del registro">
+              <a href="{% url 'editar_registro' registro.id %}">Editar</a>
+              <form method="post" action="{% url 'borrar_registro' registro.id %}" onsubmit="return confirm('¿Eliminar esta boleta? Esta acción no se puede deshacer.');">
+                {% csrf_token %}
+                <button class="delete-action" type="submit">Eliminar</button>
+              </form>
+            </div>
+            {% endif %}
 
             <section class="detail-section">
               <h3>Encabezado</h3>

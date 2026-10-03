@@ -1,18 +1,19 @@
 """
-URL configuration for miproyecto project.
+Configuración de rutas URL para el proyecto miproyecto.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/6.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+La lista `urlpatterns` conecta las direcciones URL con las vistas. Consulta:
+https://docs.djangoproject.com/en/6.0/topics/http/urls/
+
+Ejemplos:
+Vistas basadas en funciones:
+    1. Importa una vista: from una_app import vistas
+    2. Añade una ruta: path('', vistas.inicio, name='inicio')
+Vistas basadas en clases:
+    1. Importa la vista: from otra_app.vistas import Inicio
+    2. Añade una ruta: path('', Inicio.as_view(), name='inicio')
+Incluir otra configuración de rutas:
+    1. Importa include: from django.urls import include, path
+    2. Añade una ruta: path('ejemplo/', include('ejemplo.urls'))
 """
 from django.contrib import admin
 from django.urls import path, include
@@ -45,6 +46,16 @@ urlpatterns = [
     path('operacion/<int:operacion_id>/eliminar/', views.eliminar_operacion_programada, name='eliminar_operacion_programada'),
     path('reportes/', views.reportes, name='reportes'),
     path('indicadores/', views.indicadores, name='indicadores'),
+    # Módulo: Combustibles (3 procesos)
+    path('combustibles/despachos/', views.despacho_combustible, name='despacho_combustible'),
+    path('combustibles/despachos/<int:despacho_id>/gestionar/', views.gestionar_despacho_combustible, name='gestionar_despacho_combustible'),
+    path('combustibles/consumo/', views.consumo_combustible, name='consumo_combustible'),
+    path('combustibles/tanques/', views.tanques_combustible, name='tanques_combustible'),
+    # Módulo: Maquinaria y Mantenimiento (3 procesos)
+    path('mantenimiento/ordenes/', views.ordenes_mantenimiento, name='ordenes_mantenimiento'),
+    path('mantenimiento/ordenes/<int:orden_id>/estado/', views.cambiar_estado_orden_mantenimiento, name='cambiar_estado_orden_mantenimiento'),
+    path('mantenimiento/horometros/', views.control_horometros, name='control_horometros'),
+    path('mantenimiento/flota/', views.estado_maquinaria, name='estado_maquinaria'),
 ]
 
 if settings.DEBUG:

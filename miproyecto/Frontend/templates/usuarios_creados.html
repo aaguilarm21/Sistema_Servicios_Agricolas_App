@@ -21,8 +21,8 @@
     <section class="card">
       {% if is_admin %}
         <div class="datos-acciones-toolbar usuarios-acciones-toolbar">
-          <select id="usuarios-accion-estado" aria-label="Seleccionar acción de estado">
-            <option value="">Seleccionar acción</option>
+          <select id="usuarios-accion-estado" aria-label="Acción de estado">
+            <option value="" selected disabled hidden></option>
             <option value="activar">Activar</option>
             <option value="desactivar">Desactivar</option>
           </select>
@@ -36,7 +36,7 @@
             <tr>
               <th>Usuario</th>
               <th>Nombre</th>
-              <th>Email</th>
+              <th>Correo electrónico</th>
               <th>Rol</th>
               <th>Activo</th>
               <th>Creado</th>

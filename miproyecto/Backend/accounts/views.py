@@ -643,12 +643,45 @@ def _api_catalogo_detail(request, ModelClass, obj_id, update_fn, nombre='Registr
 
 
 # --- LABORES ---
+def _normalizar_proceso_labor(valor):
+    proceso = str(valor or '').strip().casefold()
+    if proceso not in dict(Labor.PROCESO_CHOICES):
+        raise ValueError('Selecciona Siembras, Fertilización o Riego.')
+    return proceso
+
+
+def _validar_proceso_cuenta(valor, cuenta_actual=None):
+    proceso = str(valor or '').strip().casefold()
+    etiquetas = dict(Labor.PROCESO_CHOICES)
+    if proceso not in etiquetas:
+        raise ValueError('Selecciona Siembras, Fertilización o Riego.')
+    cuentas_proceso = Cuenta.objects.filter(proceso=proceso)
+    if cuenta_actual is not None:
+        cuentas_proceso = cuentas_proceso.exclude(pk=cuenta_actual.pk)
+    if cuentas_proceso.exists():
+        raise ValueError(f"Ya existe una cuenta para el proceso {etiquetas[proceso]}.")
+    return proceso
+
+
+def _validar_codigo_cuenta(valor):
+    codigo = str(valor or '').strip()
+    if not re.fullmatch(r'[0-9]{12}', codigo):
+        raise ValueError('El código de cuenta debe contener exactamente 12 dígitos.')
+    return codigo
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def api_labores(request):
+    def crear_labor(data):
+        return Labor.objects.create(
+            codigo=data['codigo'],
+            descripcion=data['descripcion'],
+            proceso=_normalizar_proceso_labor(data.get('proceso')),
+        )
+
     return _api_catalogo_list_create(
-        request, Labor, ['codigo', 'descripcion'],
-        lambda d: Labor.objects.create(codigo=d['codigo'], descripcion=d['descripcion'])
+        request, Labor, ['codigo', 'descripcion', 'proceso'], crear_labor
     )
 
 @login_required
@@ -657,6 +690,8 @@ def api_labor_detalle(request, pk):
     def upd(obj, d):
         obj.codigo = d.get('codigo', obj.codigo)
         obj.descripcion = d.get('descripcion', obj.descripcion)
+        if 'proceso' in d:
+            obj.proceso = _normalizar_proceso_labor(d['proceso'])
     return _api_catalogo_detail(request, Labor, pk, upd, 'Labor')
 
 
@@ -664,18 +699,31 @@ def api_labor_detalle(request, pk):
 @login_required
 @require_http_methods(["GET", "POST"])
 def api_cuentas(request):
+    def crear_cuenta(data):
+        codigo = _validar_codigo_cuenta(data.get('codigo'))
+        proceso = _validar_proceso_cuenta(data.get('proceso'))
+        return Cuenta.objects.create(
+            codigo=codigo,
+            descripcion=data['descripcion'],
+            tipo=data.get('tipo', ''),
+            proceso=proceso,
+        )
+
     return _api_catalogo_list_create(
-        request, Cuenta, ['codigo', 'descripcion'],
-        lambda d: Cuenta.objects.create(codigo=d['codigo'], descripcion=d['descripcion'], tipo=d.get('tipo', ''))
+        request, Cuenta, ['codigo', 'descripcion', 'proceso', 'tipo'], crear_cuenta
     )
 
 @login_required
 @require_http_methods(["PUT", "DELETE"])
 def api_cuenta_detalle(request, pk):
     def upd(obj, d):
-        obj.codigo = d.get('codigo', obj.codigo)
+        obj.codigo = _validar_codigo_cuenta(d.get('codigo', obj.codigo))
         obj.descripcion = d.get('descripcion', obj.descripcion)
-        obj.tipo = d.get('tipo', obj.tipo)
+        tipo = d.get('tipo', obj.tipo)
+        if not str(tipo or '').strip():
+            raise ValueError('Campo requerido: tipo')
+        obj.tipo = tipo
+        obj.proceso = _validar_proceso_cuenta(d.get('proceso', obj.proceso), obj)
     return _api_catalogo_detail(request, Cuenta, pk, upd, 'Cuenta')
 
 

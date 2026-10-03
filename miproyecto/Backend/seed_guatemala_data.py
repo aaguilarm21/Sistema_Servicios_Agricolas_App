@@ -6,7 +6,22 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'configuraciones.miproyecto.sett
 import django
 django.setup()
 
-from accounts.models import Proveedor, Empleado, Maquinaria, Labor, Cuenta, UnidadMedida, Variedad, TipoMaquina, Marca, Auxiliar
+from accounts.models import Proveedor, Empleado, Maquinaria, Labor, Cuenta, NombrePuesto, UnidadMedida, Variedad, TipoMaquina, Marca, Auxiliar
+
+nombres_puesto = [
+    'Piloto',
+    'Mecanico',
+    'Chofer',
+    'Auxiliar Administrativo',
+    'Tractorista',
+    'Labores Agricolas',
+]
+
+cuentas = [
+    {'codigo': '522104100001', 'descripcion': 'Siembras', 'tipo': 'Gasto', 'proceso': 'siembras'},
+    {'codigo': '522104100002', 'descripcion': 'Fertilización', 'tipo': 'Gasto', 'proceso': 'fertilizacion'},
+    {'codigo': '522104100003', 'descripcion': 'Riego', 'tipo': 'Gasto', 'proceso': 'riego'},
+]
 
 proveedores = [
     {'codigo': '47789', 'nit': '4561-2', 'razon_social': 'AgroSuministros del Valle, S.A.', 'nombre_propietario': '+502 5555-0101', 'regimen_tributario': 'General (Sobre Utilidades)', 'tipo_factura': 'Factura Electrónica (FEL)', 'dias_credito': 30},
@@ -17,18 +32,18 @@ proveedores = [
 ]
 
 empleados = [
-    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Luis Fernando López', 'segundo_apellido': 'Méndez', 'no_cui': '3000101234567', 'puesto': '3090', 'nombre_puesto': 'Operador de Tractor'},
-    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Ana María Pacheco', 'segundo_apellido': 'Villatoro', 'no_cui': '3789723456789', 'puesto': '4125', 'nombre_puesto': 'Auxiliar de Campo'},
-    {'empresa': 'HidroCampo Proveedores', 'empleado': 'Carlos Alberto Ramírez', 'segundo_apellido': 'Cifuentes', 'no_cui': '3620149876543', 'puesto': '4150', 'nombre_puesto': 'Chofer de Maquinaria'},
-    {'empresa': 'AgroInsumos Continental', 'empleado': 'María Elena García', 'segundo_apellido': 'Morales', 'no_cui': '4020158765432', 'puesto': '4210', 'nombre_puesto': 'Supervisor de Campo'},
-    {'empresa': 'Central Agrícola de Proveedores', 'empleado': 'Jorge Andrés Mendoza', 'segundo_apellido': 'Chávez', 'no_cui': '3020145678901', 'puesto': '3300', 'nombre_puesto': 'Mecánico Agrícola'},
-    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Jessica Lorena Castillo', 'segundo_apellido': 'Fuentes', 'no_cui': '2998743210567', 'puesto': '3275', 'nombre_puesto': 'Asistente Administrativo'},
-    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Ricardo Estuardo Vásquez', 'segundo_apellido': 'Escobar', 'no_cui': '3321987654321', 'puesto': '4180', 'nombre_puesto': 'Operador de Cosechadora'},
-    {'empresa': 'HidroCampo Proveedores', 'empleado': 'Claudia Patricia Solís', 'segundo_apellido': 'Roldán', 'no_cui': '3885601234790', 'puesto': '4300', 'nombre_puesto': 'Encargada de Inventarios'},
-    {'empresa': 'AgroInsumos Continental', 'empleado': 'Fernando José Torres', 'segundo_apellido': 'Maldonado', 'no_cui': '3200987123456', 'puesto': '3400', 'nombre_puesto': 'Auxiliar de Taller'},
-    {'empresa': 'Central Agrícola de Proveedores', 'empleado': 'Yasmin Alejandra Ortiz', 'segundo_apellido': 'Carrillo', 'no_cui': '3165478901234', 'puesto': '4500', 'nombre_puesto': 'Coordinadora de Logística'},
-    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Édgar Manuel López', 'segundo_apellido': 'Rosales', 'no_cui': '3147859021345', 'puesto': '4310', 'nombre_puesto': 'Supervisor de Maquinaria'},
-    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Sandra Patricia Hernández', 'segundo_apellido': 'Zamora', 'no_cui': '3765890123456', 'puesto': '4400', 'nombre_puesto': 'Asistente de Compras'},
+    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Luis Fernando López', 'segundo_apellido': 'Méndez', 'no_cui': '3000101234567', 'puesto': '3090', 'nombre_puesto': 'Tractorista'},
+    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Ana María Pacheco', 'segundo_apellido': 'Villatoro', 'no_cui': '3789723456789', 'puesto': '4125', 'nombre_puesto': 'Labores Agricolas'},
+    {'empresa': 'HidroCampo Proveedores', 'empleado': 'Carlos Alberto Ramírez', 'segundo_apellido': 'Cifuentes', 'no_cui': '3620149876543', 'puesto': '4150', 'nombre_puesto': 'Chofer'},
+    {'empresa': 'AgroInsumos Continental', 'empleado': 'María Elena García', 'segundo_apellido': 'Morales', 'no_cui': '4020158765432', 'puesto': '4210', 'nombre_puesto': 'Auxiliar Administrativo'},
+    {'empresa': 'Central Agrícola de Proveedores', 'empleado': 'Jorge Andrés Mendoza', 'segundo_apellido': 'Chávez', 'no_cui': '3020145678901', 'puesto': '3300', 'nombre_puesto': 'Mecanico'},
+    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Jessica Lorena Castillo', 'segundo_apellido': 'Fuentes', 'no_cui': '2998743210567', 'puesto': '3275', 'nombre_puesto': 'Auxiliar Administrativo'},
+    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Ricardo Estuardo Vásquez', 'segundo_apellido': 'Escobar', 'no_cui': '3321987654321', 'puesto': '4180', 'nombre_puesto': 'Piloto'},
+    {'empresa': 'HidroCampo Proveedores', 'empleado': 'Claudia Patricia Solís', 'segundo_apellido': 'Roldán', 'no_cui': '3885601234790', 'puesto': '4300', 'nombre_puesto': 'Auxiliar Administrativo'},
+    {'empresa': 'AgroInsumos Continental', 'empleado': 'Fernando José Torres', 'segundo_apellido': 'Maldonado', 'no_cui': '3200987123456', 'puesto': '3400', 'nombre_puesto': 'Mecanico'},
+    {'empresa': 'Central Agrícola de Proveedores', 'empleado': 'Yasmin Alejandra Ortiz', 'segundo_apellido': 'Carrillo', 'no_cui': '3165478901234', 'puesto': '4500', 'nombre_puesto': 'Auxiliar Administrativo'},
+    {'empresa': 'AgroSuministros del Valle, S.A.', 'empleado': 'Édgar Manuel López', 'segundo_apellido': 'Rosales', 'no_cui': '3147859021345', 'puesto': '4310', 'nombre_puesto': 'Tractorista'},
+    {'empresa': 'TecnoRiego & Servicios', 'empleado': 'Sandra Patricia Hernández', 'segundo_apellido': 'Zamora', 'no_cui': '3765890123456', 'puesto': '4400', 'nombre_puesto': 'Auxiliar Administrativo'},
 ]
 
 maquinaria = [
@@ -47,29 +62,21 @@ maquinaria = [
 ]
 
 labores = [
-    {'codigo': '4161', 'descripcion': 'Siembra de maíz en surcos'},
-    {'codigo': '4162', 'descripcion': 'Aplicación de fertilizante foliar'},
-    {'codigo': '4163', 'descripcion': 'Control de malezas con herbicida'},
-    {'codigo': '4164', 'descripcion': 'Cosecha manual de caña'},
-    {'codigo': '4165', 'descripcion': 'Riego por aspersión'},
-    {'codigo': '4166', 'descripcion': 'Poda y limpieza de cultivo'},
-    {'codigo': '4167', 'descripcion': 'Aplicación de fungicida'},
-    {'codigo': '4168', 'descripcion': 'Trasplante de plántulas'},
-    {'codigo': '4169', 'descripcion': 'Mantenimiento de maquinaria'},
-    {'codigo': '4170', 'descripcion': 'Transporte de insumos'},
-]
-
-cuentas = [
-    {'codigo': '522104100091', 'descripcion': 'Insumos agrícolas', 'tipo': 'Gasto'},
-    {'codigo': '522104100092', 'descripcion': 'Combustible y lubricantes', 'tipo': 'Gasto'},
-    {'codigo': '522104100093', 'descripcion': 'Repuestos de maquinaria', 'tipo': 'Gasto'},
-    {'codigo': '522104100094', 'descripcion': 'Servicios de mantenimiento', 'tipo': 'Gasto'},
-    {'codigo': '522104100095', 'descripcion': 'Transporte y flete', 'tipo': 'Gasto'},
-    {'codigo': '522104100096', 'descripcion': 'Honorarios técnicos', 'tipo': 'Gasto'},
-    {'codigo': '522104100097', 'descripcion': 'Herramientas y utensilios', 'tipo': 'Gasto'},
-    {'codigo': '522104100098', 'descripcion': 'Gastos administrativos', 'tipo': 'Gasto'},
-    {'codigo': '522104100099', 'descripcion': 'Material de oficina', 'tipo': 'Gasto'},
-    {'codigo': '522104100100', 'descripcion': 'Seguros de equipos', 'tipo': 'Gasto'},
+    {'codigo': '4161', 'descripcion': 'Siembra de maíz en surcos', 'proceso': 'siembras'},
+    {'codigo': '4162', 'descripcion': 'Aplicación de fertilizante foliar', 'proceso': 'fertilizacion'},
+    {'codigo': '4165', 'descripcion': 'Riego por aspersión', 'proceso': 'riego'},
+    {'codigo': '4168', 'descripcion': 'Trasplante de plántulas', 'proceso': 'siembras'},
+    {'codigo': '4169', 'descripcion': 'Preparación de semillero', 'proceso': 'siembras'},
+    {'codigo': '4170', 'descripcion': 'Siembra directa', 'proceso': 'siembras'},
+    {'codigo': '4171', 'descripcion': 'Resiembra de cultivo', 'proceso': 'siembras'},
+    {'codigo': '4172', 'descripcion': 'Aplicación de fertilizante al suelo', 'proceso': 'fertilizacion'},
+    {'codigo': '4173', 'descripcion': 'Aplicación de abono orgánico', 'proceso': 'fertilizacion'},
+    {'codigo': '4174', 'descripcion': 'Aplicación de fertilizante granulado', 'proceso': 'fertilizacion'},
+    {'codigo': '4175', 'descripcion': 'Fertirriego', 'proceso': 'fertilizacion'},
+    {'codigo': '4176', 'descripcion': 'Riego por goteo', 'proceso': 'riego'},
+    {'codigo': '4177', 'descripcion': 'Riego por gravedad', 'proceso': 'riego'},
+    {'codigo': '4178', 'descripcion': 'Riego de establecimiento', 'proceso': 'riego'},
+    {'codigo': '4179', 'descripcion': 'Mantenimiento del sistema de riego', 'proceso': 'riego'},
 ]
 
 unidades_medida = [
@@ -134,12 +141,17 @@ print('Insertando maquinaria...')
 for maq in maquinaria:
     Maquinaria.objects.update_or_create(codigo_maquina=maq['codigo_maquina'], defaults=maq)
 
+print('Insertando nombres de puesto...')
+for nombre in nombres_puesto:
+    NombrePuesto.objects.get_or_create(nombre=nombre)
+
+print('Insertando cuentas por proceso...')
+for cuenta in cuentas:
+    Cuenta.objects.update_or_create(proceso=cuenta['proceso'], defaults=cuenta)
+
 print('Insertando labores...')
 for lab in labores:
     Labor.objects.update_or_create(codigo=lab['codigo'], defaults=lab)
-print('Insertando cuentas...')
-for cta in cuentas:
-    Cuenta.objects.update_or_create(codigo=cta['codigo'], defaults=cta)
 print('Insertando unidades de medida...')
 for u in unidades_medida:
     UnidadMedida.objects.update_or_create(codigo=u['codigo'], defaults=u)

@@ -37,6 +37,11 @@
       color: #55705a;
     }
 
+    .datos-tabla th,
+    .datos-tabla td {
+      text-transform: capitalize;
+    }
+
     @media (max-width: 600px) {
       .datos-toolbar {
         align-items: stretch;
@@ -87,12 +92,12 @@
     const isAdmin = {% if is_admin %}true{% else %}false{% endif %};
     const tablas = {
       proveedores: { titulo: 'Proveedores', api: '/accounts/api/proveedores/', columnas: [['codigo', 'Código'], ['razon_social', 'Razón Social'], ['nit', 'NIT'], ['nombre_propietario', 'Nombre Propietario'], ['regimen_tributario', 'Régimen Tributario'], ['tipo_factura', 'Tipo Factura'], ['dias_credito', 'Días Crédito']] },
-      maquinaria: { titulo: 'Maquinaria', api: '/accounts/api/maquinaria/', columnas: [['id', 'ID'], ['codigo_maquina', 'Código Máquina'], ['combustible', 'Combustible'], ['id_proveedor', 'ID Proveedor'], ['tipo_maquina', 'Tipo Máquina'], ['marca_maquina', 'Marca Máquina'], ['serie_maquina', 'Serie'], ['placa_matricula', 'Placa/Matrícula'], ['observaciones', 'Observaciones']] },
+      maquinaria: { titulo: 'Maquinaria', api: '/accounts/api/maquinaria/', columnas: [['id', 'ID'], ['codigo_maquina', 'Código Máquina'], ['combustible', 'Combustible'], ['id_proveedor', 'ID Proveedor'], ['tipo_maquina', 'Tipo Máquina'], ['marca_maquina', 'Marca Máquina'], ['serie_maquina', 'Serie'], ['placa_matricula', 'Placa/Matrícula']] },
       bodegas: { titulo: 'Bodegas', api: '/accounts/api/bodegas/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['nombre_bodega', 'Nombre Bodega'], ['unidad_medida', 'Unidad de Medida'], ['capacidad', 'Capacidad'], ['observaciones', 'Observaciones']] },
       articulos: { titulo: 'Artículos', api: '/accounts/api/articulos/', columnas: [['id', 'ID'], ['codigo_articulo', 'Código Artículo'], ['descripcion', 'Descripción'], ['unidad_medida', 'Unidad de Medida'], ['categoria', 'Categoría'], ['stock', 'Stock']] },
       empleados: { titulo: 'Empleados', api: '/accounts/api/empleados/', columnas: [['id', 'ID'], ['empresa', 'Empresa'], ['puesto', 'Código'], ['empleado', 'Nombres y Apellidos'], ['no_cui', 'No. CUI'], ['nombre_puesto', 'Nombre Puesto']] },
-      labores: { titulo: 'Labores', api: '/accounts/api/labores/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción']] },
-      cuentas: { titulo: 'Cuentas', api: '/accounts/api/cuentas/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción'], ['tipo', 'Tipo']] },
+      labores: { titulo: 'Labores', api: '/accounts/api/labores/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción'], ['proceso', 'Proceso']] },
+      cuentas: { titulo: 'Cuentas', api: '/accounts/api/cuentas/', columnas: [['id', 'ID'], ['proceso', 'Proceso'], ['codigo', 'Código'], ['descripcion', 'Descripción'], ['tipo', 'Tipo']] },
       unidades: { titulo: 'Unidades de Medida', api: '/accounts/api/unidades/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción']] },
       nombres_puesto: { titulo: 'Nombres de Puesto', api: '/accounts/api/nombres-puesto/', columnas: [['id', 'ID'], ['nombre', 'Nombre Puesto']] },
       variedades: { titulo: 'Variedades', api: '/accounts/api/variedades/', columnas: [['id', 'ID'], ['codigo', 'Código'], ['descripcion', 'Descripción']] },
@@ -127,7 +132,7 @@
       datoSeleccionado = null;
       actualizarAcciones();
 
-      fetch(tabla.api)
+      fetch(tabla.api, { cache: 'no-store' })
         .then(respuesta => {
           if (!respuesta.ok) throw new Error(`Error HTTP ${respuesta.status}`);
           return respuesta.json();
@@ -139,6 +144,8 @@
             fila.innerHTML = tabla.columnas.map(([campo]) => {
               const valor = clave === 'empleados' && campo === 'empleado'
                 ? [dato.empleado, dato.segundo_apellido].filter(Boolean).join(' ')
+                : clave === 'labores' && campo === 'proceso'
+                  ? ({ siembras: 'Siembras', fertilizacion: 'Fertilización', riego: 'Riego' }[dato.proceso] || dato.proceso)
                 : dato[campo];
               return `<td>${valor ?? ''}</td>`;
             }).join('');

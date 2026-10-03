@@ -144,22 +144,27 @@
         document.getElementById('sector-picker').style.display = 'none';
         document.getElementById('sector-agricola').classList.add('is-sector-hidden');
         document.getElementById('sector-combustibles').classList.add('is-sector-hidden');
+        document.getElementById('sector-mantenimiento').classList.add('is-sector-hidden');
         document.getElementById('sector-administracion').classList.add('is-sector-hidden');
         document.getElementById('sector-reportes').classList.add('is-sector-hidden');
-        document.getElementById('sector-' + sector).classList.remove('is-sector-hidden');
+        const target = document.getElementById('sector-' + sector);
+        if (target) {
+          target.classList.remove('is-sector-hidden');
+        }
       }
 
       function volverSector() {
         document.getElementById('page-title').textContent = 'Áreas de Gestión';
         document.getElementById('sector-agricola').classList.add('is-sector-hidden');
         document.getElementById('sector-combustibles').classList.add('is-sector-hidden');
+        document.getElementById('sector-mantenimiento').classList.add('is-sector-hidden');
         document.getElementById('sector-administracion').classList.add('is-sector-hidden');
         document.getElementById('sector-reportes').classList.add('is-sector-hidden');
         document.getElementById('sector-picker').style.display = '';
       }
 
       const sectorInicial = new URLSearchParams(window.location.search).get('sector');
-      if (['agricola', 'combustibles', 'administracion', 'reportes'].includes(sectorInicial)) {
+      if (['agricola', 'combustibles', 'mantenimiento', 'administracion', 'reportes'].includes(sectorInicial)) {
         mostrarSector(sectorInicial);
       }
     </script>
@@ -180,6 +185,13 @@
           <span class="sector-card-icon">⛽</span>
           <span class="sector-card-label">Combustibles</span>
           <span class="sector-card-sub">Control de Consumo y Despachos</span>
+        </button>
+
+        <button type="button" class="sector-card sector-card-maint" id="btn-sector-mantenimiento"
+          onclick="mostrarSector('mantenimiento')" aria-controls="sector-mantenimiento">
+          <span class="sector-card-icon">🛠️</span>
+          <span class="sector-card-label">Maquinaria y Mantenimiento</span>
+          <span class="sector-card-sub">Órdenes de Trabajo, Horómetros y Taller</span>
         </button>
 
         <button type="button" class="sector-card" id="btn-sector-administracion"
@@ -224,12 +236,24 @@
       </div>
       <div class="modules-list compact">
         <ul class="modules-menu">
-          <li>
-            <div class="module-btn module-btn-soon">
-              <span class="icon">🏗️</span>
-              <span>Módulos en construcción…<br><small>Pronto podrás gestionar despachos y consumo aquí.</small></span>
-            </div>
-          </li>
+          <li><a href="{% url 'despacho_combustible' %}" class="module-btn"><span class="icon">⛽</span> Despacho de Combustible</a></li>
+          <li><a href="{% url 'consumo_combustible' %}" class="module-btn"><span class="icon">📊</span> Control de Consumo y Rendimiento</a></li>
+          <li><a href="{% url 'tanques_combustible' %}" class="module-btn"><span class="icon">🛢️</span> Inventario de Tanques y Cisternas</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ===== MÓDULOS: MAQUINARIA Y MANTENIMIENTO ===== -->
+    <div id="sector-mantenimiento" class="sector-panel is-sector-hidden">
+      <div class="sector-panel-header">
+        <button type="button" class="btn-back-sector" onclick="volverSector()">← Volver</button>
+        <h2 class="sector-panel-title">🛠️ Maquinaria y Mantenimiento</h2>
+      </div>
+      <div class="modules-list compact">
+        <ul class="modules-menu">
+          <li><a href="{% url 'ordenes_mantenimiento' %}" class="module-btn"><span class="icon">🛠️</span> Órdenes de Mantenimiento y Taller</a></li>
+          <li><a href="{% url 'control_horometros' %}" class="module-btn"><span class="icon">⏱️</span> Control de Horómetros y Servicios</a></li>
+          <li><a href="{% url 'estado_maquinaria' %}" class="module-btn"><span class="icon">🚜</span> Ficha Técnica y Disponibilidad de Maquinaria</a></li>
         </ul>
       </div>
     </div>

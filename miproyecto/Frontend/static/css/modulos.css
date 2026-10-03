@@ -385,11 +385,11 @@ header p {
   max-width: 360px;
   width: calc(100vw - 40px);
   padding: 18px 20px;
-  background: #fff4e5;
-  border: 1px solid #ffb74d;
+  background: #e8f5e9;
+  border: 1px solid #81c784;
   border-radius: 14px;
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
-  color: #6d4c41;
+  color: #1b5e20;
   font-weight: 600;
   opacity: 1;
   transition: opacity 0.3s ease;
@@ -403,7 +403,7 @@ header p {
 .warning-text {
   font-size: 0.95rem;
   line-height: 1.4;
-  color: #5d4037;
+  color: #14532d;
 }
 
 .action-panel {
@@ -569,7 +569,7 @@ header p {
 }
 
 .switch-login-error {
-  color: #b71c1c;
+  color: #1b5e20;
   font-size: 0.95rem;
   margin-top: 12px;
   display: none;
@@ -1334,7 +1334,7 @@ textarea {
   background: #204f82;
 }
 
-/* Header container and back button styles */
+/* Estilos del encabezado y del botón para volver */
 .main-wrapper>header {
   display: flex;
   justify-content: space-between;
@@ -1377,9 +1377,9 @@ textarea {
 
 .sector-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 22px;
-  max-width: 1000px;
+  max-width: 1050px;
   margin: 0 auto;
 }
 
@@ -1393,7 +1393,7 @@ textarea {
   gap: 10px;
   border: 2px solid #a5d6a7;
   border-radius: 16px;
-  background: linear-gradient(145deg, #ffffff 0%, #f1f8e9 100%);
+  background: linear-gradient(145deg, #e8f5e9 0%, #c8e6c9 100%);
   color: #1b5e20;
   cursor: pointer;
   font-family: inherit;
@@ -1408,18 +1408,6 @@ textarea {
   box-shadow: 0 14px 28px rgba(46, 125, 50, 0.24);
   outline: none;
   transform: translateY(-4px);
-}
-
-.sector-card-fuel {
-  border-color: #e0b15a;
-  background: linear-gradient(145deg, #fffdf8 0%, #fff3d8 100%);
-  color: #8a5a00;
-}
-
-.sector-card-fuel:hover,
-.sector-card-fuel:focus-visible {
-  border-color: #c78300;
-  box-shadow: 0 14px 28px rgba(199, 131, 0, 0.2);
 }
 
 .sector-card-icon {
@@ -1437,10 +1425,6 @@ textarea {
   color: #55705a;
   font-size: 0.9rem;
   line-height: 1.4;
-}
-
-.sector-card-fuel .sector-card-sub {
-  color: #806b43;
 }
 
 .sector-panel {
@@ -1486,21 +1470,21 @@ textarea {
 .module-btn-soon {
   cursor: default;
   align-items: flex-start;
-  background: #fff8e7;
-  border-color: #e0b15a;
-  color: #8a5a00;
+  background: #f1f8e9;
+  border-color: #a5d6a7;
+  color: #1b5e20;
 }
 
 .module-btn-soon:hover {
   transform: none;
-  background: #fff8e7;
-  border-color: #e0b15a;
-  color: #8a5a00;
+  background: #f1f8e9;
+  border-color: #a5d6a7;
+  color: #1b5e20;
   box-shadow: 0 3px 8px rgba(56, 142, 60, 0.2);
 }
 
 .module-btn-soon small {
-  color: #806b43;
+  color: #55705a;
   font-weight: 400;
 }
 
@@ -1674,7 +1658,7 @@ textarea {
   }
 }
 
-/* ===== MOBILE VERY SMALL (480px and below) ===== */
+/* ===== MÓVIL MUY PEQUEÑO (480px o menos) ===== */
 @media (max-width: 480px) {
   .main-wrapper {
     padding: 10px 8px 20px;

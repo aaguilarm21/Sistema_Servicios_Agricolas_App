@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Combustibles - Inventario de Tanques y Cisternas</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/combustibles.css' %}" />
+</head>
+
+<body class="operacion-body fuel-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
+  <div class="main-wrapper">
+    <!-- Encabezado -->
+    <header class="header-bar">
+      <div class="header-title-box">
+        <h1>🛢️ Inventario de Tanques y Cisternas</h1>
+        <p>Control de existencias de combustible en tanques de almacenamiento y cisternas móviles de campo</p>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="btn-logistica" onclick="abrirModalCrearTanque()">＋ Nuevo Tanque</button>
+        <a href="{% url 'despacho_combustible' %}" class="btn-logistica">⛽ Ir a Despachos</a>
+        <a href="{% url 'modulos' %}?sector=combustibles" class="btn-volver">← Volver A Módulos</a>
+      </div>
+    </header>
+
+    <!-- Notificaciones / Mensajes Django -->
+    {% if messages %}
+    <div class="messages-container">
+      {% for message in messages %}
+      <div class="alert-operacion alert-{{ message.tags }}">
+        <span>{% if message.tags == 'success' %}✓{% else %}⚠️{% endif %}</span>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de Métricas Resumen -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon">🏭</div>
+        <div class="metric-info">
+          <h4>Capacidad Total</h4>
+          <p class="metric-num">{{ capacidad_total|floatformat:0 }} <span class="metric-unit">Gal</span></p>
+        </div>
+      </div>
+      <div class="metric-card orange">
+        <div class="metric-icon">🛢️</div>
+        <div class="metric-info">
+          <h4>Existencia Actual</h4>
+          <p class="metric-num">{{ existencia_total|floatformat:0 }} <span class="metric-unit">Gal</span></p>
+        </div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-icon">📊</div>
+        <div class="metric-info">
+          <h4>Nivel de Reserva</h4>
+          <p class="metric-num">{{ pct_global|floatformat:1 }} <span class="metric-unit">%</span></p>
+        </div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-icon">✅</div>
+        <div class="metric-info">
+          <h4>Tanques Operativos</h4>
+          <p class="metric-num">{{ tanques_operativos }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TARJETAS VISUALES DE TANQUES -->
+    <div class="tanks-grid" style="margin-bottom: 24px;">
+      {% for item in tanques_cards %}
+      <div class="tank-card">
+        <div class="tank-header">
+          <div>
+            <span class="cell-badge-code" style="font-size: 0.9rem;">{{ item.objeto.codigo }}</span>
+            <h3 class="tank-name">{{ item.objeto.nombre }}</h3>
+            <span class="tank-meta">📍 {{ item.objeto.ubicacion }}</span>
+          </div>
+          <span class="badge-estado {% if item.objeto.estado == 'Operativo' %}estado-realizada{% elif item.objeto.estado == 'En Reserva' %}estado-programada{% else %}estado-cancelada{% endif %}">
+            {{ item.objeto.estado }}
+          </span>
+        </div>
+
+        <div style="font-size: 0.88rem; color: #55705a; margin-top: 8px;">
+          Tipo: <strong>{{ item.objeto.tipo_combustible }}</strong>
+        </div>
+
+        <!-- Barra de Nivel -->
+        <div class="tank-level-bar-bg">
+          <div class="tank-level-bar-fill {{ item.nivel_clase }}" style="width: {{ item.porcentaje }}%;"></div>
+        </div>
+
+        <div class="tank-stats">
+          <div>
+            <small style="color: #55705a;">Nivel Actual:</small><br>
+            <strong style="color: #2e7d32; font-size: 1.15rem;">{{ item.nivel|floatformat:1 }} Gal</strong>
+          </div>
+          <div style="text-align: right;">
+            <small style="color: #55705a;">Capacidad Total:</small><br>
+            <strong style="font-size: 1.05rem;">{{ item.capacidad|floatformat:1 }} Gal</strong>
+          </div>
+        </div>
+
+        <div style="margin-top: 10px; font-size: 0.84rem; text-align: center; color: #55705a; font-weight: 600;">
+          Capacidad Utilizada: {{ item.porcentaje }}%
+        </div>
+
+        <div class="button-row tank-card-actions" style="margin-top: 14px; padding-top: 12px; gap: 8px;">
+          <button type="button" class="btn-submit btn-sm" style="flex: 1; justify-content: center;"
+            onclick="abrirModalRecarga('{{ item.objeto.codigo }}', '{{ item.objeto.nombre }}', '{{ item.nivel }}', '{{ item.capacidad }}')">
+            ⛽ Recargar
+          </button>
+          <button type="button" class="btn-secondary btn-sm" style="flex: 1; justify-content: center;"
+            onclick="abrirModalAjuste('{{ item.objeto.codigo }}', '{{ item.objeto.nombre }}', '{{ item.nivel }}', '{{ item.objeto.estado }}')">
+            ⚙️ Ajustar Nivel
+          </button>
+          <button type="button" class="btn-secondary btn-sm" style="flex: 1; justify-content: center;"
+            data-codigo="{{ item.objeto.codigo }}" data-nombre="{{ item.objeto.nombre }}"
+            data-tipo="{{ item.objeto.tipo_combustible }}" data-capacidad="{{ item.capacidad }}"
+            data-nivel="{{ item.nivel }}" data-ubicacion="{{ item.objeto.ubicacion }}"
+            data-estado="{{ item.objeto.estado }}" onclick="abrirModalEditarTanque(this)">
+            Editar
+          </button>
+          <form method="post" action="{% url 'tanques_combustible' %}"
+            onsubmit="return confirm('¿Eliminar este tanque? Solo se permite si no tiene vales asociados.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="eliminar_tanque" />
+            <input type="hidden" name="codigo_tanque" value="{{ item.objeto.codigo }}" />
+            <button type="submit" class="btn-sm fuel-delete-link">Eliminar</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- MODAL DE ALTA Y EDICIÓN DE TANQUE -->
+    <div id="modal-tanque" class="modal-overlay">
+      <div class="modal-box card-panel tank-modal-box">
+        <h3 id="modal-tanque-title" class="modal-title">＋ Registrar Tanque</h3>
+        <form method="post" action="{% url 'tanques_combustible' %}" id="form-tanque">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="tanque-action" value="crear_tanque" />
+          <input type="hidden" name="codigo_original" id="tanque-codigo-original" />
+          <div class="tank-form-grid">
+            <div class="form-group">
+              <label for="tanque-codigo">Código *</label>
+              <input type="text" name="codigo" id="tanque-codigo" class="form-control" maxlength="50" required />
+            </div>
+            <div class="form-group">
+              <label for="tanque-nombre">Nombre *</label>
+              <input type="text" name="nombre" id="tanque-nombre" class="form-control" maxlength="150" required />
+            </div>
+            <div class="form-group">
+              <label for="tanque-tipo">Combustible *</label>
+              <select name="tipo_combustible" id="tanque-tipo" class="form-control" required>
+                <option value="Diésel">Diésel</option>
+                <option value="Gasolina Regular">Gasolina Regular</option>
+                <option value="Gasolina Súper">Gasolina Súper</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="tanque-ubicacion">Ubicación *</label>
+              <input type="text" name="ubicacion" id="tanque-ubicacion" class="form-control" maxlength="150" required />
+            </div>
+            <div class="form-group">
+              <label for="tanque-capacidad">Capacidad (gal) *</label>
+              <input type="number" name="capacidad_galones" id="tanque-capacidad" class="form-control" min="0.01" step="0.01" required />
+            </div>
+            <div class="form-group">
+              <label for="tanque-nivel">Existencia inicial (gal) *</label>
+              <input type="number" name="nivel_actual_galones" id="tanque-nivel" class="form-control" min="0" step="0.01" required />
+            </div>
+            <div class="form-group">
+              <label for="tanque-estado">Estado *</label>
+              <select name="estado" id="tanque-estado" class="form-control" required>
+                <option value="Operativo">Operativo</option>
+                <option value="Mantenimiento">Mantenimiento</option>
+                <option value="En Reserva">En Reserva</option>
+              </select>
+            </div>
+          </div>
+          <div class="button-row modal-footer">
+            <button type="button" class="btn-secondary" onclick="cerrarModales()">Cancelar</button>
+            <button type="submit" class="btn-submit" id="guardar-tanque">Guardar Tanque</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL DE RECARGA -->
+    <div id="modal-recarga" class="modal-overlay">
+      <div class="modal-box card-panel">
+        <h3 id="modal-recarga-title" class="modal-title">⛽ Registrar Recarga de Combustible</h3>
+        <p id="modal-recarga-info" class="modal-subtitle"></p>
+
+        <form method="POST" action="{% url 'tanques_combustible' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="recarga" />
+          <input type="hidden" name="codigo_tanque" id="recarga-codigo-tanque" />
+
+          <div class="form-group form-group-spaced">
+            <label for="galones_recarga">Galones recibidos *</label>
+            <div class="input-with-unit">
+              <input type="number" step="0.01" min="0.01" name="galones_recarga" id="galones_recarga" class="form-control" required />
+              <span class="unit-suffix">Gal</span>
+            </div>
+          </div>
+
+          <div class="button-row modal-footer">
+            <button type="button" class="btn-secondary" onclick="cerrarModales()">Cancelar</button>
+            <button type="submit" class="btn-submit">💾 Guardar Recarga</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL DE AJUSTE -->
+    <div id="modal-ajuste" class="modal-overlay">
+      <div class="modal-box card-panel">
+        <h3 id="modal-ajuste-title" class="modal-title">⚙️ Ajustar Saldo y Estado Operativo</h3>
+
+        <form method="POST" action="{% url 'tanques_combustible' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="ajuste" />
+          <input type="hidden" name="codigo_tanque" id="ajuste-codigo-tanque" />
+
+          <div class="form-group form-group-spaced">
+            <label for="nuevo_nivel">Saldo Actual en Tanque *</label>
+            <div class="input-with-unit">
+              <input type="number" step="0.01" min="0" name="nuevo_nivel" id="nuevo_nivel" class="form-control" required />
+              <span class="unit-suffix">Gal</span>
+            </div>
+          </div>
+
+          <div class="form-group form-group-spaced">
+            <label for="estado">Estado Operativo</label>
+            <select name="estado" id="estado" class="form-control">
+              <option value="Operativo">Operativo</option>
+              <option value="Mantenimiento">Mantenimiento</option>
+              <option value="En Reserva">En Reserva</option>
+            </select>
+          </div>
+
+          <div class="button-row modal-footer">
+            <button type="button" class="btn-secondary" onclick="cerrarModales()">Cancelar</button>
+            <button type="submit" class="btn-submit">💾 Actualizar Tanque</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function abrirModalRecarga(codigo, nombre, nivel, capacidad) {
+      document.getElementById('recarga-codigo-tanque').value = codigo;
+      document.getElementById('modal-recarga-title').textContent = '⛽ Recarga: ' + nombre;
+      document.getElementById('modal-recarga-info').textContent = 'Saldo actual: ' + nivel + ' Gal / Capacidad máxima: ' + capacidad + ' Gal.';
+      document.getElementById('modal-recarga').classList.add('is-open');
+    }
+
+    function abrirModalCrearTanque() {
+      const form = document.getElementById('form-tanque');
+      form.reset();
+      document.getElementById('tanque-action').value = 'crear_tanque';
+      document.getElementById('tanque-codigo-original').value = '';
+      document.getElementById('modal-tanque-title').textContent = '＋ Registrar Tanque';
+      document.getElementById('guardar-tanque').textContent = 'Guardar Tanque';
+      document.getElementById('modal-tanque').classList.add('is-open');
+    }
+
+    function abrirModalEditarTanque(button) {
+      document.getElementById('tanque-action').value = 'editar_tanque';
+      document.getElementById('tanque-codigo-original').value = button.dataset.codigo;
+      document.getElementById('tanque-codigo').value = button.dataset.codigo;
+      document.getElementById('tanque-nombre').value = button.dataset.nombre;
+      document.getElementById('tanque-tipo').value = button.dataset.tipo;
+      document.getElementById('tanque-ubicacion').value = button.dataset.ubicacion;
+      document.getElementById('tanque-capacidad').value = button.dataset.capacidad;
+      document.getElementById('tanque-nivel').value = button.dataset.nivel;
+      document.getElementById('tanque-estado').value = button.dataset.estado;
+      document.getElementById('modal-tanque-title').textContent = 'Editar Tanque ' + button.dataset.codigo;
+      document.getElementById('guardar-tanque').textContent = 'Guardar Cambios';
+      document.getElementById('modal-tanque').classList.add('is-open');
+    }
+
+    function abrirModalAjuste(codigo, nombre, nivel, estado) {
+      document.getElementById('ajuste-codigo-tanque').value = codigo;
+      document.getElementById('modal-ajuste-title').textContent = '⚙️ Ajuste: ' + nombre;
+      document.getElementById('nuevo_nivel').value = nivel;
+      document.getElementById('estado').value = estado;
+      document.getElementById('modal-ajuste').classList.add('is-open');
+    }
+
+    function cerrarModales() {
+      document.getElementById('modal-tanque').classList.remove('is-open');
+      document.getElementById('modal-recarga').classList.remove('is-open');
+      document.getElementById('modal-ajuste').classList.remove('is-open');
+    }
+
+    // Cerrar al hacer clic fuera
+    ['modal-tanque', 'modal-recarga', 'modal-ajuste'].forEach(function(id) {
+      document.getElementById(id).addEventListener('click', function(e) {
+        if (e.target === this) cerrarModales();
+      });
+    });
+  </script>
+</body>
+
+</html>

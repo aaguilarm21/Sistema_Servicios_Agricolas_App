@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mantenimiento - Órdenes de Trabajo y Taller</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}?v=green-20261002" />
+  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}?v=green-20261002" />
+</head>
+
+<body class="operacion-body maint-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
+  <div class="main-wrapper">
+    <!-- Encabezado -->
+    <header class="header-bar">
+      <div class="header-title-box">
+        <h1>🛠️ Órdenes de Mantenimiento y Taller</h1>
+        <p>Programación de servicios mecánicos, control de reparaciones preventivas y correctivas</p>
+      </div>
+      <div class="header-actions">
+        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-volver">← Volver A Módulos</a>
+      </div>
+    </header>
+
+    <!-- Notificaciones / Mensajes Django -->
+    {% if messages %}
+    <div class="messages-container">
+      {% for message in messages %}
+      <div class="alert-operacion alert-{{ message.tags }}">
+        <span>{% if message.tags == 'success' %}✓{% else %}⚠️{% endif %}</span>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de Métricas Resumen -->
+    <div class="metrics-grid">
+      <div class="metric-card blue">
+        <div class="metric-icon">📋</div>
+        <div class="metric-info">
+          <h4>Total Órdenes</h4>
+          <p class="metric-num">{{ total_ordenes }}</p>
+        </div>
+      </div>
+      <div class="metric-card orange">
+        <div class="metric-icon">⚙️</div>
+        <div class="metric-info">
+          <h4>En Taller</h4>
+          <p class="metric-num">{{ en_taller }}</p>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-icon">⏳</div>
+        <div class="metric-info">
+          <h4>Pendientes</h4>
+          <p class="metric-num">{{ pendientes }}</p>
+        </div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-icon">✅</div>
+        <div class="metric-info">
+          <h4>Finalizadas</h4>
+          <p class="metric-num">{{ finalizadas }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pestañas de Navegación -->
+    <div class="nav-tabs-wrapper">
+      <button type="button" class="nav-tab-btn active" id="tab-programar" onclick="activarPestana('orden')">
+        <span>📝 Nueva Orden de Mantenimiento</span>
+      </button>
+      <button type="button" class="nav-tab-btn logistica-tab" id="tab-logistica" onclick="activarPestana('historial')">
+        <span>📋 Órdenes de Trabajo</span>
+        <span class="badge-count tab-badge">{{ total_ordenes }}</span>
+      </button>
+      <a href="{% url 'control_horometros' %}" class="nav-tab-btn" style="text-decoration: none; margin-left: auto;">
+        <span>⏱️ Ver Horómetros y Alertas →</span>
+      </a>
+    </div>
+
+    <!-- SECCIÓN 1: FORMULARIO DE REGISTRO DE ORDEN -->
+    <section id="seccion-orden" class="card-panel">
+      <form id="mantenimiento-form" method="POST" action="{% url 'ordenes_mantenimiento' %}">
+        {% csrf_token %}
+
+        <!-- 1. IDENTIFICACIÓN DE LA ORDEN -->
+        <div class="section-title">
+          <span>📋 1. Identificación de la Orden</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label for="codigo_orden">Código de Orden *</label>
+            <input type="text" name="codigo_orden" id="codigo_orden" class="form-control" value="{{ siguiente_codigo }}" required />
+          </div>
+          <div class="form-group">
+            <label for="fecha_ingreso">Fecha de Ingreso *</label>
+            <input type="date" name="fecha_ingreso" id="fecha_ingreso" class="form-control" value="{{ fecha_hoy|date:'Y-m-d' }}" required />
+          </div>
+          <div class="form-group">
+            <label for="codigo_maquina">Maquinaria a Atender *</label>
+            <select name="codigo_maquina" id="codigo_maquina" class="form-control" required>
+              <option value="" selected disabled hidden></option>
+              {% for maq in maquinarias %}
+              <option value="{{ maq.codigo_maquina }}">{{ maq.codigo_maquina }} - {{ maq.tipo_maquina }} ({{ maq.marca_maquina }})</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- 2. CLASIFICACIÓN Y TALLER -->
+        <div class="section-title section-title-spacing">
+          <span>⚙️ 2. Clasificación y Taller</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label for="tipo_mantenimiento">Tipo de Mantenimiento *</label>
+            <select name="tipo_mantenimiento" id="tipo_mantenimiento" class="form-control" required>
+              <option value="Preventivo" selected>Preventivo</option>
+              <option value="Correctivo">Correctivo</option>
+              <option value="Rutinario">Rutinario</option>
+              <option value="Emergencia">Emergencia</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="prioridad">Prioridad *</label>
+            <select name="prioridad" id="prioridad" class="form-control" required>
+              <option value="Baja">Baja</option>
+              <option value="Media" selected>Media</option>
+              <option value="Alta">Alta</option>
+              <option value="Urgente">Urgente</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="mecanico">Mecánico *</label>
+            <select name="mecanico" id="mecanico" class="form-control" required>
+              <option value="" selected disabled hidden></option>
+              {% for mec in mecanicos %}
+              <option value="{{ mec.empleado }}{% if mec.segundo_apellido %} {{ mec.segundo_apellido }}{% endif %}">{{ mec.empleado }}{% if mec.segundo_apellido %} {{ mec.segundo_apellido }}{% endif %} ({{ mec.nombre_puesto }})</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- 3. PARÁMETROS TÉCNICOS Y COSTOS -->
+        <div class="section-title section-title-spacing">
+          <span>⏱️ 3. Parámetros Técnicos y Costos</span>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label for="horometro">Horómetro al Ingresar *</label>
+            <div class="input-with-unit">
+              <input type="number" step="0.01" min="0" name="horometro" id="horometro" class="form-control" required />
+              <span class="unit-suffix">hrs</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="costo_estimado">Costo estimado</label>
+            <div class="input-with-unit">
+              <input type="number" step="0.01" min="0" name="costo_estimado" id="costo_estimado" class="form-control" value="0.00" />
+              <span class="unit-suffix">Q</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="fecha_entrega">Fecha Estimada de Entrega</label>
+            <input type="date" name="fecha_entrega" id="fecha_entrega" class="form-control" />
+          </div>
+        </div>
+
+        <div class="form-group form-group-spaced">
+          <label for="falla_reportada">Descripción del Problema o Falla Reportada *</label>
+          <textarea name="falla_reportada" id="falla_reportada" rows="3" class="form-control" required></textarea>
+        </div>
+
+        <!-- BOTONES -->
+        <div class="button-row">
+          <button type="submit" class="btn-submit">
+            💾 Guardar y Crear Orden de Trabajo
+          </button>
+          <button type="reset" class="btn-secondary">
+            🔄 Limpiar
+          </button>
+          <button type="button" class="btn-logistica btn-action-right" onclick="activarPestana('historial')">
+            📋 Ver Listado de Órdenes
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- SECCIÓN 2: LISTADO DE ÓRDENES -->
+    <section id="seccion-historial" class="card-panel is-hidden">
+      <div class="logistica-header">
+        <h2 class="logistica-title">
+          <span>📋 Registro de Órdenes de Mantenimiento</span>
+        </h2>
+        <div class="logistica-quick-actions">
+          <button type="button" class="btn-submit btn-sm" onclick="activarPestana('orden')">
+            ➕ Nueva Orden
+          </button>
+          <button type="button" class="btn-secondary btn-sm" onclick="window.print()">
+            🖨️ Imprimir
+          </button>
+        </div>
+      </div>
+
+      <!-- Barra de Filtros y Búsqueda -->
+      <div class="logistica-toolbar">
+        <div class="search-filter-box">
+          <input type="text" id="filtro-busqueda" class="search-input" onkeyup="filtrarTabla()" />
+          <select id="filtro-estado" class="filter-select" onchange="filtrarTabla()">
+            <option value="">Todos los Estados</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="En Taller">En Taller</option>
+            <option value="Finalizada">Finalizada</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+          <select id="filtro-tipo" class="filter-select" onchange="filtrarTabla()">
+            <option value="">Todos los Tipos</option>
+            <option value="Preventivo">Preventivo</option>
+            <option value="Correctivo">Correctivo</option>
+            <option value="Rutinario">Rutinario</option>
+            <option value="Emergencia">Emergencia</option>
+          </select>
+        </div>
+        <span id="contador-filtrados" class="logistica-counter">
+          Mostrando {{ ordenes|length }} órdenes
+        </span>
+      </div>
+
+      <!-- Tabla de Registros -->
+      <div class="table-container">
+        <table class="logistica-table" id="tabla-ordenes">
+          <thead>
+            <tr>
+              <th class="col-id">#</th>
+              <th>Código</th>
+              <th>Fecha Ingreso</th>
+              <th>Máquina</th>
+              <th>Tipo</th>
+              <th>Prioridad</th>
+              <th>Mecánico</th>
+              <th class="text-right">Horómetro</th>
+              <th class="text-right">Costo (Q)</th>
+              <th>Estado</th>
+              <th>Falla Reportada</th>
+              <th class="text-center">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body">
+            {% for o in ordenes %}
+            <tr data-estado="{{ o.estado }}" data-tipo="{{ o.tipo_mantenimiento }}" data-texto="{{ o.codigo_orden }} {{ o.codigo_maquina }} {{ o.mecanico }} {{ o.falla_reportada }}">
+              <td class="cell-id" data-num>{{ forloop.counter }}</td>
+              <td class="nowrap cell-bold">{{ o.codigo_orden }}</td>
+              <td>{{ o.fecha_ingreso|date:'d/m/Y' }}</td>
+              <td><span class="cell-badge-code">{{ o.codigo_maquina }}</span></td>
+              <td>{{ o.tipo_mantenimiento }}</td>
+              <td>
+                <span class="badge-prioridad prioridad-{{ o.prioridad|lower }}">
+                  {{ o.prioridad }}
+                </span>
+              </td>
+              <td>{{ o.mecanico }}</td>
+              <td class="text-right cell-mono-number">{{ o.horometro }} hrs</td>
+              <td class="text-right cell-mono-number">Q {{ o.costo_estimado|floatformat:2 }}</td>
+              <td>
+                <span class="badge-estado estado-{{ o.estado|slugify }}">
+                  {{ o.estado }}
+                </span>
+              </td>
+              <td class="cell-truncated" title="{{ o.falla_reportada }}">{{ o.falla_reportada }}</td>
+              <td class="text-center nowrap">
+                <button type="button" class="btn-sm btn-submit" style="padding: 4px 10px; font-size: 0.8rem;"
+                  onclick="abrirModalEstado('{{ o.id }}', '{{ o.codigo_orden }}', '{{ o.estado }}', '{{ o.costo_estimado }}', '{{ o.trabajos_realizados|default:''|escapejs }}')">
+                  ⚙️ Gestionar
+                </button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="12">
+                <div class="empty-state">
+                  <span class="icon">🛠️</span>
+                  <h3>No hay órdenes de mantenimiento registradas</h3>
+                  <p>Crea tu primera orden de trabajo desde el formulario.</p>
+                  <button type="button" class="btn-submit empty-action-btn" onclick="activarPestana('orden')">
+                    📝 Crear Orden Ahora
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MODAL GESTIONAR ESTADO -->
+    <div id="modal-estado-orden" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+      <div class="card-panel" style="width: 90%; max-width: 500px; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.25);">
+        <div class="section-title">
+          <span id="modal-orden-title">⚙️ Gestionar Estado de Orden</span>
+        </div>
+
+        <form id="form-estado-orden" method="POST">
+          {% csrf_token %}
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="modal-estado">Estado de la Orden</label>
+            <select name="estado" id="modal-estado" class="form-control">
+              <option value="Pendiente">Pendiente</option>
+              <option value="En Taller">En Taller</option>
+              <option value="Finalizada">Finalizada (Unidad Lista)</option>
+              <option value="Cancelada">Cancelada</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;">
+              <label for="modal-trabajos">Trabajos realizados</label>
+            <textarea name="trabajos_realizados" id="modal-trabajos" rows="2" class="form-control"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-costo">Costo Final de la Reparación</label>
+            <div class="input-with-unit">
+              <input type="number" step="0.01" name="costo_estimado" id="modal-costo" class="form-control" />
+              <span class="unit-suffix">Q</span>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button type="button" class="btn-secondary" onclick="cerrarModalOrden()">Cancelar</button>
+            <button type="submit" class="btn-submit btn-action-right">💾 Guardar Cambios</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function activarPestana(pestana) {
+      const seccionOrden = document.getElementById('seccion-orden');
+      const seccionHistorial = document.getElementById('seccion-historial');
+      const tabOrden = document.getElementById('tab-programar');
+      const tabHistorial = document.getElementById('tab-logistica');
+
+      if (pestana === 'orden') {
+        seccionOrden.classList.remove('is-hidden');
+        seccionHistorial.classList.add('is-hidden');
+        tabOrden.classList.add('active');
+        tabHistorial.classList.remove('active');
+      } else {
+        seccionOrden.classList.add('is-hidden');
+        seccionHistorial.classList.remove('is-hidden');
+        tabOrden.classList.remove('active');
+        tabHistorial.classList.add('active');
+      }
+    }
+
+    function filtrarTabla() {
+      const texto = document.getElementById('filtro-busqueda').value.toLowerCase();
+      const estado = document.getElementById('filtro-estado').value.toLowerCase();
+      const tipo = document.getElementById('filtro-tipo').value.toLowerCase();
+      const rows = document.querySelectorAll('#tabla-body tr[data-texto]');
+      let count = 0;
+
+      rows.forEach(row => {
+        const rowTexto = row.getAttribute('data-texto').toLowerCase();
+        const rowEstado = row.getAttribute('data-estado').toLowerCase();
+        const rowTipo = row.getAttribute('data-tipo').toLowerCase();
+
+        const coincideTexto = !texto || rowTexto.includes(texto);
+        const coincideEstado = !estado || rowEstado === estado;
+        const coincideTipo = !tipo || rowTipo === tipo;
+
+        if (coincideTexto && coincideEstado && coincideTipo) {
+          row.style.display = '';
+          count++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      document.getElementById('contador-filtrados').textContent = `Mostrando ${count} órdenes`;
+    }
+
+    function abrirModalEstado(id, codigo, estado, costo, trabajos) {
+      const form = document.getElementById('form-estado-orden');
+      form.action = '/mantenimiento/ordenes/' + id + '/estado/';
+      document.getElementById('modal-orden-title').textContent = '⚙️ Gestionar Orden: ' + codigo;
+      document.getElementById('modal-estado').value = estado;
+      document.getElementById('modal-costo').value = costo;
+      document.getElementById('modal-trabajos').value = trabajos;
+      document.getElementById('modal-estado-orden').style.display = 'flex';
+    }
+
+    function cerrarModalOrden() {
+      document.getElementById('modal-estado-orden').style.display = 'none';
+    }
+  </script>
+</body>
+
+</html>

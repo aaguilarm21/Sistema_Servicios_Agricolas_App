@@ -57,7 +57,7 @@ body {
   border-radius: 12px;
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #b91c1c;
+  color: #1b5e20;
   font-size: 0.95rem;
   margin-bottom: 1.2rem;
 }
@@ -233,7 +233,7 @@ body[data-mobile-device="true"] .login-card {
   transform: translateY(0);
 }
 
-/* Version info styles */
+/* Estilos para la información de versión */
 .version-info {
   margin-top: 1.5rem;
   padding-top: 1.2rem;

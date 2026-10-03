@@ -122,9 +122,19 @@
           <!-- Formulario -->
           <div class="cat-form">
             <div class="form-grid" id="cat-form-grid">
-              <label>Código<input type="text" id="cat-codigo" autocomplete="off" /></label>
+              <label id="cat-label-id" style="display: none;">ID<input type="text" id="cat-id" disabled readonly /></label>
+              <label id="cat-label-codigo">Código<input type="text" id="cat-codigo" autocomplete="off" /></label>
               <label id="cat-label-campo2">Descripción<input type="text" id="cat-campo2" autocomplete="off" /></label>
-              <label id="cat-label-campo3">Tipo<input type="text" id="cat-campo3" autocomplete="off" /></label>
+              <label id="cat-label-campo3">Tipo
+                <input type="text" id="cat-campo3" autocomplete="off" />
+                <select id="cat-campo3-proceso" style="display: none;">
+                  <option value="" selected disabled hidden></option>
+                  <option value="siembras">Siembras</option>
+                  <option value="fertilizacion">Fertilización</option>
+                  <option value="riego">Riego</option>
+                </select>
+              </label>
+              <label id="cat-label-campo4" style="display: none;">Tipo<input type="text" id="cat-campo4" autocomplete="off" /></label>
             </div>
             <div class="button-row">
               <button id="cat-btn-guardar" class="btn-primary">💾 Guardar</button>
@@ -169,8 +179,8 @@
           { id: 'razonSocial', label: 'Razón Social', tipo: 'text', requerido: true },
           { id: 'nombrePropietario', label: 'Nombre Propietario', tipo: 'text', requerido: false },
           { id: 'nit', label: 'NIT', tipo: 'text', requerido: true },
-          { id: 'regimenTributario', label: 'Régimen Tributario', tipo: 'select', opciones: ['Seleccionar', 'Pequeño Contribuyente', 'General (Opcional Simplificado)', 'General (Sobre Utilidades)', 'Contribuyente Especial'], requerido: false },
-          { id: 'tipoFactura', label: 'Tipo Factura', tipo: 'select', opciones: ['Seleccionar', 'Factura Electrónica (FEL)', 'Factura Pequeño Contribuyente (FPEQ)', 'Factura Especial (FESP)', 'Factura Cambiaria (FCAM)', 'Recibo'], requerido: false },
+          { id: 'regimenTributario', label: 'Régimen Tributario', tipo: 'select', opciones: ['Pequeño Contribuyente', 'General (Opcional Simplificado)', 'General (Sobre Utilidades)', 'Contribuyente Especial'], requerido: false },
+          { id: 'tipoFactura', label: 'Tipo Factura', tipo: 'select', opciones: ['Factura Electrónica (FEL)', 'Factura Pequeño Contribuyente (FPEQ)', 'Factura Especial (FESP)', 'Factura Cambiaria (FCAM)', 'Recibo'], requerido: false },
           { id: 'diasCredito', label: 'Días Crédito', tipo: 'text', requerido: false }
         ],
         cols: ['Código', 'Proveedor', 'NIT', 'Régimen', 'Contacto'],
@@ -189,8 +199,8 @@
           form.razonSocial.value = r.razon_social;
           form.nombrePropietario.value = r.nombre_propietario || '';
           form.nit.value = r.nit;
-          form.regimenTributario.value = r.regimen_tributario || 'Seleccionar';
-          form.tipoFactura.value = r.tipo_factura || 'Seleccionar';
+          form.regimenTributario.value = r.regimen_tributario || '';
+          form.tipoFactura.value = r.tipo_factura || '';
           form.diasCredito.value = r.dias_credito || '';
         }
       },
@@ -200,7 +210,7 @@
         api: '/accounts/api/maquinaria/',
         campos: [
           { id: 'codigo_maquina', label: 'Código Máquina', tipo: 'text', requerido: true },
-          { id: 'combustible', label: 'Combustible S/N', tipo: 'select', opciones: ['Seleccionar', 'Si', 'No'], requerido: false },
+          { id: 'combustible', label: 'Combustible', tipo: 'select', opciones: ['Si', 'No'], requerido: false },
           { id: 'id_proveedor', label: 'ID Proveedor', tipo: 'text', requerido: false },
           { id: 'tipo_maquina', label: 'Tipo Máquina', tipo: 'select_api', apiUrl: '/accounts/api/tipos-maquina/', campoValor: 'descripcion', requerido: true },
           { id: 'marca_maquina', label: 'Marca Máquina', tipo: 'select_api', apiUrl: '/accounts/api/marcas/', campoValor: 'descripcion', requerido: false },
@@ -222,7 +232,7 @@
         }),
         setRow: (r, form) => {
           form.codigo_maquina.value = r.codigo_maquina;
-          form.combustible.value = r.combustible || 'Seleccionar';
+          form.combustible.value = r.combustible || '';
           form.id_proveedor.value = r.id_proveedor || '';
           form.tipo_maquina.value = r.tipo_maquina;
           form.marca_maquina.value = r.marca_maquina || '';
@@ -267,7 +277,7 @@
           { id: 'codigo_articulo', label: 'Código Artículo', tipo: 'text', requerido: true },
           { id: 'descripcion', label: 'Descripción', tipo: 'text', requerido: true },
           { id: 'unidad_medida', label: 'Unidad De Medida', tipo: 'select_api', apiUrl: '/accounts/api/unidades/', campoValor: 'descripcion', requerido: false },
-          { id: 'categoria', label: 'Categoría', tipo: 'select', opciones: ['Seleccionar', 'Fertilizante', 'Herbicida', 'Insecticida', 'Fungicida', 'Semilla', 'Herramienta', 'Repuesto', 'Combustible', 'Otro'], requerido: false },
+          { id: 'categoria', label: 'Categoría', tipo: 'select', opciones: ['Fertilizante', 'Herbicida', 'Insecticida', 'Fungicida', 'Semilla', 'Herramienta', 'Repuesto', 'Combustible', 'Otro'], requerido: false },
           { id: 'stock', label: 'Stock / Existencia', tipo: 'text', requerido: false }
         ],
         cols: ['Código', 'Descripción', 'Unidad De Medida', 'Categoría', 'Stock'],
@@ -283,7 +293,7 @@
           form.codigo_articulo.value = r.codigo_articulo;
           form.descripcion.value = r.descripcion;
           form.unidad_medida.value = r.unidad_medida || '';
-          form.categoria.value = r.categoria || 'Seleccionar';
+          form.categoria.value = r.categoria || '';
           if (form.stock) form.stock.value = r.stock ?? 0;
         }
       },
@@ -355,7 +365,10 @@
           // Opción por defecto
           const defaultOpt = document.createElement('option');
           defaultOpt.value = '';
-          defaultOpt.textContent = 'Seleccionar';
+          defaultOpt.disabled = true;
+          defaultOpt.hidden = true;
+          defaultOpt.selected = true;
+          defaultOpt.textContent = '';
           select.appendChild(defaultOpt);
           // Cargar opciones desde la API del catálogo
           fetch(campo.apiUrl)
@@ -378,6 +391,12 @@
           const select = document.createElement('select');
           select.id = 'cfg-' + campo.id;
           select.required = campo.requerido;
+          const defaultOpt = document.createElement('option');
+          defaultOpt.value = '';
+          defaultOpt.disabled = true;
+          defaultOpt.hidden = true;
+          defaultOpt.selected = true;
+          select.appendChild(defaultOpt);
           campo.opciones.forEach(opt => {
             const option = document.createElement('option');
             option.value = opt;
@@ -626,8 +645,8 @@
 
     // ==================== CATÁLOGOS AUXILIARES ====================
     const catalogoConfig = {
-      'labores': { titulo: 'Labores', icono: '🌾', api: '/accounts/api/labores/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
-      'cuentas': { titulo: 'Cuentas', icono: '💰', api: '/accounts/api/cuentas/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
+      'labores': { titulo: 'Labores', icono: '🌾', api: '/accounts/api/labores/', campo2: 'Descripción', campo3: 'Proceso', cols: ['Código', 'Descripción', 'Proceso'], getRow: r => [r.codigo, r.descripcion, etiquetasProcesoLabores[r.proceso] || r.proceso], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2(), proceso: catCampo3() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); catSetCampo3(r.proceso); } },
+      'cuentas': { titulo: 'Cuentas', icono: '💰', api: '/accounts/api/cuentas/', campo2: 'Descripción', campo3: 'Proceso', campo4: 'Tipo', mostrarId: true, digitosCodigo: 12, requeridos: ['proceso', 'codigo', 'descripcion', 'tipo'], cols: ['ID', 'Proceso', 'Código', 'Descripción', 'Tipo'], getRow: r => [r.id, etiquetasProcesoLabores[r.proceso] || r.proceso, r.codigo, r.descripcion, r.tipo], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2(), proceso: catCampo3(), tipo: catCampo4() }), setRow: (r) => { catSetId(r.id); catSetCodigo(r.codigo); catSetCampo2(r.descripcion); catSetCampo3(r.proceso); catSetCampo4(r.tipo); } },
       'unidades': { titulo: 'U/Medida', icono: '📐', api: '/accounts/api/unidades/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
       'nombres-puesto': { titulo: 'Nombres de Puesto', icono: '💼', api: '/accounts/api/nombres-puesto/', campo2: 'Nombre Puesto', campo3: null, cols: ['ID', 'Nombre Puesto'], autoId: true, getRow: r => [r.id, r.nombre], getData: () => ({ nombre: catCampo2() }), setRow: (r) => { catSetCodigo(r.id); catSetCampo2(r.nombre); } },
       'variedades': { titulo: 'Variedades', icono: '🌿', api: '/accounts/api/variedades/', campo2: 'Descripción', campo3: null, cols: ['Código', 'Descripción'], getRow: r => [r.codigo, r.descripcion], getData: () => ({ codigo: catCodigo(), descripcion: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.descripcion); } },
@@ -637,22 +656,56 @@
       'auxiliares': { titulo: 'Auxiliares', icono: '👥', api: '/accounts/api/auxiliares/', campo2: 'Nombre', campo3: null, cols: ['Código', 'Nombre'], getRow: r => [r.codigo, r.nombre], getData: () => ({ codigo: catCodigo(), nombre: catCampo2() }), setRow: (r) => { catSetCodigo(r.codigo); catSetCampo2(r.nombre); } },
     };
 
+    const etiquetasProcesoLabores = {
+      siembras: 'Siembras',
+      fertilizacion: 'Fertilización',
+      riego: 'Riego',
+    };
+
     let catActual = 'labores';
     let catData = [];
     let catEditando = null;
 
     const catCodigo = () => document.getElementById('cat-codigo').value.trim();
     const catCampo2 = () => document.getElementById('cat-campo2').value.trim();
-    const catCampo3 = () => document.getElementById('cat-campo3').value.trim();
+    const catCampo4 = () => document.getElementById('cat-campo4').value.trim();
+    const catCampo3 = () => (['labores', 'cuentas'].includes(catActual)
+      ? document.getElementById('cat-campo3-proceso').value
+      : document.getElementById('cat-campo3').value).trim();
+    const catSetId = v => document.getElementById('cat-id').value = v || '';
     const catSetCodigo = v => document.getElementById('cat-codigo').value = v;
     const catSetCampo2 = v => document.getElementById('cat-campo2').value = v;
-    const catSetCampo3 = v => document.getElementById('cat-campo3').value = v;
+    const catSetCampo4 = v => document.getElementById('cat-campo4').value = v || '';
+    const catSetCampo3 = v => {
+      if (['labores', 'cuentas'].includes(catActual)) {
+        document.getElementById('cat-campo3-proceso').value = v;
+      } else {
+        document.getElementById('cat-campo3').value = v;
+      }
+    };
 
     function catLimpiar() {
+      catSetId('');
       catSetCodigo(''); catSetCampo2(''); catSetCampo3('');
+      catSetCampo4('');
+      document.getElementById('cat-campo3').value = '';
+      document.getElementById('cat-campo3-proceso').value = '';
       catEditando = null;
       document.getElementById('cat-btn-modificar').disabled = true;
       document.getElementById('cat-btn-eliminar').disabled = true;
+    }
+
+    function catValidarDatos(cfg, datos) {
+      if (cfg.requeridos?.some(campo => !datos[campo])) {
+        return 'Completa Proceso, Código, Descripción y Tipo';
+      }
+      if (!datos.codigo && !datos.nombre) {
+        return cfg.autoId ? 'El nombre de puesto es requerido' : 'El código es requerido';
+      }
+      if (cfg.digitosCodigo && !new RegExp(`^[0-9]{${cfg.digitosCodigo}}$`).test(datos.codigo)) {
+        return `El código de cuenta debe contener exactamente ${cfg.digitosCodigo} dígitos.`;
+      }
+      return '';
     }
 
     function catCargar(cat) {
@@ -666,14 +719,33 @@
       document.getElementById('cat-label-campo2').firstChild.textContent = cfg.campo2;
       const codigoInput = document.getElementById('cat-codigo');
       codigoInput.disabled = Boolean(cfg.autoId);
-      document.querySelector('#cat-form-grid > label:first-child').firstChild.textContent = cfg.autoId ? 'ID' : 'Código';
+      if (cfg.digitosCodigo) {
+        codigoInput.maxLength = cfg.digitosCodigo;
+        codigoInput.inputMode = 'numeric';
+        codigoInput.pattern = `[0-9]{${cfg.digitosCodigo}}`;
+      } else {
+        codigoInput.removeAttribute('maxlength');
+        codigoInput.removeAttribute('pattern');
+        codigoInput.inputMode = 'text';
+      }
+      document.getElementById('cat-label-codigo').firstChild.textContent = cfg.autoId ? 'ID' : 'Código';
 
       const label3 = document.getElementById('cat-label-campo3');
+      const campo3Texto = document.getElementById('cat-campo3');
+      const campo3Proceso = document.getElementById('cat-campo3-proceso');
+      const label4 = document.getElementById('cat-label-campo4');
+      label4.style.display = cfg.campo4 ? 'flex' : 'none';
+      document.getElementById('cat-label-id').style.display = cfg.mostrarId ? 'flex' : 'none';
       if (cfg.campo3) {
-        label3.style.display = '';
+        label3.style.display = 'flex';
         label3.firstChild.textContent = cfg.campo3;
+        const usaSelectorProceso = ['labores', 'cuentas'].includes(cat);
+        campo3Texto.style.display = usaSelectorProceso ? 'none' : '';
+        campo3Proceso.style.display = usaSelectorProceso ? '' : 'none';
       } else {
         label3.style.display = 'none';
+        campo3Texto.style.display = 'none';
+        campo3Proceso.style.display = 'none';
       }
 
       const thead = document.getElementById('cat-thead');
@@ -724,7 +796,8 @@
     document.getElementById('cat-btn-guardar').addEventListener('click', () => {
       const cfg = catalogoConfig[catActual];
       const datos = normalizarRegistro(cfg.getData());
-      if (!datos.codigo && !datos.nombre) return alert(cfg.autoId ? 'El nombre de puesto es requerido' : 'El código es requerido');
+      const error = catValidarDatos(cfg, datos);
+      if (error) return alert(error);
       const url = catEditando ? `${cfg.api}${catEditando}/` : cfg.api;
       const method = catEditando ? 'PUT' : 'POST';
       fetch(url, {
@@ -744,6 +817,7 @@
           if (d.success || d.id) {
             alert(method === 'POST' ? 'Guardado correctamente' : 'Actualizado correctamente');
             catLimpiar();
+            if (cfg.mostrarId && d.id) catSetId(d.id);
             catCargarTabla();
           }
           else alert('Error: ' + (d.error || 'Desconocido'));
@@ -758,7 +832,8 @@
       if (!catEditando) return alert('Selecciona un registro');
       const cfg = catalogoConfig[catActual];
       const datos = normalizarRegistro(cfg.getData());
-      if (!datos.codigo && !datos.nombre) return alert(cfg.autoId ? 'El nombre de puesto es requerido' : 'El código es requerido');
+      const error = catValidarDatos(cfg, datos);
+      if (error) return alert(error);
       fetch(`${cfg.api}${catEditando}/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },

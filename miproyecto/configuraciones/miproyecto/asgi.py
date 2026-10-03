@@ -1,9 +1,9 @@
 """
-ASGI config for miproyecto project.
+Configuración ASGI para el proyecto miproyecto.
 
-It exposes the ASGI callable as a module-level variable named ``application``.
+Expone la aplicación ASGI mediante la variable de módulo ``application``.
 
-For more information on this file, see
+Más información:
 https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
 """
 

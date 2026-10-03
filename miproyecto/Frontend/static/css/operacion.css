@@ -7,13 +7,13 @@
   --primary: #2e7d32;
   --primary-dark: #1b5e20;
   --primary-light: #e8f5e9;
-  --accent-logistica: #0277bd;
-  --accent-logistica-dark: #01579b;
-  --accent-logistica-light: #e1f5fe;
-  --text-dark: #1f2937;
-  --text-muted: #64748b;
-  --border-color: #d1d5db;
-  --border-table: #e2e8f0;
+  --accent-logistica: #388e3c;
+  --accent-logistica-dark: #1b5e20;
+  --accent-logistica-light: #e8f5e9;
+  --text-dark: #173b2a;
+  --text-muted: #55705a;
+  --border-color: #b7d9ba;
+  --border-table: #d5e8d6;
 }
 
 body.operacion-body {
@@ -25,9 +25,9 @@ body.operacion-body {
 }
 
 .main-wrapper {
-  max-width: 1160px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 20px 16px;
+  padding: 28px 24px;
 }
 
 /* ==================== ENCABEZADO PRINCIPAL ==================== */
@@ -56,7 +56,7 @@ body.operacion-body {
 }
 
 .header-title-box p {
-  color: #4b5563;
+  color: #55705a;
   margin: 4px 0 0;
   font-size: 0.92rem;
 }
@@ -70,7 +70,7 @@ body.operacion-body {
 
 /* Botón LOGISTICA destacado */
 .btn-logistica {
-  background: linear-gradient(135deg, #0288d1 0%, #01579b 100%);
+  background: linear-gradient(135deg, #388e3c 0%, #1b5e20 100%);
   color: #ffffff !important;
   padding: 10px 20px;
   border-radius: 8px;
@@ -81,21 +81,21 @@ body.operacion-body {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  box-shadow: 0 4px 12px rgba(2, 119, 189, 0.35);
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.28);
   transition: all 0.25s ease;
   letter-spacing: 0.5px;
   text-decoration: none;
 }
 
 .btn-logistica:hover {
-  background: linear-gradient(135deg, #0277bd 0%, #014377 100%);
+  background: linear-gradient(135deg, #2e7d32 0%, #14532d 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(2, 119, 189, 0.45);
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.34);
 }
 
 .btn-logistica .badge-count {
-  background: #ffca28;
-  color: #212121;
+  background: #c8e6c9;
+  color: #14532d;
   font-size: 0.78rem;
   font-weight: 800;
   padding: 2px 7px;
@@ -104,14 +104,14 @@ body.operacion-body {
 }
 
 .btn-volver {
-  background: #f3f4f6;
-  color: #374151;
+  background: #f1f8e9;
+  color: #1b5e20;
   padding: 10px 16px;
   border-radius: 8px;
   text-decoration: none;
   font-weight: 600;
   font-size: 0.9rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #a5d6a7;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -120,8 +120,8 @@ body.operacion-body {
 
 .btn-volver:hover,
 .btn-secondary:hover {
-  background: #e5e7eb;
-  color: #111827;
+  background: #dcedc8;
+  color: #14532d;
 }
 
 /* ==================== ALERTAS Y MENSAJES ==================== */
@@ -146,17 +146,17 @@ body.operacion-body {
 }
 
 .alert-operacion.alert-error {
-  background: #f8d7da;
-  color: #721c24;
-  border-left: 5px solid #dc3545;
+  background: #e8f5e9;
+  color: #1b5e20;
+  border-left: 5px solid #81c784;
 }
 
 /* ==================== MÉTRICAS RESUMEN ==================== */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: 18px;
+  margin-bottom: 26px;
 }
 
 .metric-card {
@@ -170,13 +170,13 @@ body.operacion-body {
   border-left: 4px solid var(--primary);
 }
 
-.metric-card.blue { border-left-color: #0288d1; }
-.metric-card.orange { border-left-color: #f57c00; }
+.metric-card.blue { border-left-color: #558b2f; }
+.metric-card.orange { border-left-color: #81c784; }
 .metric-card.green { border-left-color: #388e3c; }
 
 .metric-icon {
   font-size: 1.8rem;
-  background: #f5f5f5;
+  background: #f1f8e9;
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -188,7 +188,7 @@ body.operacion-body {
 .metric-info h4 {
   font-size: 0.8rem;
   text-transform: uppercase;
-  color: #616161;
+  color: #55705a;
   margin: 0 0 4px;
   letter-spacing: 0.4px;
 }
@@ -196,7 +196,7 @@ body.operacion-body {
 .metric-info .metric-num {
   font-size: 1.45rem;
   font-weight: 700;
-  color: #212121;
+  color: #173b2a;
   margin: 0;
 }
 
@@ -208,11 +208,11 @@ body.operacion-body {
 /* ==================== PESTAÑAS DE NAVEGACIÓN ==================== */
 .nav-tabs-wrapper {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 20px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid #c8e6c9;
   background: white;
-  padding: 8px 14px 0;
+  padding: 10px 18px 0;
   border-radius: 10px 10px 0 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
@@ -223,7 +223,7 @@ body.operacion-body {
   font-weight: 600;
   border: none;
   background: transparent;
-  color: #616161;
+  color: #55705a;
   cursor: pointer;
   border-bottom: 3px solid transparent;
   transition: all 0.2s ease;
@@ -249,11 +249,11 @@ body.operacion-body {
 .nav-tab-btn.logistica-tab.active {
   color: var(--accent-logistica-dark);
   border-bottom: 3px solid var(--accent-logistica);
-  background: #f0f9ff;
+  background: #e8f5e9;
 }
 
 .tab-badge {
-  background: #0288d1;
+  background: #2e7d32;
   color: white;
   padding: 2px 7px;
   border-radius: 10px;
@@ -265,8 +265,8 @@ body.operacion-body {
   background: white;
   border-radius: 10px;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
-  padding: 24px;
-  margin-bottom: 24px;
+  padding: 32px;
+  margin-bottom: 28px;
 }
 
 .section-title {
@@ -277,34 +277,34 @@ body.operacion-body {
   letter-spacing: 0.5px;
   padding-bottom: 8px;
   border-bottom: 2px solid var(--primary-light);
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .section-title-spacing {
-  margin-top: 24px;
+  margin-top: 30px;
 }
 
 .form-grid-3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 22px;
+  margin-bottom: 20px;
 }
 
 .form-grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 22px;
+  margin-bottom: 20px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .form-group-spaced {
@@ -314,7 +314,7 @@ body.operacion-body {
 .form-group label {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #374151;
+  color: #23452f;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -322,12 +322,13 @@ body.operacion-body {
 
 .form-group label .hint {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: #55705a;
   font-weight: normal;
 }
 
 .form-control {
-  padding: 10px 12px;
+  min-height: 46px;
+  padding: 12px 14px;
   border: 1.5px solid var(--border-color);
   border-radius: 8px;
   font-size: 0.92rem;
@@ -371,10 +372,10 @@ textarea.form-control {
 
 .button-row {
   display: flex;
-  gap: 12px;
-  margin-top: 22px;
-  padding-top: 16px;
-  border-top: 1px solid #e5e7eb;
+  gap: 16px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #d5e8d6;
   flex-wrap: wrap;
 }
 
@@ -401,8 +402,8 @@ textarea.form-control {
 }
 
 .btn-secondary {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #f1f8e9;
+  color: #1b5e20;
   border: 1px solid var(--border-color);
   padding: 12px 20px;
   border-radius: 8px;
@@ -452,11 +453,11 @@ textarea.form-control {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 18px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
-  background: #f8fafc;
-  padding: 12px 16px;
+  background: #f1f8e9;
+  padding: 18px 20px;
   border-radius: 8px;
   border: 1px solid var(--border-table);
 }
@@ -471,20 +472,22 @@ textarea.form-control {
 
 .search-input {
   padding: 8px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #b7d9ba;
   border-radius: 6px;
   font-size: 0.88rem;
-  min-width: 220px;
+  min-width: 280px;
+  min-height: 42px;
   flex: 1;
 }
 
 .filter-select {
+  min-height: 42px;
   padding: 8px 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #b7d9ba;
   border-radius: 6px;
   font-size: 0.88rem;
   background: white;
-  color: #334155;
+  color: #23452f;
 }
 
 .logistica-counter {
@@ -523,23 +526,23 @@ body[data-mobile-device="true"] .logistica-table {
 }
 
 .logistica-table th {
-  background: #f1f5f9;
-  color: #334155;
+  background: #e8f5e9;
+  color: #1b5e20;
   font-weight: 700;
-  padding: 8px 10px;
-  border-bottom: 2px solid #cbd5e1;
+  padding: 12px 14px;
+  border-bottom: 2px solid #b7d9ba;
   white-space: nowrap;
 }
 
 .logistica-table td {
-  padding: 8px 10px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border-table);
-  color: #1e293b;
+  color: #23452f;
   vertical-align: middle;
 }
 
 .logistica-table tbody tr:hover {
-  background: #f8fafc;
+  background: #f1f8e9;
 }
 
 /* Modificadores de celdas */
@@ -563,7 +566,7 @@ body[data-mobile-device="true"] .logistica-table {
 }
 
 .cell-badge-code {
-  background: #e2e8f0;
+  background: #e8f5e9;
   padding: 2px 7px;
   border-radius: 4px;
   font-family: monospace;
@@ -592,10 +595,10 @@ body[data-mobile-device="true"] .logistica-table {
   text-transform: uppercase;
 }
 
-.estado-programada { background: #e0f2fe; color: #0369a1; }
-.estado-en-proceso { background: #fef3c7; color: #b45309; }
+.estado-programada { background: #e8f5e9; color: #1b5e20; }
+.estado-en-proceso { background: #dcedc8; color: #33691e; }
 .estado-realizada { background: #dcfce7; color: #15803d; }
-.estado-cancelada { background: #f1f5f9; color: #64748b; }
+.estado-cancelada { background: #c8e6c9; color: #1b5e20; }
 
 .badge-prioridad {
   font-size: 0.74rem;
@@ -604,30 +607,61 @@ body[data-mobile-device="true"] .logistica-table {
   border-radius: 6px;
 }
 
-.prioridad-alta, .prioridad-urgente { color: #b91c1c; background: #fee2e2; }
-.prioridad-normal { color: #1d4ed8; background: #dbeafe; }
-.prioridad-baja { color: #475569; background: #f1f5f9; }
+.prioridad-alta, .prioridad-urgente { color: #14532d; background: #c8e6c9; }
+.prioridad-normal { color: #1b5e20; background: #e8f5e9; }
+.prioridad-baja { color: #55705a; background: #f1f8e9; }
 
 /* Acciones en Tabla */
 .table-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-edit-mini {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #a5d6a7;
+  border-radius: 6px;
+  background: #f1f8e9;
+  color: #1b5e20;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-edit-mini:hover {
+  background: #dcedc8;
+}
+
+#cancel-edit-btn[hidden] {
+  display: none;
+}
+
+.edit-mode-banner {
+  margin-bottom: 22px;
+  padding: 14px 18px;
+  border-left: 4px solid var(--accent-logistica);
+  border-radius: 4px;
+  background: var(--accent-logistica-light);
+  color: var(--accent-logistica-dark);
+  font-weight: 700;
 }
 
 .select-estado-mini {
   font-size: 0.78rem;
   padding: 4px 6px;
   border-radius: 6px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #b7d9ba;
   background: white;
   cursor: pointer;
 }
 
 .btn-delete-mini {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: #c8e6c9;
+  color: #14532d;
   border: none;
   padding: 5px 8px;
   border-radius: 6px;
@@ -637,7 +671,7 @@ body[data-mobile-device="true"] .logistica-table {
 }
 
 .btn-delete-mini:hover {
-  background: #fca5a5;
+  background: #a5d6a7;
 }
 
 .delete-form-inline {
@@ -679,6 +713,22 @@ body[data-mobile-device="true"] .logistica-table {
 
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
+  .main-wrapper {
+    padding: 16px 12px;
+  }
+  .card-panel {
+    padding: 20px;
+  }
+  .form-grid-2,
+  .form-grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nav-tabs-wrapper {
+    overflow-x: auto;
+  }
+  .nav-tab-btn {
+    flex: 0 0 auto;
+  }
   .header-bar {
     flex-direction: column;
     align-items: flex-start;
@@ -690,6 +740,15 @@ body[data-mobile-device="true"] .logistica-table {
   .logistica-toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+  .search-filter-box {
+    width: 100%;
+  }
+  .search-input {
+    min-width: 100%;
+  }
+  .filter-select {
+    width: 100%;
   }
   .btn-action-right {
     margin-left: 0;

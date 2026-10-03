@@ -14,10 +14,81 @@ from django.apps import apps
 from datetime import date, timedelta
 from decimal import Decimal
 
-from .models import Empleado, FirmaAutorizada, Labor, LoginAttempt, RegistroOperativo, normalizar_texto
+from .models import (
+    Articulo, Cuenta, DespachoCombustible, Empleado, FirmaAutorizada, Labor, LoginAttempt, Proveedor,
+    Maquinaria, ProgramacionOperacion, RegistroOperativo, TanqueCombustible,
+    normalizar_texto,
+)
 from .management.commands.createuserrole import Command as CreateUserRoleCommand
 from .validators import PasswordStandardValidator
 from .jwt_utils import generate_jwt_token, decode_jwt_token
+
+
+class CuentaPorProcesoTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username='admin-cuentas-proceso',
+            email='admin-cuentas-proceso@example.com',
+            password='TestPassword@123',
+        )
+        self.client.force_login(self.admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(self.admin)
+        Cuenta.objects.all().delete()
+
+    def crear_cuenta(self, codigo, proceso, tipo='Gasto'):
+        return self.client.post(
+            reverse('api_cuentas'),
+            data=json.dumps({
+                'codigo': codigo,
+                'descripcion': f'Cuenta {proceso}',
+                'proceso': proceso,
+                'tipo': tipo,
+            }),
+            content_type='application/json',
+        )
+
+    def test_solo_permite_una_cuenta_por_cada_proceso(self):
+        for codigo, proceso in (
+            ('522104100001', 'siembras'),
+            ('522104100002', 'fertilizacion'),
+            ('522104100003', 'riego'),
+        ):
+            with self.subTest(proceso=proceso):
+                response = self.crear_cuenta(codigo, proceso)
+                self.assertEqual(response.status_code, 201)
+
+        respuesta_duplicada = self.crear_cuenta('522104100004', 'riego')
+
+        self.assertEqual(respuesta_duplicada.status_code, 400)
+        self.assertEqual(Cuenta.objects.count(), 3)
+
+    def test_requiere_tipo_de_cuenta(self):
+        response = self.crear_cuenta('522104100005', 'siembras', tipo='')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Cuenta.objects.count(), 0)
+
+    def test_rechaza_codigos_que_no_tienen_exactamente_12_digitos(self):
+        for codigo in ('5221041000095', '52210410001', '52210410000A'):
+            with self.subTest(codigo=codigo):
+                response = self.crear_cuenta(codigo, 'siembras')
+                self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(Cuenta.objects.count(), 0)
+
+    def test_rechaza_procesos_no_configurados(self):
+        response = self.client.post(
+            reverse('api_cuentas'),
+            data=json.dumps({
+                'codigo': '522104100006',
+                'descripcion': 'Proceso no configurado',
+                'proceso': 'administracion',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(Cuenta.objects.count(), 0)
 
 
 class TimestampAuditFieldTests(TestCase):
@@ -562,6 +633,41 @@ class ValidarRegistroOperativoTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'No se encontró una boleta')
 
+    def test_validation_shows_create_action_but_hides_admin_actions(self):
+        self.crear_registro('Proveedor Central')
+        response = self.client.get(reverse('validar_registro_operativo'), {
+            'no_boleta': 'BOLETA-5420',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Crear registro')
+        self.assertNotContains(response, 'Editar')
+        self.assertNotContains(response, 'Eliminar')
+
+    def test_admin_can_delete_a_record_with_post_only(self):
+        registro = self.crear_registro('Proveedor Central')
+        admin = User.objects.create_superuser(
+            username='admin-validar-registro',
+            email='admin-validar-registro@example.com',
+            password='TestPassword@123',
+        )
+        self.client.force_login(admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(admin)
+
+        validation_response = self.client.get(reverse('validar_registro_operativo'), {
+            'no_boleta': registro.no_boleta,
+        })
+        self.assertContains(validation_response, reverse('editar_registro', args=[registro.id]))
+        self.assertContains(validation_response, reverse('borrar_registro', args=[registro.id]))
+
+        get_response = self.client.get(reverse('borrar_registro', args=[registro.id]))
+        self.assertEqual(get_response.status_code, 405)
+        self.assertTrue(RegistroOperativo.objects.filter(pk=registro.pk).exists())
+
+        post_response = self.client.post(reverse('borrar_registro', args=[registro.id]))
+        self.assertRedirects(post_response, reverse('registros_data'))
+        self.assertFalse(RegistroOperativo.objects.filter(pk=registro.pk).exists())
+
 
 class EditarRegistroOperativoTests(TestCase):
     def setUp(self):
@@ -602,7 +708,7 @@ class EditarRegistroOperativoTests(TestCase):
                     list(edit_response.context[catalog_name]),
                 )
 
-        self.assertEqual(list(create_response.context['labores']), [labor])
+        self.assertIn(labor, list(create_response.context['labores']))
 
     def test_locked_fields_are_not_changed_by_edit_post(self):
         self.client.post(reverse('editar_registro', args=[self.registro.id]), {
@@ -617,3 +723,621 @@ class EditarRegistroOperativoTests(TestCase):
         self.assertEqual(self.registro.area_lote, Decimal('12.50'))
         self.assertEqual(self.registro.cuenta_contable, 'CTA-100')
         self.assertEqual(self.registro.lote, 'Lote Actualizado')
+
+
+class LogisticaCrudTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username='admin-logistica-crud',
+            email='admin-logistica-crud@example.com',
+            password='TestPassword@123',
+        )
+        self.client.force_login(self.admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(self.admin)
+
+    def test_operation_can_be_created_updated_and_deleted(self):
+        datos = {
+            'action': 'create',
+            'tipo_servicio': 'Fertilización',
+            'fecha': '2026-10-02',
+            'finca': 'Finca Central',
+            'lote': '0014',
+            'area': '14.50',
+            'responsable': 'Ana López',
+            'prioridad': 'Normal',
+            'estado': 'Programada',
+            'observaciones': 'Aplicar según plan.',
+        }
+        create_response = self.client.post(reverse('operacion'), datos)
+
+        self.assertRedirects(create_response, '/operacion/?ver=logistica')
+        operacion = ProgramacionOperacion.objects.get()
+
+        list_response = self.client.get(reverse('operacion'), {'ver': 'logistica'})
+        self.assertContains(list_response, 'editarOperacion')
+        self.assertContains(list_response, 'id="codigo_responsable"')
+
+        datos.update({
+            'action': 'update',
+            'operacion_id': operacion.id,
+            'tipo_servicio': 'Riego y drenaje',
+            'prioridad': 'Alta',
+            'estado': 'En Proceso',
+        })
+        update_response = self.client.post(reverse('operacion'), datos)
+
+        self.assertRedirects(update_response, '/operacion/?ver=logistica')
+        operacion.refresh_from_db()
+        self.assertEqual(operacion.tipo_servicio, 'Riego Y Drenaje')
+        self.assertEqual(operacion.prioridad, 'Alta')
+        self.assertEqual(operacion.estado, 'En Proceso')
+
+        delete_response = self.client.post(
+            reverse('eliminar_operacion_programada', args=[operacion.id]),
+        )
+        self.assertRedirects(delete_response, '/operacion/?ver=logistica')
+        self.assertFalse(ProgramacionOperacion.objects.filter(pk=operacion.pk).exists())
+
+
+class CombustiblesInventoryTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            username='admin-combustibles-tests',
+            email='admin-combustibles-tests@example.com',
+            password='TestPassword@123',
+        )
+        self.client.force_login(self.admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(self.admin)
+        self.proveedor = Proveedor.objects.create(
+            codigo='PROV-FUEL-01',
+            nit='1234567-8',
+            razon_social='Proveedor Combustible',
+            nombre_propietario='Contacto Prueba',
+            regimen_tributario='General',
+            tipo_factura='Factura',
+        )
+        self.labor = Labor.objects.create(
+            codigo='LAB-FUEL-01',
+            descripcion='Aplicación de fertilizante',
+            proceso='fertilizacion',
+        )
+        self.firma = FirmaAutorizada.objects.create(
+            codigo='FIR-FUEL-01',
+            nombre='Firma Autorizada Prueba',
+            puesto='Encargado',
+            area='Combustibles',
+        )
+        self.articulo = Articulo.objects.create(
+            codigo_articulo='ART-DIESEL-01',
+            descripcion='Diesel',
+            unidad_medida='Galon',
+            categoria='Combustible',
+            stock=Decimal('20.00'),
+        )
+        self.tanque = TanqueCombustible.objects.create(
+            codigo='TQ-TEST-01',
+            nombre='Tanque de Prueba',
+            tipo_combustible='Diésel',
+            capacidad_galones=Decimal('100.00'),
+            nivel_actual_galones=Decimal('20.00'),
+            ubicacion='Patio de pruebas',
+            estado='Operativo',
+        )
+
+    def datos_despacho(self, galones='8.25'):
+        return {
+            'no_vale': 'VAL-TEST-01',
+            'fecha': '2026-10-02',
+            'codigo_maquina': 'MAQ-TEST-01',
+            'tipo_combustible': 'Diésel',
+            'labor': self.labor.codigo,
+            'galones': galones,
+            'horometro_actual': '125.50',
+            'operador': 'Operador Prueba',
+            'estacion_tanque': self.tanque.codigo,
+            'proveedor': self.proveedor.codigo,
+            'despachado_por': self.firma.codigo,
+            'finca': '',
+        }
+
+    def test_dispatch_reduces_selected_tank_and_creates_record_atomically(self):
+        response = self.client.post(
+            reverse('despacho_combustible'),
+            self.datos_despacho(),
+        )
+
+        self.assertRedirects(response, reverse('despacho_combustible'))
+        self.tanque.refresh_from_db()
+        self.articulo.refresh_from_db()
+        self.assertEqual(self.tanque.nivel_actual_galones, Decimal('11.75'))
+        self.assertEqual(self.articulo.stock, Decimal('20.00'))
+        despacho = DespachoCombustible.objects.get()
+        self.assertEqual(despacho.no_vale, 'VAL-2026-0001')
+        self.assertEqual(despacho.estacion_tanque.casefold(), self.tanque.codigo.casefold())
+        self.assertEqual(despacho.labor, self.labor.descripcion)
+        self.assertEqual(despacho.proveedor, self.proveedor.razon_social)
+        self.assertEqual(despacho.despachado_por, self.firma.nombre)
+
+    def test_dispatch_numbers_are_server_generated_and_autoincrement(self):
+        first_response = self.client.post(reverse('despacho_combustible'), self.datos_despacho())
+        second_response = self.client.post(
+            reverse('despacho_combustible'),
+            {**self.datos_despacho(galones='1.00'), 'no_vale': 'VAL-MODIFICADO'},
+        )
+
+        self.assertRedirects(first_response, reverse('despacho_combustible'))
+        self.assertRedirects(second_response, reverse('despacho_combustible'))
+        self.assertEqual(
+            list(DespachoCombustible.objects.order_by('created_at').values_list('no_vale', flat=True)),
+            ['VAL-2026-0001', 'VAL-2026-0002'],
+        )
+
+    def test_dispatch_number_does_not_reuse_a_deleted_vale(self):
+        self.client.post(reverse('despacho_combustible'), self.datos_despacho())
+        despacho = DespachoCombustible.objects.get()
+        self.client.post(reverse('gestionar_despacho_combustible', args=[despacho.id]), {
+            'action': 'delete',
+        })
+        self.client.post(reverse('despacho_combustible'), self.datos_despacho())
+
+        despacho_nuevo = DespachoCombustible.objects.get()
+        self.assertEqual(despacho_nuevo.no_vale, 'VAL-2026-0002')
+
+    def test_dispatch_rejects_values_outside_the_catalogs(self):
+        response = self.client.post(reverse('despacho_combustible'), {
+            **self.datos_despacho(),
+            'despachado_por': 'Persona No Autorizada',
+        })
+
+        self.assertRedirects(response, reverse('despacho_combustible'))
+        self.assertFalse(DespachoCombustible.objects.exists())
+        self.articulo.refresh_from_db()
+        self.tanque.refresh_from_db()
+        self.assertEqual(self.articulo.stock, Decimal('20.00'))
+        self.assertEqual(self.tanque.nivel_actual_galones, Decimal('20.00'))
+
+    def test_dispatch_above_stock_is_rejected_without_creating_record(self):
+        response = self.client.post(
+            reverse('despacho_combustible'),
+            self.datos_despacho(galones='20.01'),
+        )
+
+        self.assertRedirects(response, reverse('despacho_combustible'))
+        self.articulo.refresh_from_db()
+        self.tanque.refresh_from_db()
+        self.assertEqual(self.articulo.stock, Decimal('20.00'))
+        self.assertEqual(self.tanque.nivel_actual_galones, Decimal('20.00'))
+        self.assertFalse(DespachoCombustible.objects.exists())
+
+    def test_dispatch_rejects_tank_with_a_different_fuel_type(self):
+        tanque_regular = TanqueCombustible.objects.create(
+            codigo='TQ-GAS-01',
+            nombre='Tanque Gasolina',
+            tipo_combustible='Gasolina Regular',
+            capacidad_galones=Decimal('50.00'),
+            nivel_actual_galones=Decimal('30.00'),
+            ubicacion='Patio de pruebas',
+            estado='Operativo',
+        )
+
+        response = self.client.post(reverse('despacho_combustible'), {
+            **self.datos_despacho(),
+            'estacion_tanque': tanque_regular.codigo,
+        })
+
+        self.assertRedirects(response, reverse('despacho_combustible'))
+        self.assertFalse(DespachoCombustible.objects.exists())
+        tanque_regular.refresh_from_db()
+        self.assertEqual(tanque_regular.nivel_actual_galones, Decimal('30.00'))
+
+
+    def test_recharge_above_capacity_is_rejected(self):
+        response = self.client.post(reverse('tanques_combustible'), {
+            'action': 'recarga',
+            'codigo_tanque': self.tanque.codigo,
+            'galones_recarga': '80.01',
+        })
+
+        self.assertRedirects(response, reverse('tanques_combustible'))
+        self.tanque.refresh_from_db()
+        self.assertEqual(self.tanque.nivel_actual_galones, Decimal('20.00'))
+
+    def test_negative_tank_adjustment_is_rejected(self):
+        response = self.client.post(reverse('tanques_combustible'), {
+            'action': 'ajuste',
+            'codigo_tanque': self.tanque.codigo,
+            'nuevo_nivel': '-0.01',
+            'estado': 'Operativo',
+        })
+
+        self.assertRedirects(response, reverse('tanques_combustible'))
+        self.tanque.refresh_from_db()
+        self.assertEqual(self.tanque.nivel_actual_galones, Decimal('20.00'))
+
+    def test_tank_can_be_created_updated_and_deleted_without_history(self):
+        datos = {
+            'codigo': 'TQ-TEST-02',
+            'nombre': 'Tanque Secundario',
+            'tipo_combustible': 'Gasolina Regular',
+            'capacidad_galones': '50.00',
+            'nivel_actual_galones': '10.00',
+            'ubicacion': 'Bodega Norte',
+            'estado': 'Operativo',
+        }
+        create_response = self.client.post(reverse('tanques_combustible'), {
+            **datos,
+            'action': 'crear_tanque',
+        })
+
+        self.assertRedirects(create_response, reverse('tanques_combustible'))
+        tanque = TanqueCombustible.objects.get(codigo='TQ-TEST-02')
+
+        datos.update({
+            'codigo': 'TQ-TEST-03',
+            'codigo_original': tanque.codigo,
+            'nombre': 'Tanque Patio',
+            'capacidad_galones': '60.00',
+            'nivel_actual_galones': '12.00',
+        })
+        edit_response = self.client.post(reverse('tanques_combustible'), {
+            **datos,
+            'action': 'editar_tanque',
+        })
+
+        self.assertRedirects(edit_response, reverse('tanques_combustible'))
+        tanque.refresh_from_db()
+        self.assertEqual(tanque.codigo, 'TQ-TEST-03')
+        self.assertEqual(tanque.nivel_actual_galones, Decimal('12.00'))
+
+        delete_response = self.client.post(reverse('tanques_combustible'), {
+            'action': 'eliminar_tanque',
+            'codigo_tanque': tanque.codigo,
+        })
+        self.assertRedirects(delete_response, reverse('tanques_combustible'))
+        self.assertFalse(TanqueCombustible.objects.filter(pk=tanque.pk).exists())
+
+    def test_tank_with_dispatch_history_cannot_be_deleted(self):
+        self.client.post(reverse('despacho_combustible'), self.datos_despacho())
+
+        response = self.client.post(reverse('tanques_combustible'), {
+            'action': 'eliminar_tanque',
+            'codigo_tanque': self.tanque.codigo,
+        })
+
+        self.assertRedirects(response, reverse('tanques_combustible'))
+        self.assertTrue(TanqueCombustible.objects.filter(pk=self.tanque.pk).exists())
+        self.tanque.refresh_from_db()
+        self.assertEqual(self.tanque.nivel_actual_galones, Decimal('11.75'))
+
+    def test_three_fuel_pages_render_crud_controls(self):
+        self.client.post(reverse('despacho_combustible'), self.datos_despacho())
+
+        dispatch_response = self.client.get(reverse('despacho_combustible'), {'ver': 'historial'})
+        consumption_response = self.client.get(reverse('consumo_combustible'))
+        tanks_response = self.client.get(reverse('tanques_combustible'))
+
+        self.assertEqual(dispatch_response.status_code, 200)
+        self.assertContains(dispatch_response, 'Editar')
+        self.assertContains(dispatch_response, 'Eliminar')
+        self.assertContains(dispatch_response, 'No. de Vale')
+        self.assertContains(dispatch_response, 'Maquinaria *')
+        self.assertContains(dispatch_response, 'Tanque *')
+        self.assertContains(dispatch_response, 'TQ-TEST-01 - Tanque De Prueba')
+        self.assertNotContains(dispatch_response, 'Maquinaria a Suministrar')
+        self.assertContains(dispatch_response, 'Labor')
+        self.assertContains(dispatch_response, 'Proveedor Combustible')
+        self.assertContains(dispatch_response, 'Firma Autorizada Prueba')
+        self.assertContains(dispatch_response, 'Historial de Vales')
+        self.assertNotContains(dispatch_response, 'Historial de Vales y Cargas')
+        self.assertNotContains(dispatch_response, 'Tanque Suministrador')
+        self.assertContains(dispatch_response, 'Tipo de Combustible')
+        self.assertContains(dispatch_response, 'Cantidad despachada')
+        self.assertContains(dispatch_response, 'Horómetro de Despacho')
+        self.assertContains(dispatch_response, '<th>Tanque</th>', html=True)
+        self.assertEqual(consumption_response.status_code, 200)
+        self.assertContains(consumption_response, 'Editar')
+        self.assertContains(consumption_response, 'Eliminar')
+        self.assertEqual(tanks_response.status_code, 200)
+        self.assertContains(tanks_response, 'Nuevo Tanque')
+        self.assertContains(tanks_response, 'Editar')
+        self.assertContains(tanks_response, 'Eliminar')
+
+    def test_edit_and_delete_dispatch_rebalance_selected_tank_stock(self):
+        self.client.post(reverse('despacho_combustible'), self.datos_despacho())
+        despacho = DespachoCombustible.objects.get()
+
+        datos = self.datos_despacho(galones='5.00')
+        datos.update({
+            'action': 'update',
+            'no_vale': 'VAL-TEST-02',
+        })
+        edit_response = self.client.post(
+            reverse('gestionar_despacho_combustible', args=[despacho.id]),
+            datos,
+        )
+
+        self.assertRedirects(edit_response, reverse('despacho_combustible') + '?ver=historial')
+        self.tanque.refresh_from_db()
+        despacho.refresh_from_db()
+        self.assertEqual(self.tanque.nivel_actual_galones, Decimal('15.00'))
+        self.assertEqual(despacho.no_vale, 'VAL-2026-0001')
+        self.assertEqual(despacho.galones, Decimal('5.00'))
+        self.assertEqual(despacho.proveedor, self.proveedor.razon_social)
+        self.assertEqual(despacho.labor, self.labor.descripcion)
+
+        delete_response = self.client.post(
+            reverse('gestionar_despacho_combustible', args=[despacho.id]),
+            {'action': 'delete', 'return_to': 'consumo'},
+        )
+        self.assertRedirects(delete_response, reverse('consumo_combustible'))
+        self.tanque.refresh_from_db()
+        self.assertEqual(self.tanque.nivel_actual_galones, Decimal('20.00'))
+        self.assertFalse(DespachoCombustible.objects.exists())
+
+
+class FiltroTipoMaquinariaTests(TestCase):
+    def setUp(self):
+        user = User.objects.create_superuser(
+            username='fleet-filter-user',
+            email='fleet-filter-user@example.com',
+            password='Valid-User4!Pass',
+        )
+        self.client.force_login(user)
+        self.client.cookies['jwt_token'] = generate_jwt_token(user)
+
+        self.tractor = Maquinaria.objects.create(
+            codigo_maquina='M-FILTRO-01',
+            combustible='Diésel',
+            tipo_maquina='Tractor',
+            marca_maquina='Marca A',
+            serie_maquina='SERIE-01',
+            placa_matricula='P-001',
+        )
+        Maquinaria.objects.create(
+            codigo_maquina='M-FILTRO-02',
+            combustible='Diésel',
+            tipo_maquina='Camión',
+            marca_maquina='Marca B',
+            serie_maquina='SERIE-02',
+            placa_matricula='P-002',
+        )
+
+    def test_type_filter_limits_fleet_and_remains_selected(self):
+        response = self.client.get(reverse('estado_maquinaria'), {
+            'tipo_maquina': 'Tractor',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [item['maquina'] for item in response.context['flota']],
+            [self.tractor],
+        )
+        self.assertEqual(response.context['filtro_tipo_maquina'], 'Tractor')
+        self.assertContains(response, 'value="Tractor" selected')
+
+
+class AreaLoteLimitTests(TestCase):
+    def setUp(self):
+        admin = User.objects.create_superuser(
+            username='admin-area-lote-limit',
+            email='admin-area-lote-limit@example.com',
+            password='TestPassword@123',
+        )
+        self.client.force_login(admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(admin)
+        Cuenta.objects.all().delete()
+        Labor.objects.create(codigo='LAB-RIEGO-SIN-CUENTA', descripcion='Riego sin cuenta', proceso='riego')
+        Labor.objects.create(codigo='LAB-AREA', descripcion='Siembra de prueba', proceso='siembras')
+        Cuenta.objects.create(codigo='CTA-SIEMBRA', descripcion='Cuenta de siembras', proceso='siembras')
+
+    def datos_registro(self, area):
+        return {
+            'no_boleta': f'AREA-{area}',
+            'fecha_labor': '2026-10-02',
+            'tipo_servicio': 'Preparación de suelo',
+            'proveedor': 'Proveedor de Prueba',
+            'finca': 'Finca Central',
+            'lote': '0010',
+            'area_lote': area,
+            'codigo_labor': 'LAB-AREA',
+        }
+
+    def test_area_lote_accepts_150_hectares(self):
+        response = self.client.post(reverse('registros'), self.datos_registro('150.00'))
+
+        self.assertRedirects(response, reverse('registros'))
+        registro = RegistroOperativo.objects.get(no_boleta='AREA-150.00')
+        self.assertEqual(registro.area_lote, Decimal('150.00'))
+        self.assertEqual(registro.cuenta_contable, 'CTA-SIEMBRA')
+
+    def test_operational_record_uses_the_account_for_the_selected_labor_process(self):
+        Labor.objects.create(codigo='LAB-RIEGO', descripcion='Riego por prueba', proceso='riego')
+        Cuenta.objects.create(codigo='CTA-RIEGO', descripcion='Cuenta de riego', proceso='riego')
+
+        self.client.post(reverse('registros'), {
+            **self.datos_registro('10.00'),
+            'no_boleta': 'AREA-RIEGO',
+            'codigo_labor': 'LAB-RIEGO',
+        })
+
+        registro = RegistroOperativo.objects.get(no_boleta='AREA-RIEGO')
+        self.assertEqual(registro.labor, 'Riego Por Prueba')
+        self.assertEqual(registro.cuenta_contable, 'CTA-RIEGO')
+
+    def test_operational_record_is_rejected_when_process_has_no_account(self):
+        response = self.client.post(reverse('registros'), {
+            **self.datos_registro('10.00'),
+            'no_boleta': 'AREA-SIN-CUENTA',
+            'codigo_labor': 'LAB-RIEGO-SIN-CUENTA',
+        })
+
+        self.assertRedirects(response, reverse('registros'))
+        self.assertFalse(RegistroOperativo.objects.filter(no_boleta='AREA-SIN-CUENTA').exists())
+
+    def test_transport_locations_are_saved_only_for_allowed_services(self):
+        for index, service in enumerate((
+            'Envio de semilla de caña',
+            'Transporte de personal',
+            'Viajes de material o maquinaria',
+        ), start=1):
+            with self.subTest(service=service):
+                response = self.client.post(reverse('registros'), {
+                    **self.datos_registro(f'20.{index:02d}'),
+                    'no_boleta': f'TRANSPORTE-{index}',
+                    'tipo_servicio': service,
+                    'lugar_origen': 'Guatemala',
+                    'lugar_destino': 'Quetzaltenango',
+                })
+                self.assertRedirects(response, reverse('registros'))
+                registro = RegistroOperativo.objects.get(no_boleta=f'TRANSPORTE-{index}')
+                self.assertEqual(registro.lugar_origen, 'Guatemala')
+                self.assertEqual(registro.lugar_destino, 'Quetzaltenango')
+
+    def test_transport_locations_are_not_saved_for_other_services(self):
+        self.client.post(reverse('registros'), {
+            **self.datos_registro('20.00'),
+            'no_boleta': 'SIN-TRANSPORTE',
+            'tipo_servicio': 'Preparación de suelo',
+            'lugar_origen': 'Guatemala',
+            'lugar_destino': 'Quetzaltenango',
+        })
+
+        registro = RegistroOperativo.objects.get(no_boleta='SIN-TRANSPORTE')
+        self.assertIsNone(registro.lugar_origen)
+        self.assertIsNone(registro.lugar_destino)
+
+    def test_area_lote_above_150_is_rejected(self):
+        response = self.client.post(reverse('registros'), self.datos_registro('150.01'))
+
+        self.assertRedirects(response, reverse('registros'))
+        self.assertFalse(RegistroOperativo.objects.filter(no_boleta='AREA-150.01').exists())
+
+
+class SemillaCanaSourceTests(TestCase):
+    def setUp(self):
+        admin = User.objects.create_superuser(
+            username='admin-semilla-source',
+            email='admin-semilla-source@example.com',
+            password='TestPassword@123',
+        )
+        self.client.force_login(admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(admin)
+        Cuenta.objects.all().delete()
+        Labor.objects.create(codigo='LAB-SEMILLA', descripcion='Siembra de semilla', proceso='siembras')
+        Cuenta.objects.create(codigo='CTA-SEMILLA', descripcion='Cuenta de siembras', proceso='siembras')
+
+    def datos_envio_semilla(self, **overrides):
+        datos = {
+            'no_boleta': 'SEMILLA-ORIGEN-01',
+            'fecha_labor': '2026-10-02',
+            'tipo_servicio': 'Envio de semilla de caña',
+            'proveedor': 'Proveedor de Prueba',
+            'finca': 'Finca Destino',
+            'lote': 'Lote Destino',
+            'area_lote': '12.00',
+            'codigo_labor': 'LAB-SEMILLA',
+            'corte_semilla': '1',
+            'finca_corte_semilla': 'Finca Origen',
+            'lote_corte_semilla': 'Lote 8',
+            'variedad': 'Variedad de Prueba',
+            'total_paquetes': '15',
+            'peso_kg': '225.00',
+        }
+        datos.update(overrides)
+        return datos
+
+    def test_seed_cut_saves_origin_farm_and_lot(self):
+        response = self.client.post(reverse('registros'), self.datos_envio_semilla())
+
+        self.assertRedirects(response, reverse('registros'))
+        registro = RegistroOperativo.objects.get(no_boleta='SEMILLA-ORIGEN-01')
+        self.assertEqual(registro.finca_corte_semilla, 'Finca Origen')
+        self.assertEqual(registro.lote_corte_semilla, 'Lote 8')
+
+    def test_seed_cut_requires_origin_farm_and_lot(self):
+        response = self.client.post(reverse('registros'), self.datos_envio_semilla(lote_corte_semilla=''))
+
+        self.assertRedirects(response, reverse('registros'))
+        self.assertFalse(RegistroOperativo.objects.filter(no_boleta='SEMILLA-ORIGEN-01').exists())
+
+    def test_other_services_do_not_save_cane_details(self):
+        response = self.client.post(reverse('registros'), self.datos_envio_semilla(
+            no_boleta='SERVICIO-SIN-SEMILLA',
+            tipo_servicio='Aplicaciones aereas',
+        ))
+
+        self.assertRedirects(response, reverse('registros'))
+        registro = RegistroOperativo.objects.get(no_boleta='SERVICIO-SIN-SEMILLA')
+        self.assertIsNone(registro.corte_semilla)
+        self.assertIsNone(registro.finca_corte_semilla)
+        self.assertIsNone(registro.lote_corte_semilla)
+        self.assertIsNone(registro.variedad)
+        self.assertIsNone(registro.total_paquetes)
+        self.assertIsNone(registro.peso_kg)
+
+    def test_edit_updates_seed_cut_origin(self):
+        registro = RegistroOperativo.objects.create(
+            no_boleta='SEMILLA-EDITAR-01',
+            fecha_labor='2026-10-02',
+            tipo_servicio='Envio de semilla de caña',
+            proveedor='Proveedor de Prueba',
+            finca='Finca Destino',
+            lote='Lote Destino',
+            corte_semilla='1',
+            finca_corte_semilla='Finca Anterior',
+            lote_corte_semilla='Lote Anterior',
+        )
+
+        response = self.client.post(reverse('editar_registro', args=[registro.id]), {
+            'tipo_servicio': 'Envio de semilla de caña',
+            'corte_semilla': '1',
+            'finca_corte_semilla': 'Finca Nueva',
+            'lote_corte_semilla': 'Lote 12',
+        })
+
+        self.assertRedirects(response, reverse('registros_data'))
+        registro.refresh_from_db()
+        self.assertEqual(registro.finca_corte_semilla, 'Finca Nueva')
+        self.assertEqual(registro.lote_corte_semilla, 'Lote 12')
+
+
+class ProcesosLaborTests(TestCase):
+    def setUp(self):
+        admin = User.objects.create_superuser(
+            username='admin-procesos-labor',
+            email='admin-procesos-labor@example.com',
+            password='TestPassword@123',
+        )
+        self.client.force_login(admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(admin)
+
+    def test_catalog_has_five_labor_options_per_process(self):
+        response = self.client.get(reverse('api_labores'))
+
+        self.assertEqual(response.status_code, 200)
+        labores = response.json()
+        self.assertEqual(len(labores), 15)
+        for proceso in ('siembras', 'fertilizacion', 'riego'):
+            with self.subTest(proceso=proceso):
+                self.assertEqual(sum(labor['proceso'] == proceso for labor in labores), 5)
+
+    def test_creation_and_edit_forms_group_labor_options(self):
+        create_response = self.client.get(reverse('registros'))
+        registro = RegistroOperativo.objects.create(
+            no_boleta='PROCESOS-LABOR-EDITAR',
+            fecha_labor='2026-10-02',
+            tipo_servicio='Envio de semilla de caña',
+            proveedor='Proveedor de Prueba',
+            finca='Finca Central',
+            lote='Lote 1',
+            labor='Siembra de maíz en surcos',
+            corte_semilla='2',
+        )
+        edit_response = self.client.get(reverse('editar_registro', args=[registro.id]))
+
+        for response in (create_response, edit_response):
+            with self.subTest(status=response.status_code):
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, '<optgroup label="Siembras">')
+                self.assertContains(response, '<optgroup label="Fertilización">')
+                self.assertContains(response, '<optgroup label="Riego">')

@@ -12,9 +12,10 @@
   <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
 </head>
 
-<body class="operacion-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
+<body class="operacion-body" data-device-type="{{ request.device_type|default:'unknown' }}"
+  data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
   <div class="main-wrapper">
-    <!-- Header Principal -->
+    <!-- Encabezado principal -->
     <header class="header-bar">
       <div class="header-title-box">
         <h1>🚜 Logística</h1>
@@ -85,6 +86,9 @@
       <form id="operacion-form" method="POST" action="{% url 'operacion' %}">
         {% csrf_token %}
         <input type="hidden" name="is_ajax" value="0" />
+        <input type="hidden" name="action" id="operacion-action" value="create" />
+        <input type="hidden" name="operacion_id" id="operacion-id" value="" />
+        <div id="edit-mode-banner" class="edit-mode-banner" hidden>Estás editando una operación programada.</div>
 
         <!-- 1. SERVICIO Y FECHA -->
         <div class="section-title">
@@ -94,7 +98,7 @@
           <div class="form-group">
             <label for="tipo_servicio">Tipo de Servicio *</label>
             <select name="tipo_servicio" id="tipo_servicio" class="form-control" required>
-              <option value="">-- Seleccionar Servicio --</option>
+              <option value="" selected disabled hidden></option>
               <option value="Aplicaciones aereas">Aplicaciones aéreas</option>
               <option value="Envio de semilla de caña">Envío de semilla de caña</option>
               <option value="Maquinaria rentada">Maquinaria rentada</option>
@@ -131,9 +135,9 @@
         <div class="form-grid-3">
           <!-- FINCA -->
           <div class="form-group">
-            <label for="finca">Finca * <span class="hint">(Selecciona del catálogo)</span></label>
+            <label for="finca">Finca *</label>
             <select name="finca" id="finca" class="form-control" required>
-              <option value="">-- Seleccionar Finca --</option>
+              <option value="" selected disabled hidden></option>
               {% for f in fincas %}
               <option value="{{ f.nombre }}">{{ f.codigo }} - {{ f.nombre }}</option>
               {% empty %}
@@ -153,10 +157,10 @@
 
           <!-- LOTE -->
           <div class="form-group">
-            <label for="lote">N.º de Lote * <span class="hint">(4 dígitos, ej: 0014)</span></label>
-            <input type="text" name="lote" id="lote" list="lotes-sugeridos" class="form-control" placeholder="Ej: 0001"
+            <label for="lote">N.º de Lote *</label>
+            <input type="text" name="lote" id="lote" list="lotes-sugeridos" class="form-control"
               required autocomplete="off" pattern="\d{4}" maxlength="4" inputmode="numeric"
-              title="Ingresa exactamente 4 dígitos numéricos (ej: 0014)" />
+              />
             <datalist id="lotes-sugeridos">
               <option value="0001">
               <option value="0002">
@@ -173,10 +177,9 @@
 
           <!-- CANTIDAD DE ÁREA -->
           <div class="form-group">
-            <label for="area">Cantidad de Área * <span class="hint">(Hectáreas - Ha)</span></label>
+            <label for="area">Área *</label>
             <div class="input-with-unit">
-              <input type="number" step="0.01" min="0.01" name="area" id="area" class="form-control"
-                placeholder="Ej: 14.50" required />
+              <input type="number" step="0.01" min="0.01" name="area" id="area" class="form-control" required />
               <span class="unit-suffix">Ha</span>
             </div>
           </div>
@@ -186,49 +189,46 @@
         <div class="section-title section-title-spacing">
           <span>👤 3. Responsable y Observaciones</span>
         </div>
-        <div class="form-grid-2">
-          <!-- RESPONSABLE -->
+        <div class="form-grid-3">
           <div class="form-group">
-            <label for="responsable">Responsable de la Operación * <span class="hint">(Encargado /
-                Supervisor)</span></label>
-            <input type="text" name="responsable" id="responsable" list="empleados-sugeridos" class="form-control"
-              placeholder="Seleccionar o escribir nombre del responsable" required autocomplete="off" />
-            <datalist id="empleados-sugeridos">
-              {% for emp in empleados %}
-              <option value="{{ emp.empleado }}">{{ emp.empleado }} ({{ emp.nombre_puesto }})</option>
-              {% empty %}
-              <option value="Ana María Pacheco (Auxiliar de Campo)">
-              <option value="Fernando José Torres (Auxiliar de Taller)">
-              <option value="Carlos Morales (Supervisor de Cosecha)">
-              <option value="Juan Pérez (Administrador de Finca)">
-                {% endfor %}
-            </datalist>
+            <label for="codigo_responsable">Código del Responsable *</label>
+            <input type="text" id="codigo_responsable" class="form-control"
+              autocomplete="off" required
+              aria-describedby="responsable-lookup-status" />
+            <small id="responsable-lookup-status" role="status" aria-live="polite"
+              style="min-height: 1.1em; color: var(--text-muted);"></small>
+          </div>
+          <div class="form-group">
+            <label for="responsable">Responsable de la Operación *</label>
+            <input type="text" name="responsable" id="responsable" class="form-control" required readonly />
           </div>
 
-          <!-- ESTADO INICIAL -->
           <div class="form-group">
             <label for="estado">Estado Inicial</label>
             <select name="estado" id="estado" class="form-control">
               <option value="Programada" selected>Programada</option>
               <option value="En Proceso">En Proceso</option>
               <option value="Realizada">Realizada</option>
+              <option value="Cancelada">Cancelada</option>
             </select>
           </div>
         </div>
 
         <div class="form-group form-group-spaced">
-          <label for="observaciones">Descripción / Instrucciones de Trabajo</label>
-          <textarea name="observaciones" id="observaciones" class="form-control" rows="3"
-            placeholder="Detalles sobre equipo a utilizar, especificaciones del servicio, químicos o insumos, etc..."></textarea>
+          <label for="observaciones">Descripción</label>
+          <textarea name="observaciones" id="observaciones" class="form-control" rows="3"></textarea>
         </div>
 
         <!-- BOTONES -->
         <div class="button-row">
-          <button type="submit" class="btn-submit">
+          <button id="submit-operation-btn" type="submit" class="btn-submit">
             💾 Guardar y Programar Operación
           </button>
           <button type="button" class="btn-secondary" onclick="limpiarFormulario()">
             🔄 Limpiar
+          </button>
+          <button id="cancel-edit-btn" type="button" class="btn-secondary" onclick="cancelarEdicionOperacion()" hidden>
+            Cancelar edición
           </button>
           <button type="button" class="btn-logistica btn-action-right" onclick="activarPestana('logistica')">
             🚚 Ver Toda la Programación (LOGISTICA)
@@ -256,8 +256,7 @@
       <!-- Barra de Filtros y Búsqueda -->
       <div class="logistica-toolbar">
         <div class="search-filter-box">
-          <input type="text" id="filtro-busqueda" class="search-input"
-            placeholder="🔍 Buscar por Finca, Lote, Responsable o Servicio..." onkeyup="filtrarTablaLogistica()" />
+          <input type="text" id="filtro-busqueda" class="search-input" onkeyup="filtrarTablaLogistica()" />
           <select id="filtro-estado" class="filter-select" onchange="filtrarTablaLogistica()">
             <option value="">Todos los Estados</option>
             <option value="Programada">Programada</option>
@@ -297,7 +296,10 @@
           </thead>
           <tbody id="tabla-logistica-body">
             {% for prog in programaciones %}
-            <tr data-id="{{ prog.id }}" data-estado="{{ prog.estado }}" data-finca="{{ prog.finca }}">
+            <tr data-id="{{ prog.id }}" data-estado="{{ prog.estado }}" data-finca="{{ prog.finca }}"
+              data-service="{{ prog.tipo_servicio }}" data-date="{{ prog.fecha|date:'Y-m-d' }}"
+              data-lote="{{ prog.lote }}" data-area="{{ prog.area }}" data-responsable="{{ prog.responsable }}"
+              data-prioridad="{{ prog.prioridad }}" data-observaciones="{{ prog.observaciones|default:'' }}">
               <td class="cell-id" data-num>{{ forloop.counter }}</td>
               <td class="nowrap cell-bold">{{ prog.fecha|date:"d/m/Y" }}</td>
               <td class="cell-service">{{ prog.tipo_servicio }}</td>
@@ -327,6 +329,9 @@
                     <option value="Realizada">Realizada</option>
                     <option value="Cancelada">Cancelada</option>
                   </select>
+
+                  <button type="button" class="btn-edit-mini" onclick="editarOperacion({{ prog.id }})"
+                    title="Editar operación" aria-label="Editar operación {{ prog.id }}">Editar</button>
 
                   <form method="POST" action="{% url 'eliminar_operacion_programada' prog.id %}"
                     class="delete-form-inline" onsubmit="eliminarOperacionAjax(event, {{ prog.id }}, this)">
@@ -365,6 +370,54 @@
         const today = new Date().toISOString().split('T')[0];
         fechaInput.value = today;
       }
+
+      const codigoResponsable = document.getElementById('codigo_responsable');
+      const nombreResponsable = document.getElementById('responsable');
+      const estadoBusquedaResponsable = document.getElementById('responsable-lookup-status');
+      let temporizadorBusquedaResponsable;
+
+      function buscarResponsable() {
+        const codigo = codigoResponsable.value.trim();
+        if (!codigo) {
+          nombreResponsable.value = '';
+          estadoBusquedaResponsable.textContent = '';
+          return;
+        }
+
+        estadoBusquedaResponsable.textContent = 'Buscando responsable...';
+        fetch(`/accounts/api/buscar-usuario/?codigo=${encodeURIComponent(codigo)}`)
+          .then(response => response.json().then(data => ({ response, data })))
+          .then(({ response, data }) => {
+            if (codigo !== codigoResponsable.value.trim()) return;
+            if (response.ok && data.success) {
+              nombreResponsable.value = data.nombre;
+              estadoBusquedaResponsable.textContent = 'Responsable encontrado.';
+            } else {
+              nombreResponsable.value = '';
+              estadoBusquedaResponsable.textContent = data.error || 'No se encontró el empleado.';
+            }
+          })
+          .catch(() => {
+            if (codigo !== codigoResponsable.value.trim()) return;
+            nombreResponsable.value = '';
+            estadoBusquedaResponsable.textContent = 'No se pudo consultar el empleado.';
+          });
+      }
+
+      codigoResponsable.addEventListener('input', function () {
+        clearTimeout(temporizadorBusquedaResponsable);
+        nombreResponsable.value = '';
+        if (!this.value.trim()) {
+          estadoBusquedaResponsable.textContent = '';
+          return;
+        }
+        temporizadorBusquedaResponsable = setTimeout(buscarResponsable, 300);
+      });
+
+      codigoResponsable.addEventListener('blur', function () {
+        clearTimeout(temporizadorBusquedaResponsable);
+        buscarResponsable();
+      });
 
       // Sincronizar valor seleccionado en selectores de estado
       document.querySelectorAll('.select-estado-mini[data-selected]').forEach(function (select) {
@@ -405,10 +458,45 @@
     function limpiarFormulario() {
       const form = document.getElementById('operacion-form');
       form.reset();
+      document.getElementById('operacion-action').value = 'create';
+      document.getElementById('operacion-id').value = '';
+      document.getElementById('edit-mode-banner').hidden = true;
+      document.getElementById('cancel-edit-btn').hidden = true;
+      document.getElementById('submit-operation-btn').textContent = '💾 Guardar y Programar Operación';
       const fechaInput = document.getElementById('fecha');
       if (fechaInput) {
         fechaInput.value = new Date().toISOString().split('T')[0];
       }
+    }
+
+    function cancelarEdicionOperacion() {
+      limpiarFormulario();
+      activarPestana('logistica');
+    }
+
+    function editarOperacion(operacionId) {
+      const fila = document.querySelector(`#tabla-logistica-body tr[data-id="${operacionId}"]`);
+      if (!fila) return;
+
+      const formulario = document.getElementById('operacion-form');
+      formulario.elements.namedItem('tipo_servicio').value = fila.dataset.service;
+      formulario.elements.namedItem('fecha').value = fila.dataset.date;
+      formulario.elements.namedItem('prioridad').value = fila.dataset.prioridad;
+      formulario.elements.namedItem('finca').value = fila.dataset.finca;
+      formulario.elements.namedItem('lote').value = fila.dataset.lote;
+      formulario.elements.namedItem('area').value = fila.dataset.area;
+      formulario.elements.namedItem('responsable').value = fila.dataset.responsable;
+      document.getElementById('codigo_responsable').value = '';
+      document.getElementById('responsable-lookup-status').textContent = '';
+      formulario.elements.namedItem('estado').value = fila.dataset.estado;
+      formulario.elements.namedItem('observaciones').value = fila.dataset.observaciones;
+      document.getElementById('operacion-action').value = 'update';
+      document.getElementById('operacion-id').value = operacionId;
+      document.getElementById('edit-mode-banner').hidden = false;
+      document.getElementById('cancel-edit-btn').hidden = false;
+      document.getElementById('submit-operation-btn').textContent = 'Guardar cambios';
+      activarPestana('programar');
+      document.getElementById('tipo_servicio').focus();
     }
 
     // Renumerar correlativo visual de la tabla (1, 2, 3...)
@@ -438,7 +526,7 @@
               fila.remove();
               renumerarTabla();
             }
-            // Actualizar contador del header
+            // Actualizar el contador del encabezado
             const metricTotal = document.getElementById('metric-total');
             if (metricTotal) {
               const actual = parseInt(metricTotal.textContent) || 0;

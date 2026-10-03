@@ -19,3 +19,14 @@ eliminar_operacion_programada = backend_views.eliminar_operacion_programada
 reportes = backend_views.reportes
 indicadores = backend_views.indicadores
 
+# Combustibles
+despacho_combustible = backend_views.despacho_combustible
+gestionar_despacho_combustible = backend_views.gestionar_despacho_combustible
+consumo_combustible = backend_views.consumo_combustible
+tanques_combustible = backend_views.tanques_combustible
+
+# Maquinaria y Mantenimiento
+ordenes_mantenimiento = backend_views.ordenes_mantenimiento
+cambiar_estado_orden_mantenimiento = backend_views.cambiar_estado_orden_mantenimiento
+control_horometros = backend_views.control_horometros
+estado_maquinaria = backend_views.estado_maquinaria

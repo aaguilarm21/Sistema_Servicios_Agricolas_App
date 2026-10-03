@@ -20,11 +20,13 @@ CAMPOS_IDENTIFICACION = frozenset({
     'codigo',
     'codigo_articulo',
     'codigo_maquina',
+    'codigo_orden',
     'cuenta_contable',
     'id_proveedor',
     'nit',
     'no_boleta',
     'no_cui',
+    'no_vale',
     'num_factura',
     'placa',
     'placa_matricula',
@@ -180,31 +182,54 @@ class Articulo(ModeloTextoNormalizado):
 # ==================== CATALOGOS AUXILIARES ====================
 
 class Labor(ModeloTextoNormalizado):
+    CAMPOS_IDENTIFICACION = frozenset({'proceso'})
+
+    PROCESO_CHOICES = [
+        ('siembras', 'Siembras'),
+        ('fertilizacion', 'Fertilización'),
+        ('riego', 'Riego'),
+    ]
+
     codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
     descripcion = models.CharField(max_length=200, verbose_name='Descripcion')
+    proceso = models.CharField(max_length=20, choices=PROCESO_CHOICES, verbose_name='Proceso', default='siembras')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Labor'
         verbose_name_plural = 'Labores'
-        ordering = ['codigo']
+        ordering = ['proceso', 'codigo']
 
     def __str__(self):
         return f"{self.codigo} - {self.descripcion}"
 
 
 class Cuenta(ModeloTextoNormalizado):
-    codigo = models.CharField(max_length=50, unique=True, verbose_name='Codigo')
+    CAMPOS_IDENTIFICACION = frozenset({'proceso'})
+
+    codigo = models.CharField(
+        max_length=12,
+        unique=True,
+        validators=[RegexValidator(r'^[0-9]{12}$', 'El código de cuenta debe contener exactamente 12 dígitos.')],
+        verbose_name='Codigo',
+    )
     descripcion = models.CharField(max_length=200, verbose_name='Descripcion')
     tipo = models.CharField(max_length=100, verbose_name='Tipo', blank=True, null=True)
+    proceso = models.CharField(max_length=20, choices=Labor.PROCESO_CHOICES, unique=True, verbose_name='Proceso')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = 'Cuenta'
         verbose_name_plural = 'Cuentas'
-        ordering = ['codigo']
+        ordering = ['proceso']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(proceso__in=['siembras', 'fertilizacion', 'riego']),
+                name='cuenta_proceso_valido',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.descripcion}"
@@ -329,6 +354,8 @@ class RegistroOperativo(ModeloTextoNormalizado):
     actividad = models.CharField(max_length=200, verbose_name='Actividad', blank=True, null=True)
     labor = models.CharField(max_length=200, verbose_name='Labor', blank=True, null=True)
     corte_semilla = models.CharField(max_length=20, verbose_name='Lote Corte Semilla', blank=True, null=True)
+    finca_corte_semilla = models.CharField(max_length=200, verbose_name='Finca de Corte de Semilla', blank=True, null=True)
+    lote_corte_semilla = models.CharField(max_length=200, verbose_name='Lote de Corte de Semilla', blank=True, null=True)
     unidades = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Unidades', blank=True, null=True)
     horometro_inicial = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Horómetro Inicial', blank=True, null=True)
     horometro_final = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Horómetro Final', blank=True, null=True)
@@ -456,3 +483,180 @@ class LoginAttempt(models.Model):
     def __str__(self):
         return f"{self.username_attempt or 'Usuario desconocido'} - {self.created_at:%Y-%m-%d %H:%M:%S}"
 
+
+# ==================== MÓDULO: COMBUSTIBLES ====================
+
+class SecuenciaDespacho(ModeloTextoNormalizado):
+    anio = models.PositiveSmallIntegerField(verbose_name='Año')
+    ultimo_numero = models.PositiveIntegerField(default=0, verbose_name='Último correlativo')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Secuencia de despacho'
+        verbose_name_plural = 'Secuencias de despachos'
+
+
+class DespachoCombustible(ModeloTextoNormalizado):
+    CAMPOS_IDENTIFICACION = frozenset({'no_vale', 'codigo_maquina'})
+
+    no_vale = models.CharField(max_length=50, unique=True, verbose_name='No. Vale / Ticket')
+    fecha = models.DateField(verbose_name='Fecha de Despacho')
+    codigo_maquina = models.CharField(max_length=50, verbose_name='Código Máquina')
+    tipo_combustible = models.CharField(max_length=50, default='Diésel', verbose_name='Tipo de Combustible')
+    galones = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Galones Suministrados')
+    horometro_actual = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Horómetro de Carga')
+    labor = models.CharField(max_length=200, blank=True, null=True, verbose_name='Labor')
+    operador = models.CharField(max_length=150, verbose_name='Operador / Conductor')
+    proveedor = models.CharField(max_length=200, blank=True, null=True, verbose_name='Proveedor')
+    estacion_tanque = models.CharField(max_length=150, verbose_name='Estación / Tanque Suministrador')
+    finca = models.CharField(max_length=150, blank=True, null=True, verbose_name='Finca / Ubicación')
+    despachado_por = models.CharField(max_length=150, blank=True, null=True, verbose_name='Despachador Responsable')
+    observaciones = models.TextField(blank=True, null=True, verbose_name='Observaciones')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Despacho de Combustible'
+        verbose_name_plural = 'Despachos de Combustibles'
+        ordering = ['-fecha', '-created_at']
+
+    def __str__(self):
+        return f"{self.no_vale} - {self.codigo_maquina} ({self.galones} Gal)"
+
+
+class TanqueCombustible(ModeloTextoNormalizado):
+    CAMPOS_IDENTIFICACION = frozenset({'codigo'})
+
+    ESTADO_CHOICES = [
+        ('Operativo', 'Operativo'),
+        ('Mantenimiento', 'Mantenimiento'),
+        ('En Reserva', 'En Reserva'),
+    ]
+
+    codigo = models.CharField(max_length=50, unique=True, verbose_name='Código de Tanque')
+    nombre = models.CharField(max_length=150, verbose_name='Nombre del Tanque')
+    tipo_combustible = models.CharField(max_length=50, default='Diésel', verbose_name='Tipo Combustible')
+    capacidad_galones = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Capacidad Total (Galones)')
+    nivel_actual_galones = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Nivel Actual (Galones)')
+    ubicacion = models.CharField(max_length=150, verbose_name='Ubicación / Finca')
+    estado = models.CharField(max_length=50, choices=ESTADO_CHOICES, default='Operativo', verbose_name='Estado')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Tanque de Combustible'
+        verbose_name_plural = 'Tanques de Combustible'
+        ordering = ['codigo']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre} ({self.nivel_actual_galones}/{self.capacidad_galones} Gal)"
+
+
+# ==================== MÓDULO: MAQUINARIA Y MANTENIMIENTO ====================
+
+class OrdenMantenimiento(ModeloTextoNormalizado):
+    CAMPOS_IDENTIFICACION = frozenset({'codigo_orden', 'codigo_maquina'})
+
+    ESTADO_CHOICES = [
+        ('Pendiente', 'Pendiente'),
+        ('En Taller', 'En Taller'),
+        ('Finalizada', 'Finalizada'),
+        ('Cancelada', 'Cancelada'),
+    ]
+
+    PRIORIDAD_CHOICES = [
+        ('Baja', 'Baja'),
+        ('Media', 'Media'),
+        ('Alta', 'Alta'),
+        ('Urgente', 'Urgente'),
+    ]
+
+    TIPO_CHOICES = [
+        ('Preventivo', 'Preventivo'),
+        ('Correctivo', 'Correctivo'),
+        ('Rutinario', 'Rutinario'),
+        ('Emergencia', 'Emergencia'),
+    ]
+
+    codigo_orden = models.CharField(max_length=50, unique=True, verbose_name='Código Orden')
+    fecha_ingreso = models.DateField(verbose_name='Fecha Ingreso')
+    codigo_maquina = models.CharField(max_length=50, verbose_name='Código Máquina')
+    tipo_mantenimiento = models.CharField(max_length=50, choices=TIPO_CHOICES, default='Preventivo', verbose_name='Tipo de Mantenimiento')
+    prioridad = models.CharField(max_length=30, choices=PRIORIDAD_CHOICES, default='Media', verbose_name='Prioridad')
+    estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='Pendiente', verbose_name='Estado')
+    mecanico = models.CharField(max_length=150, verbose_name='Mecánico / Taller Responsable')
+    horometro = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Horómetro de Ingreso')
+    falla_reportada = models.TextField(verbose_name='Falla / Motivo de Ingreso')
+    trabajos_realizados = models.TextField(blank=True, null=True, verbose_name='Trabajos Realizados')
+    costo_estimado = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Costo (Q)')
+    fecha_entrega = models.DateField(blank=True, null=True, verbose_name='Fecha de Entrega')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Orden de Mantenimiento'
+        verbose_name_plural = 'Órdenes de Mantenimiento'
+        ordering = ['-fecha_ingreso', '-created_at']
+
+    def __str__(self):
+        return f"{self.codigo_orden} - {self.codigo_maquina} [{self.estado}]"
+
+
+class ControlServicioHorometro(ModeloTextoNormalizado):
+    CAMPOS_IDENTIFICACION = frozenset({'codigo_maquina'})
+
+    ESTADO_ALERTA_CHOICES = [
+        ('Al Día', 'Al Día'),
+        ('Próximo a Vencer', 'Próximo a Vencer'),
+        ('Vencido', 'Vencido'),
+    ]
+
+    codigo_maquina = models.CharField(max_length=50, verbose_name='Código Máquina')
+    tipo_servicio = models.CharField(max_length=100, verbose_name='Tipo de Servicio Preventivo')
+    intervalo_horas = models.IntegerField(default=250, verbose_name='Intervalo (Horas)')
+    ultimo_horometro = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Último Horómetro de Servicio')
+    proximo_horometro = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Próximo Horómetro Sugerido')
+    horometro_actual = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Horómetro Actual Registrado')
+    estado_alerta = models.CharField(max_length=30, choices=ESTADO_ALERTA_CHOICES, default='Al Día', verbose_name='Estado de Alerta')
+    fecha_ultimo_servicio = models.DateField(blank=True, null=True, verbose_name='Fecha Último Servicio')
+    observaciones = models.TextField(blank=True, null=True, verbose_name='Observaciones')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Control de Servicio por Horómetro'
+        verbose_name_plural = 'Controles de Servicio por Horómetro'
+        ordering = ['codigo_maquina', 'proximo_horometro']
+
+    def __str__(self):
+        return f"{self.codigo_maquina} - {self.tipo_servicio} ({self.estado_alerta})"
+
+
+class DisponibilidadMaquinaria(ModeloTextoNormalizado):
+    CAMPOS_IDENTIFICACION = frozenset({'codigo_maquina'})
+
+    ESTADO_CHOICES = [
+        ('Disponible', 'Disponible'),
+        ('En Campo', 'En Campo'),
+        ('En Taller', 'En Taller'),
+        ('Fuera de Servicio', 'Fuera de Servicio'),
+    ]
+
+    codigo_maquina = models.CharField(max_length=50, unique=True, verbose_name='Código Máquina')
+    estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='Disponible', verbose_name='Estado Operativo')
+    finca_actual = models.CharField(max_length=150, blank=True, null=True, verbose_name='Finca / Ubicación Actual')
+    operador_asignado = models.CharField(max_length=150, blank=True, null=True, verbose_name='Operador Asignado')
+    horometro_actual = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name='Horómetro Acumulado')
+    fecha_actualizacion = models.DateField(auto_now=True, verbose_name='Última Actualización')
+    observaciones = models.TextField(blank=True, null=True, verbose_name='Observaciones')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Disponibilidad de Maquinaria'
+        verbose_name_plural = 'Disponibilidad de Maquinarias'
+        ordering = ['codigo_maquina']
+
+    def __str__(self):
+        return f"{self.codigo_maquina} - {self.estado}"

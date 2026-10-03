@@ -1,0 +1,611 @@
+/* ==========================================================================
+   ESTILOS PARA MÓDULO DE COMBUSTIBLES
+   Sistema de Servicios Agrícolas
+   ========================================================================== */
+
+:root {
+  --fuel-primary: #2e7d32;
+  --fuel-dark: #1b5e20;
+  --fuel-darker: #14532d;
+  --fuel-light: #e8f5e9;
+  --fuel-border: #a5d6a7;
+  --fuel-accent: #66bb6a;
+  --bg-gradient: linear-gradient(135deg, #f1f8e9 0%, #e8f5e9 100%);
+  --card-bg: #ffffff;
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+}
+
+body.fuel-body {
+  background: var(--bg-gradient);
+  min-height: 100vh;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  padding-bottom: 40px;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.main-wrapper {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 16px;
+}
+
+/* Header bar */
+.header-bar.fuel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: white;
+  padding: 18px 24px;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(46, 125, 50, 0.12);
+  border-bottom: 4px solid var(--fuel-primary);
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.header-title-box h1 {
+  color: var(--fuel-darker);
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-title-box p {
+  color: #55705a;
+  margin: 4px 0 0;
+  font-size: 0.92rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn-volver {
+  background: #f1f8e9;
+  color: #1b5e20;
+  padding: 10px 16px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid var(--fuel-border);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-volver:hover {
+  background: #dcedc8;
+  color: #14532d;
+  transform: translateY(-1px);
+}
+
+.btn-action-primary {
+  background: linear-gradient(135deg, var(--fuel-primary) 0%, var(--fuel-dark) 100%);
+  color: #ffffff !important;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.28);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-action-primary:hover {
+  background: linear-gradient(135deg, #1b5e20 0%, #14532d 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.34);
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.metric-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 3px 12px rgba(46, 125, 50, 0.08);
+  border: 1px solid var(--fuel-border);
+  transition: transform 0.2s;
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 18px rgba(46, 125, 50, 0.15);
+}
+
+.metric-card.gold { border-left: 5px solid #558b2f; }
+.metric-card.blue { border-left: 5px solid #2e7d32; }
+.metric-card.green { border-left: 5px solid #388e3c; }
+.metric-card.orange { border-left: 5px solid #81c784; }
+
+.metric-icon {
+  font-size: 2.2rem;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f8e9;
+  border-radius: 12px;
+}
+
+.metric-info h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #55705a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.metric-num {
+  margin: 4px 0 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #173b2a;
+}
+
+.metric-unit {
+  font-size: 0.9rem;
+  color: #55705a;
+  font-weight: 600;
+}
+
+/* Nav Tabs */
+.nav-tabs-wrapper {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--fuel-border);
+  padding-bottom: 2px;
+  flex-wrap: wrap;
+}
+
+.nav-tab-btn {
+  background: #fff;
+  border: 1px solid var(--fuel-border);
+  border-bottom: none;
+  padding: 10px 18px;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  font-size: 0.93rem;
+  color: #78716c;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.nav-tab-btn:hover {
+  background: #f1f8e9;
+  color: var(--fuel-dark);
+}
+
+.nav-tab-btn.active {
+  background: var(--fuel-primary);
+  color: #ffffff;
+  border-color: var(--fuel-primary);
+  font-weight: 700;
+}
+
+/* Card Panel */
+.card-panel {
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(46, 125, 50, 0.08);
+  border: 1px solid var(--fuel-border);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.panel-title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e1eee2;
+  padding-bottom: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.panel-title-bar h2 {
+  font-size: 1.25rem;
+  color: var(--fuel-darker);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Form Styling */
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #23452f;
+}
+
+.form-control {
+  padding: 10px 12px;
+  border: 1.5px solid #b7d9ba;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-control:focus {
+  border-color: var(--fuel-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.18);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  border-top: 1px solid #e1eee2;
+  padding-top: 16px;
+}
+
+/* Tables */
+.table-responsive {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.data-table th {
+  background: #e8f5e9;
+  color: var(--fuel-darker);
+  font-weight: 700;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--fuel-border);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e1eee2;
+  color: #23452f;
+}
+
+.data-table tr:hover {
+  background: #f1f8e9;
+}
+
+/* Badges */
+.badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge-tag.operativo, .badge-tag.success, .badge-tag.al-dia {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badge-tag.warning, .badge-tag.proximo {
+  background: #dcedc8;
+  color: #33691e;
+}
+
+.badge-tag.danger, .badge-tag.vencido {
+  background: #c8e6c9;
+  color: #14532d;
+}
+
+.badge-tag.info {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+/* Tank visual cards */
+.tanks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 20px;
+}
+
+.tank-card {
+  background: #ffffff;
+  border: 1.5px solid var(--fuel-border);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(46, 125, 50, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.tank-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.tank-code {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--fuel-primary);
+  background: #f1f8e9;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.tank-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #173b2a;
+  margin: 6px 0 2px;
+}
+
+.tank-meta {
+  color: #55705a;
+  font-size: 0.85rem;
+}
+
+.tank-level-bar-bg {
+  width: 100%;
+  height: 22px;
+  background: #e8f5e9;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 14px 0 10px;
+  border: 1px solid #d5e8d6;
+  position: relative;
+}
+
+.tank-level-bar-fill {
+  height: 100%;
+  border-radius: 12px;
+  transition: width 0.6s ease;
+  background: linear-gradient(90deg, #81c784, #2e7d32);
+}
+
+.tank-level-bar-fill.high { background: linear-gradient(90deg, #a5d6a7, #388e3c); }
+.tank-level-bar-fill.medium { background: linear-gradient(90deg, #81c784, #558b2f); }
+.tank-level-bar-fill.low { background: linear-gradient(90deg, #66bb6a, #1b5e20); }
+
+.tank-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  margin-top: 6px;
+}
+
+.tank-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--fuel-border);
+  background: #f1f8e9;
+  color: #1b5e20;
+  transition: all 0.2s;
+}
+
+.btn-sm:hover {
+  background: #e8f5e9;
+}
+
+.btn-sm.btn-fuel-recarga {
+  background: var(--fuel-primary);
+  color: #fff;
+  border-color: var(--fuel-primary);
+}
+
+.btn-sm.btn-fuel-recarga:hover {
+  background: var(--fuel-dark);
+}
+
+.fuel-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.fuel-row-actions form {
+  margin: 0;
+}
+
+.fuel-edit-link,
+.fuel-delete-link {
+  min-height: 34px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid var(--fuel-border);
+  border-radius: 6px;
+  background: #f1f8e9;
+  color: #1b5e20;
+  cursor: pointer;
+}
+
+.fuel-edit-link:hover {
+  background: #dcedc8;
+}
+
+.fuel-delete-link {
+  border-color: #81c784;
+  background: #e8f5e9;
+  color: #14532d;
+}
+
+.fuel-delete-link:hover {
+  background: #c8e6c9;
+}
+
+.tank-card-actions {
+  align-items: stretch;
+}
+
+.tank-card-actions form {
+  display: flex;
+  flex: 1;
+}
+
+.tank-card-actions form button {
+  width: 100%;
+}
+
+.tank-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.tank-modal-box {
+  max-width: 680px;
+}
+
+#cancelar-edicion-despacho[hidden] {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .form-grid-3, .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .tank-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .fuel-row-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ==================== MODALES (sistema unificado) ==================== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.modal-overlay.is-open { display: flex; }
+
+.modal-box {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  padding: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: fuelModalIn 0.25s ease;
+  border-top: 4px solid var(--fuel-primary);
+}
+
+.modal-box.card-panel { margin: 0; }
+
+@keyframes fuelModalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--fuel-darker);
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-subtitle {
+  color: #78716c;
+  font-size: 0.88rem;
+  margin: 0 0 18px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #d5e8d6;
+}
+
+.form-group-spaced { margin-top: 8px; }

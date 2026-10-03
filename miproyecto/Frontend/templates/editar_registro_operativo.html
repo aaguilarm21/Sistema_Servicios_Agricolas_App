@@ -45,14 +45,14 @@
                         <div class="form-group">
                             <label for="tipo_servicio">Tipo Servicio</label>
                             <select id="tipo_servicio" name="tipo_servicio" required>
-                                <option value="">Seleccionar</option>
-                                <option value="Aplicaciones aereas" {% if registro.tipo_servicio == "Aplicaciones aereas" %}selected{% endif %}>Aplicaciones aereas</option>
-                                <option value="Envio de semilla de caña" {% if registro.tipo_servicio == "Envio de semilla de caña" %}selected{% endif %}>Envio de semilla de caña</option>
-                                <option value="Maquinaria rentada" {% if registro.tipo_servicio == "Maquinaria rentada" %}selected{% endif %}>Maquinaria rentada</option>
-                                <option value="Servicio contratado" {% if registro.tipo_servicio == "Servicio contratado" %}selected{% endif %}>Servicio contratado</option>
-                                <option value="Servicios de pinchazo" {% if registro.tipo_servicio == "Servicios de pinchazo" %}selected{% endif %}>Servicios de pinchazo</option>
-                                <option value="Transporte de personal" {% if registro.tipo_servicio == "Transporte de personal" %}selected{% endif %}>Transporte de personal</option>
-                                <option value="Viajes de material o maquinaria" {% if registro.tipo_servicio == "Viajes de material o maquinaria" %}selected{% endif %}>Viajes de material o maquinaria</option>
+                                <option value="" selected disabled hidden></option>
+                                <option value="Aplicaciones aereas" {% if registro.tipo_servicio|lower == "aplicaciones aereas" %}selected{% endif %}>Aplicaciones aereas</option>
+                                <option value="Envio de semilla de caña" {% if registro.tipo_servicio|lower == "envio de semilla de caña" %}selected{% endif %}>Envio de semilla de caña</option>
+                                <option value="Maquinaria rentada" {% if registro.tipo_servicio|lower == "maquinaria rentada" %}selected{% endif %}>Maquinaria rentada</option>
+                                <option value="Servicio contratado" {% if registro.tipo_servicio|lower == "servicio contratado" %}selected{% endif %}>Servicio contratado</option>
+                                <option value="Servicios de pinchazo" {% if registro.tipo_servicio|lower == "servicios de pinchazo" %}selected{% endif %}>Servicios de pinchazo</option>
+                                <option value="Transporte de personal" {% if registro.tipo_servicio|lower == "transporte de personal" %}selected{% endif %}>Transporte de personal</option>
+                                <option value="Viajes de material o maquinaria" {% if registro.tipo_servicio|lower == "viajes de material o maquinaria" %}selected{% endif %}>Viajes de material o maquinaria</option>
                             </select>
                         </div>
                     </div>
@@ -65,7 +65,7 @@
                         <div class="form-group">
                             <label for="proveedor">Proveedor</label>
                             <select id="proveedor" name="proveedor" required>
-                                <option value="">Seleccionar Proveedor</option>
+                                <option value="" selected disabled hidden></option>
                                 {% for prov in proveedores %}
                                 <option value="{{ prov.razon_social }}" {% if registro.proveedor == prov.razon_social %}selected{% endif %}>{{ prov.codigo }} - {{ prov.razon_social }}</option>
                                 {% endfor %}
@@ -74,7 +74,7 @@
                         <div class="form-group">
                             <label for="codigo_maquina">Código Máquina</label>
                             <select id="codigo_maquina" name="codigo_maquina">
-                                <option value="">Seleccionar Máquina</option>
+                                <option value="" selected disabled hidden></option>
                                 {% for maq in maquinarias %}
                                 <option value="{{ maq.codigo_maquina }}" data-placa="{{ maq.placa_matricula|default:'' }}" {% if registro.codigo_maquina == maq.codigo_maquina %}selected{% endif %}>{{ maq.codigo_maquina }} - {{ maq.tipo_maquina }}</option>
                                 {% endfor %}
@@ -87,11 +87,11 @@
                     </div>
                     <div class="form-row two-cols">
                         <div class="form-group">
-                            <label for="codigo_operador">Código Operador</label>
-                            <input type="text" id="codigo_operador" placeholder="Ingrese el código y presione Enter o Tab" value="{{ registro.operador }}">
+                            <label for="codigo_operador">Código de operador</label>
+                            <input type="text" id="codigo_operador" value="{{ registro.operador }}">
                         </div>
                         <div class="form-group">
-                            <label for="operador">Operador (Nombre)</label>
+                            <label for="operador">Nombre del operador</label>
                             <input type="text" id="operador" name="operador" readonly style="background-color: #f5f5f5;" value="{{ registro.operador }}">
                         </div>
                     </div>
@@ -104,14 +104,14 @@
                         <div class="form-group">
                             <label for="finca">Finca</label>
                             <select id="finca" name="finca" required>
-                                <option value="">Seleccionar Finca</option>
+                                <option value="" selected disabled hidden></option>
                                 {% for f in fincas %}
                                 <option value="{{ f.nombre }}" {% if registro.finca == f.nombre %}selected{% endif %}>{{ f.codigo }} - {{ f.nombre }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="lote">Caña | Lote</label>
+                            <label for="lote">Lote</label>
                             <input type="text" id="lote" name="lote" value="{{ registro.lote }}" required>
                         </div>
                         <div class="form-group">
@@ -121,16 +121,36 @@
                     </div>
                     <div class="form-row three-cols">
                         <div class="form-group">
-                            <label for="codigo_labor">Código Labor</label>
-                            <input type="text" id="codigo_labor" placeholder="Ingrese código" value="{{ registro.labor|default:'' }}">
+                                <label for="codigo_labor">Labor</label>
+                                <select id="codigo_labor">
+                                {% if not labor_actual_catalogada and registro.labor %}
+                                <option value="{{ registro.labor }}" data-descripcion="{{ registro.labor }}" selected>{{ registro.labor }} (Histórica)</option>
+                                {% else %}
+                                <option value="" selected disabled hidden></option>
+                                {% endif %}
+                                {% for proceso, etiqueta in procesos_labores %}
+                                <optgroup label="{{ etiqueta }}">
+                                    {% for l in labores %}{% if l.proceso == proceso %}
+                                    <option value="{{ l.codigo }}" data-descripcion="{{ l.descripcion }}" {% if registro.labor == l.descripcion %}selected{% endif %}>{{ l.codigo }} - {{ l.descripcion }}</option>
+                                    {% endif %}{% endfor %}
+                                </optgroup>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="form-group">
-                            <label for="labor">Labor (Nombre)</label>
+                            <label for="labor">Descripción de labor</label>
                             <input type="text" id="labor" name="labor" readonly style="background-color: #f5f5f5;" value="{{ registro.labor|default:'' }}">
                         </div>
-                        <div class="form-group">
-                            <label for="corte_semilla">Lote Corte Semilla (Si=1 No=2)</label>
-                            <input type="text" id="corte_semilla" name="corte_semilla" placeholder="1 o 2" value="{{ registro.corte_semilla|default:'' }}">
+                        <div class="form-group" id="campo-corte-semilla" hidden>
+                                <label for="corte_semilla">Corte de semilla</label>
+                            <div class="corte-semilla-control">
+                                <select id="corte_semilla" name="corte_semilla" required disabled>
+                                    <option value="" selected disabled hidden></option>
+                                    <option value="1" {% if registro.corte_semilla == '1' or registro.corte_semilla == 'Si' or registro.corte_semilla == 'Sí' %}selected{% endif %}>Sí</option>
+                                    <option value="2" {% if registro.corte_semilla == '2' or registro.corte_semilla == 'No' %}selected{% endif %}>No</option>
+                                </select>
+                                <span id="corte-semilla-indicador" class="corte-semilla-indicador" aria-live="polite"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -169,25 +189,40 @@
                 </div>
 
                 <!-- DETALLES DE CAÑA -->
-                <div class="form-section">
+                <div class="form-section" id="seccion-detalles-cana" hidden>
                     <div class="section-title">Detalles de Caña</div>
                     <div class="form-row three-cols">
                         <div class="form-group">
                             <label for="variedad">Variedad</label>
-                            <select id="variedad" name="variedad">
-                                <option value="">Seleccionar Variedad</option>
+                            <select id="variedad" name="variedad" disabled>
+                                    <option value="" selected disabled hidden></option>
                                 {% for var in variedades %}
                                 <option value="{{ var.descripcion }}" {% if registro.variedad == var.descripcion %}selected{% endif %}>{{ var.codigo }} - {{ var.descripcion }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="total_paquetes">Total Paq/Cajas</label>
-                            <input type="number" id="total_paquetes" name="total_paquetes" value="{{ registro.total_paquetes|default:'' }}">
+                            <label for="total_paquetes">Total de paquetes</label>
+                            <input type="number" id="total_paquetes" name="total_paquetes" value="{{ registro.total_paquetes|default:'' }}" disabled>
                         </div>
                         <div class="form-group">
                             <label for="peso_kg">Peso Kg</label>
-                            <input type="number" id="peso_kg" name="peso_kg" step="0.01" value="{{ registro.peso_kg|default:'' }}">
+                            <input type="number" id="peso_kg" name="peso_kg" step="0.01" value="{{ registro.peso_kg|default:'' }}" disabled>
+                        </div>
+                    </div>
+                    <div class="form-row two-cols" id="datos-lote-corte" hidden>
+                        <div class="form-group">
+                            <label for="finca_corte_semilla">Finca donde se cortó *</label>
+                            <select id="finca_corte_semilla" name="finca_corte_semilla" required disabled>
+                                <option value="" selected disabled hidden></option>
+                                {% for f in fincas %}
+                                <option value="{{ f.nombre }}" {% if registro.finca_corte_semilla == f.nombre %}selected{% endif %}>{{ f.codigo }} - {{ f.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="lote_corte_semilla">Lote donde se cortó *</label>
+                            <input type="text" id="lote_corte_semilla" name="lote_corte_semilla" value="{{ registro.lote_corte_semilla|default:'' }}" required disabled>
                         </div>
                     </div>
                 </div>
@@ -198,7 +233,7 @@
                     <div class="form-row two-cols">
                         <div class="form-group">
                             <label for="codigo_caporal_01">Código Supervisor 1</label>
-                            <input type="text" id="codigo_caporal_01" placeholder="Ingrese código" value="{{ registro.caporal_01|default:'' }}">
+                            <input type="text" id="codigo_caporal_01" value="{{ registro.caporal_01|default:'' }}">
                         </div>
                         <div class="form-group">
                             <label for="caporal_01">Supervisor 1 (Nombre)</label>
@@ -208,7 +243,7 @@
                     <div class="form-row two-cols">
                         <div class="form-group">
                             <label for="codigo_caporal_02">Código Supervisor 2</label>
-                            <input type="text" id="codigo_caporal_02" placeholder="Ingrese código" value="{{ registro.caporal_02|default:'' }}">
+                            <input type="text" id="codigo_caporal_02" value="{{ registro.caporal_02|default:'' }}">
                         </div>
                         <div class="form-group">
                             <label for="caporal_02">Supervisor 2 (Nombre)</label>
@@ -218,7 +253,7 @@
                     <div class="form-row two-cols">
                         <div class="form-group">
                             <label for="codigo_mayordomo">Código Supervisor 3</label>
-                            <input type="text" id="codigo_mayordomo" placeholder="Ingrese código" value="{{ registro.mayordomo|default:'' }}">
+                            <input type="text" id="codigo_mayordomo" value="{{ registro.mayordomo|default:'' }}">
                         </div>
                         <div class="form-group">
                             <label for="mayordomo">Supervisor 3 (Nombre)</label>
@@ -228,13 +263,13 @@
                 </div>
 
                 <!-- TRANSPORTE -->
-                <div class="form-section">
+                <div class="form-section" id="seccion-transporte" hidden>
                     <div class="section-title">Detalle de Transporte</div>
                     <div class="form-row two-cols">
                         <div class="form-group">
                             <label for="lugar_origen">Lugar de Origen</label>
-                            <select id="lugar_origen" name="lugar_origen">
-                                <option value="">Seleccionar Municipio</option>
+                            <select id="lugar_origen" name="lugar_origen" required disabled>
+                                                                <option value="" selected disabled hidden></option>
                                 {% for m in municipios %}
                                 <option value="{{ m.nombre }}" {% if registro.lugar_origen == m.nombre %}selected{% endif %}>{{ m.nombre }} - {{ m.departamento }}</option>
                                 {% endfor %}
@@ -242,8 +277,8 @@
                         </div>
                         <div class="form-group">
                             <label for="lugar_destino">Lugar de Destino</label>
-                            <select id="lugar_destino" name="lugar_destino">
-                                <option value="">Seleccionar Municipio</option>
+                            <select id="lugar_destino" name="lugar_destino" required disabled>
+                                                                <option value="" selected disabled hidden></option>
                                 {% for m in municipios %}
                                 <option value="{{ m.nombre }}" {% if registro.lugar_destino == m.nombre %}selected{% endif %}>{{ m.nombre }} - {{ m.departamento }}</option>
                                 {% endfor %}
@@ -258,7 +293,7 @@
                     <div class="form-row full">
                         <div class="form-group">
                             <label for="observaciones">Notas Adicionales</label>
-                            <textarea id="observaciones" name="observaciones" placeholder="Escriba aquí cualquier comentario o nota importante...">{{ registro.observaciones|default:'' }}</textarea>
+                            <textarea id="observaciones" name="observaciones">{{ registro.observaciones|default:'' }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -283,6 +318,79 @@
                     inputPlaca.value = selectedOption.dataset.placa || '';
                 });
             }
+
+            const tipoServicio = document.getElementById('tipo_servicio');
+            const seccionTransporte = document.getElementById('seccion-transporte');
+            const lugarOrigen = document.getElementById('lugar_origen');
+            const lugarDestino = document.getElementById('lugar_destino');
+            const selectCorteSemilla = document.getElementById('corte_semilla');
+            const campoCorteSemilla = document.getElementById('campo-corte-semilla');
+            const seccionDetallesCana = document.getElementById('seccion-detalles-cana');
+            const filaLoteCorte = document.getElementById('datos-lote-corte');
+            const fincaCorteSemilla = document.getElementById('finca_corte_semilla');
+            const loteCorteSemilla = document.getElementById('lote_corte_semilla');
+            const indicadorCorteSemilla = document.getElementById('corte-semilla-indicador');
+            const controlesDetallesCana = Array.from(seccionDetallesCana.querySelectorAll('input, select, textarea'));
+            const normalizarServicio = valor => (valor || '')
+                .normalize('NFKD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+
+            function actualizarDetalleTransporte() {
+                const serviciosPermitidos = [
+                    'envio de semilla de cana',
+                    'transporte de personal',
+                    'viajes de material o maquinaria',
+                ];
+                const activar = serviciosPermitidos.includes(normalizarServicio(tipoServicio.value));
+                seccionTransporte.hidden = !activar;
+                [lugarOrigen, lugarDestino].forEach(control => {
+                    control.disabled = !activar;
+                    control.required = activar;
+                    if (!activar) control.value = '';
+                });
+            }
+
+            function actualizarDetallesCana() {
+                const servicioNormalizado = normalizarServicio(tipoServicio.value);
+                const esEnvioSemilla = servicioNormalizado === 'envio de semilla de cana';
+
+                campoCorteSemilla.hidden = !esEnvioSemilla;
+                selectCorteSemilla.disabled = !esEnvioSemilla;
+                seccionDetallesCana.hidden = !esEnvioSemilla;
+                controlesDetallesCana.forEach(control => {
+                    control.disabled = !esEnvioSemilla;
+                    if (!esEnvioSemilla) control.value = '';
+                });
+                if (!esEnvioSemilla) selectCorteSemilla.value = '';
+
+                const mostrarLoteCorte = esEnvioSemilla && selectCorteSemilla.value === '1';
+                filaLoteCorte.hidden = !mostrarLoteCorte;
+                fincaCorteSemilla.disabled = !mostrarLoteCorte;
+                loteCorteSemilla.disabled = !mostrarLoteCorte;
+                fincaCorteSemilla.required = mostrarLoteCorte;
+                loteCorteSemilla.required = mostrarLoteCorte;
+                if (!mostrarLoteCorte) {
+                    fincaCorteSemilla.value = '';
+                    loteCorteSemilla.value = '';
+                }
+
+                indicadorCorteSemilla.textContent = !esEnvioSemilla
+                    ? ''
+                    : selectCorteSemilla.value === '1'
+                        ? 'Corte de Semilla'
+                        : selectCorteSemilla.value === '2'
+                            ? 'No aplica para la labor'
+                            : '';
+            }
+
+            tipoServicio.addEventListener('change', actualizarDetallesCana);
+            tipoServicio.addEventListener('change', actualizarDetalleTransporte);
+            selectCorteSemilla.addEventListener('change', actualizarDetallesCana);
+            actualizarDetallesCana();
+            actualizarDetalleTransporte();
 
             function setupEmpleadoLookup(inputId, outputId) {
                 const inputEl = document.getElementById(inputId);
@@ -325,14 +433,11 @@
             const inputCodigoLabor = document.getElementById('codigo_labor');
             const inputLabor = document.getElementById('labor');
             if (inputCodigoLabor && inputLabor) {
-                inputCodigoLabor.addEventListener('blur', function() {
-                    const cod = inputCodigoLabor.value.trim();
-                    if (cod && laboresDict[cod]) {
-                        inputLabor.value = laboresDict[cod];
-                    } else {
-                        inputLabor.value = '';
-                        if (cod) alert('Labor no encontrada.');
-                    }
+                inputCodigoLabor.addEventListener('change', function() {
+                    const opcion = inputCodigoLabor.selectedOptions[0];
+                    inputLabor.value = laboresDict[inputCodigoLabor.value]
+                        || opcion?.dataset.descripcion
+                        || '';
                 });
             }
         });

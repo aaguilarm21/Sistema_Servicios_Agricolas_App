@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mantenimiento - Control de Horómetros y Servicios</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}" />
+</head>
+
+<body class="maint-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
+  <div class="main-wrapper">
+    <header class="header-bar maint-header">
+      <div class="header-title-box">
+        <h1>⏱️ Control de Horómetros y Servicios</h1>
+        <p>Monitoreo preventivo por horas trabajadas, semáforo de alertas y programación de mantenimientos</p>
+      </div>
+      <div class="header-actions">
+        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-volver">← Volver a Módulos</a>
+      </div>
+    </header>
+
+    {% if messages %}
+    <div class="messages-container">
+      {% for message in messages %}
+      <div class="alert-operacion alert-{{ message.tags }}">
+        <span>{% if message.tags == 'success' %}✓{% else %}⚠️{% endif %}</span>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tarjetas de Métricas -->
+    <div class="metrics-grid">
+      <div class="metric-card" style="border-left: 5px solid #2e7d32;">
+        <div class="metric-icon" style="background: #e8f5e9;">🚜</div>
+        <div class="metric-info">
+          <h4>Monitoreadas</h4>
+          <p class="metric-num">{{ total_monitoreadas }}</p>
+        </div>
+      </div>
+      <div class="metric-card" style="border-left: 5px solid #388e3c;">
+        <div class="metric-icon" style="background: #f1f8e9;">✅</div>
+        <div class="metric-info">
+          <h4>Al Día</h4>
+          <p class="metric-num">{{ total_al_dia }}</p>
+        </div>
+      </div>
+      <div class="metric-card" style="border-left: 5px solid #81c784;">
+        <div class="metric-icon" style="background: #e8f5e9;">⚠️</div>
+        <div class="metric-info">
+          <h4>Próximos a Vencer</h4>
+          <p class="metric-num">{{ total_proximos }}</p>
+        </div>
+      </div>
+      <div class="metric-card" style="border-left: 5px solid #1b5e20;">
+        <div class="metric-icon" style="background: #e8f5e9;">🚨</div>
+        <div class="metric-info">
+          <h4>Vencidos</h4>
+          <p class="metric-num">{{ total_vencidos }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL DE SERVICIOS PREVENTIVOS -->
+    <section class="card-panel" style="border-color: #a5d6a7;">
+      <div class="panel-title-bar">
+        <h2><span>⏱️</span> Estado Preventivo de Horómetros por Maquinaria</h2>
+        <span class="badge-status disponible">Actualizado en tiempo real</span>
+      </div>
+
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Código Máquina</th>
+              <th>Tipo de Servicio Programado</th>
+              <th>Intervalo</th>
+              <th>Horómetro Actual</th>
+              <th>Próximo Servicio</th>
+              <th>Horas Restantes</th>
+              <th>Progreso de Horas</th>
+              <th>Estado de Alerta</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td><span class="fleet-code">{{ item.control.codigo_maquina }}</span></td>
+              <td><strong>{{ item.control.tipo_servicio }}</strong></td>
+              <td>Cada {{ item.control.intervalo_horas }}h</td>
+              <td><strong>{{ item.control.horometro_actual }} hrs</strong></td>
+              <td>{{ item.control.proximo_horometro }} hrs</td>
+              <td>
+                {% if item.restante <= 0 %}
+                <strong style="color: #14532d;">Vencido por {{ item.restante|stringformat:"+f"|slice:"1:" }}h</strong>
+                {% else %}
+                <strong style="color: {% if item.restante <= 25 %}#558b2f{% else %}#2e7d32{% endif %};">{{ item.restante }} hrs</strong>
+                {% endif %}
+              </td>
+              <td style="min-width: 130px;">
+                <div class="service-meter-bg">
+                  <div class="service-meter-fill {{ item.alerta|slugify }}" style="width: {{ item.pct_uso }}%;"></div>
+                </div>
+                <small style="color: #55705a; font-size: 0.78rem;">{{ item.pct_uso }}% del intervalo</small>
+              </td>
+              <td>
+                <span class="badge-status {% if item.alerta == 'Al Día' %}disponible{% elif item.alerta == 'Próximo a Vencer' %}en-taller{% else %}fuera-de-servicio{% endif %}">
+                  {{ item.alerta }}
+                </span>
+              </td>
+              <td>
+                <button type="button" class="btn-sm btn-maint-primary" onclick="abrirModalServicio('{{ item.control.codigo_maquina }}', '{{ item.control.tipo_servicio }}', '{{ item.control.horometro_actual }}', '{{ item.control.intervalo_horas }}')">
+                  ✓ Registrar Servicio
+                </button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="9" style="text-align: center; padding: 30px; color: #55705a;">
+                No hay controles preventivos registrados.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Modal para Registrar Servicio Realizado -->
+    <div id="modal-servicio" class="modal-overlay">
+      <div class="modal-box">
+        <h3 id="modal-serv-title" class="modal-title">✓ Registrar Cumplimiento de Servicio</h3>
+        <p id="modal-serv-info" class="modal-subtitle"></p>
+
+        <form method="POST" action="{% url 'control_horometros' %}">
+          {% csrf_token %}
+          <input type="hidden" name="codigo_maquina" id="serv-codigo-maquina" />
+          <input type="hidden" name="tipo_servicio" id="serv-tipo-servicio" />
+          <input type="hidden" name="intervalo_horas" id="serv-intervalo" />
+
+          <div class="form-group form-group-spaced">
+            <label for="horometro_ejecutado">Horómetro de Ejecución del Servicio *</label>
+            <input type="number" step="0.01" name="horometro_ejecutado" id="horometro_ejecutado" class="form-control" required />
+          </div>
+
+          <div class="form-group form-group-spaced">
+            <label for="observaciones">Observaciones</label>
+            <textarea name="observaciones" id="observaciones" rows="2" class="form-control"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-volver" onclick="cerrarModalServicio()">Cancelar</button>
+            <button type="submit" class="btn-maint-primary">💾 Guardar y Re-programar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function abrirModalServicio(codigo, servicio, horometro, intervalo) {
+      document.getElementById('serv-codigo-maquina').value = codigo;
+      document.getElementById('serv-tipo-servicio').value = servicio;
+      document.getElementById('serv-intervalo').value = intervalo;
+      document.getElementById('modal-serv-title').textContent = '✓ Servicio: ' + codigo;
+      document.getElementById('modal-serv-info').textContent = servicio + ' (Ciclo cada ' + intervalo + ' hrs)';
+      document.getElementById('horometro_ejecutado').value = horometro;
+      document.getElementById('modal-servicio').classList.add('is-open');
+    }
+
+    function cerrarModalServicio() {
+      document.getElementById('modal-servicio').classList.remove('is-open');
+    }
+
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('modal-servicio').addEventListener('click', function(e) {
+      if (e.target === this) cerrarModalServicio();
+    });
+  </script>
+</body>
+
+</html>

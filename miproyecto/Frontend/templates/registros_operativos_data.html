@@ -142,12 +142,19 @@
         </div>
     </div>
 
+    {% if is_admin %}
+    <form id="eliminar-registro-form" method="post" hidden>
+        {% csrf_token %}
+    </form>
+    {% endif %}
+
     <script src="{% static 'js/notificaciones.js' %}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             let registroSeleccionado = null;
             const btnModificar = document.getElementById('registro-btn-modificar');
             const btnEliminar = document.getElementById('registro-btn-eliminar');
+            const formularioEliminar = document.getElementById('eliminar-registro-form');
             document.querySelectorAll('.records-table tbody tr[data-registro-id]').forEach(fila => {
                 fila.addEventListener('click', function() {
                     document.querySelectorAll('.records-table tbody tr').forEach(registro => registro.classList.remove('registro-seleccionado'));
@@ -163,7 +170,10 @@
             });
             if (btnEliminar) btnEliminar.addEventListener('click', () => {
                 if (!registroSeleccionado) return alert('Selecciona un dato antes de eliminarlo.');
-                if (confirm('¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.')) window.location.href = `/registros/${registroSeleccionado}/borrar/`;
+                if (confirm('¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.')) {
+                    formularioEliminar.action = `/registros/${registroSeleccionado}/borrar/`;
+                    formularioEliminar.submit();
+                }
             });
             const messagesDiv = document.querySelector('.messages');
             if (messagesDiv) {
