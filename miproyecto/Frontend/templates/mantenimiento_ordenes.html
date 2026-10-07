@@ -75,13 +75,6 @@
       <button type="button" class="nav-tab-btn active" id="tab-programar" onclick="activarPestana('orden')">
         <span>📝 Nueva Orden de Mantenimiento</span>
       </button>
-      <button type="button" class="nav-tab-btn logistica-tab" id="tab-logistica" onclick="activarPestana('historial')">
-        <span>📋 Órdenes de Trabajo</span>
-        <span class="badge-count tab-badge">{{ total_ordenes }}</span>
-      </button>
-      <a href="{% url 'control_horometros' %}" class="nav-tab-btn" style="text-decoration: none; margin-left: auto;">
-        <span>⏱️ Ver Horómetros y Alertas →</span>
-      </a>
     </div>
 
     <!-- SECCIÓN 1: FORMULARIO DE REGISTRO DE ORDEN -->
@@ -96,14 +89,14 @@
         <div class="form-grid-3">
           <div class="form-group">
             <label for="codigo_orden">Código de Orden *</label>
-            <input type="text" name="codigo_orden" id="codigo_orden" class="form-control" value="{{ siguiente_codigo }}" required />
+            <input type="text" name="codigo_orden" id="codigo_orden" class="form-control" value="{{ siguiente_codigo }}" readonly style="background-color: #e8f5e9; cursor: not-allowed; font-weight: 700;" required />
           </div>
           <div class="form-group">
             <label for="fecha_ingreso">Fecha de Ingreso *</label>
             <input type="date" name="fecha_ingreso" id="fecha_ingreso" class="form-control" value="{{ fecha_hoy|date:'Y-m-d' }}" required />
           </div>
           <div class="form-group">
-            <label for="codigo_maquina">Maquinaria a Atender *</label>
+            <label for="codigo_maquina">MAQUINARIA *</label>
             <select name="codigo_maquina" id="codigo_maquina" class="form-control" required>
               <option value="" selected disabled hidden></option>
               {% for maq in maquinarias %}

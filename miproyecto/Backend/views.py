@@ -1342,12 +1342,22 @@ def ordenes_mantenimiento(request):
     pendientes = todas_ordenes.filter(estado='Pendiente').count()
     finalizadas = todas_ordenes.filter(estado='Finalizada').count()
     costo_total = sum((float(o.costo_estimado or 0) for o in todas_ordenes), 0.0)
-
-    siguiente_codigo = f"OT-{timezone.now().year}-{total_ordenes + 1:03d}"
+    # Generar siguiente código auto-incremental basado en el último existente
+    year = timezone.now().year
+    prefix = f"OT-{year}-"
+    ultima_orden = OrdenMantenimiento.objects.filter(
+        codigo_orden__startswith=prefix
+    ).order_by('-codigo_orden').first()
+    if ultima_orden:
+        try:
+            ultimo_num = int(ultima_orden.codigo_orden.replace(prefix, ''))
+        except (ValueError, TypeError):
+            ultimo_num = total_ordenes
+    else:
+        ultimo_num = 0
+    siguiente_codigo = f"{prefix}{ultimo_num + 1:03d}"
     maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
-    mecanicos = Empleado.objects.filter(puesto__in=['3300', '3400', '4310']).order_by('empleado')
-    if not mecanicos.exists():
-        mecanicos = Empleado.objects.all().order_by('empleado')
+    mecanicos = Empleado.objects.filter(nombre_puesto__icontains='mecanico').order_by('empleado')
 
     return render(request, 'mantenimiento_ordenes.html', {
         'ordenes': ordenes,
@@ -1369,8 +1379,13 @@ def ordenes_mantenimiento(request):
 @login_required
 @require_http_methods(['POST'])
 def cambiar_estado_orden_mantenimiento(request, orden_id):
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('is_ajax') == '1'
+
     if not user_is_user_or_admin(request.user):
-        return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+        if is_ajax:
+            return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
+        messages.error(request, 'No tienes permisos para realizar esta acción.')
+        return redirect('ordenes_mantenimiento')
     try:
         orden = OrdenMantenimiento.objects.get(id=orden_id)
         nuevo_estado = request.POST.get('estado', '').strip()
@@ -1400,10 +1415,20 @@ def cambiar_estado_orden_mantenimiento(request, orden_id):
                     disp.save()
 
             messages.success(request, f'Orden {orden.codigo_orden} actualizada a "{nuevo_estado}".')
-            return JsonResponse({'success': True, 'estado': orden.estado})
-        return JsonResponse({'success': False, 'error': 'Estado no válido'}, status=400)
+            if is_ajax:
+                return JsonResponse({'success': True, 'estado': orden.estado})
+            return redirect('ordenes_mantenimiento')
+
+        error_msg = 'Estado no válido.'
+        if is_ajax:
+            return JsonResponse({'success': False, 'error': error_msg}, status=400)
+        messages.error(request, error_msg)
+        return redirect('ordenes_mantenimiento')
     except OrdenMantenimiento.DoesNotExist:
-        return JsonResponse({'success': False, 'error': 'Orden no encontrada'}, status=404)
+        if is_ajax:
+            return JsonResponse({'success': False, 'error': 'Orden no encontrada'}, status=404)
+        messages.error(request, 'La orden no fue encontrada.')
+        return redirect('ordenes_mantenimiento')
 
 
 @login_required
@@ -1413,46 +1438,197 @@ def control_horometros(request):
         return redirect('modulos')
 
     if request.method == 'POST':
-        codigo_maquina = request.POST.get('codigo_maquina', '').strip()
-        tipo_servicio = request.POST.get('tipo_servicio', '').strip()
-        horometro_ejecutado = float(request.POST.get('horometro_ejecutado', 0) or 0)
-        intervalo = int(request.POST.get('intervalo_horas', 250) or 250)
-        observaciones = request.POST.get('observaciones', '').strip()
+        accion = request.POST.get('accion', 'registrar_servicio').strip()
 
-        servicio = ControlServicioHorometro.objects.filter(
-            codigo_maquina__iexact=codigo_maquina,
-            tipo_servicio__iexact=tipo_servicio
-        ).first()
+        if accion == 'nuevo_control':
+            codigo_maquina = request.POST.get('codigo_maquina', '').strip()
+            tipo_servicio = request.POST.get('tipo_servicio', '').strip()
+            intervalo = int(request.POST.get('intervalo_horas', 250) or 250)
+            horometro_actual_input = float(request.POST.get('horometro_actual', 0) or 0)
+            ultimo_horometro_input = float(request.POST.get('ultimo_horometro', horometro_actual_input) or 0)
+            observaciones = request.POST.get('observaciones', '').strip()
 
-        proximo = horometro_ejecutado + intervalo
+            if not (codigo_maquina and tipo_servicio):
+                messages.error(request, 'Por favor especifica la máquina y el tipo de servicio.')
+                return redirect('control_horometros')
 
-        if servicio:
-            servicio.ultimo_horometro = horometro_ejecutado
-            servicio.proximo_horometro = proximo
-            servicio.horometro_actual = horometro_ejecutado
-            servicio.estado_alerta = 'Al Día'
-            servicio.fecha_ultimo_servicio = timezone.now().date()
-            if observaciones:
-                servicio.observaciones = observaciones
-            servicio.save()
-        else:
-            ControlServicioHorometro.objects.create(
+            # Si la máquina ya tiene horómetro en disponibilidad y el usuario no lo ingresó
+            disp = DisponibilidadMaquinaria.objects.filter(codigo_maquina__iexact=codigo_maquina).first()
+            if disp and horometro_actual_input == 0 and disp.horometro_actual:
+                horometro_actual_input = float(disp.horometro_actual)
+
+            proximo = ultimo_horometro_input + intervalo
+            restante = proximo - horometro_actual_input
+
+            if restante <= 0:
+                alerta = 'Vencido'
+            elif restante <= 25:
+                alerta = 'Próximo a Vencer'
+            else:
+                alerta = 'Al Día'
+
+            control, created = ControlServicioHorometro.objects.update_or_create(
                 codigo_maquina=codigo_maquina,
                 tipo_servicio=tipo_servicio,
-                intervalo_horas=intervalo,
-                ultimo_horometro=horometro_ejecutado,
-                proximo_horometro=proximo,
-                horometro_actual=horometro_ejecutado,
-                estado_alerta='Al Día',
-                fecha_ultimo_servicio=timezone.now().date(),
-                observaciones=observaciones or 'Servicio preventivo registrado.'
+                defaults={
+                    'intervalo_horas': intervalo,
+                    'ultimo_horometro': ultimo_horometro_input,
+                    'proximo_horometro': proximo,
+                    'horometro_actual': horometro_actual_input,
+                    'estado_alerta': alerta,
+                    'fecha_ultimo_servicio': timezone.now().date(),
+                    'observaciones': observaciones or f'Servicio preventivo programado cada {intervalo} hrs.'
+                }
             )
 
-        messages.success(request, f'¡Servicio preventivo registrado para {codigo_maquina}! Próximo servicio a las {proximo}h.')
-        return redirect('control_horometros')
+            # Sincronizar horómetro con disponibilidad si aplica
+            if disp and horometro_actual_input > float(disp.horometro_actual or 0):
+                disp.horometro_actual = horometro_actual_input
+                disp.save()
 
-    controles = ControlServicioHorometro.objects.all().order_by('codigo_maquina')
+            if created:
+                messages.success(request, f'¡Control preventivo creado para {codigo_maquina} ({tipo_servicio})!')
+            else:
+                messages.success(request, f'¡Control preventivo de {codigo_maquina} actualizado!')
+            return redirect('control_horometros')
+
+        elif accion == 'actualizar_horometro':
+            codigo_maquina = request.POST.get('codigo_maquina', '').strip()
+            nuevo_horometro = float(request.POST.get('nuevo_horometro', 0) or 0)
+
+            if not codigo_maquina or nuevo_horometro <= 0:
+                messages.error(request, 'Debe indicar una máquina y una lectura válida de horómetro.')
+                return redirect('control_horometros')
+
+            controles_maq = ControlServicioHorometro.objects.filter(codigo_maquina__iexact=codigo_maquina)
+            for c in controles_maq:
+                c.horometro_actual = nuevo_horometro
+                proximo = float(c.proximo_horometro or 0)
+                restante = proximo - nuevo_horometro
+                if restante <= 0:
+                    c.estado_alerta = 'Vencido'
+                elif restante <= 25:
+                    c.estado_alerta = 'Próximo a Vencer'
+                else:
+                    c.estado_alerta = 'Al Día'
+                c.save()
+
+            # Sincronizar con disponibilidad de maquinaria
+            disp, _ = DisponibilidadMaquinaria.objects.get_or_create(codigo_maquina=codigo_maquina)
+            disp.horometro_actual = nuevo_horometro
+            disp.save()
+
+            messages.success(request, f'Lectura de horómetro actualizada a {nuevo_horometro:.2f} hrs para {codigo_maquina}.')
+            return redirect('control_horometros')
+
+        elif accion == 'eliminar_control':
+            control_id = request.POST.get('control_id', '').strip()
+            if control_id:
+                try:
+                    c_del = ControlServicioHorometro.objects.get(id=control_id)
+                    maq_nombre = c_del.codigo_maquina
+                    serv_nombre = c_del.tipo_servicio
+                    c_del.delete()
+                    messages.success(request, f'Control preventivo de {maq_nombre} ({serv_nombre}) eliminado.')
+                except ControlServicioHorometro.DoesNotExist:
+                    messages.error(request, 'El control no existe o ya fue eliminado.')
+            return redirect('control_horometros')
+
+        elif accion == 'inicializar_flota':
+            maquinarias = Maquinaria.objects.all()
+            creados = 0
+            for maq in maquinarias:
+                disp = DisponibilidadMaquinaria.objects.filter(codigo_maquina__iexact=maq.codigo_maquina).first()
+                h_act = float(disp.horometro_actual or 0) if disp else 0.0
+
+                # Crear servicio de 250h si no existe
+                if not ControlServicioHorometro.objects.filter(codigo_maquina__iexact=maq.codigo_maquina, intervalo_horas=250).exists():
+                    prox_250 = h_act + 250
+                    ControlServicioHorometro.objects.create(
+                        codigo_maquina=maq.codigo_maquina,
+                        tipo_servicio='Servicio 250 Horas (Aceite y Filtros)',
+                        intervalo_horas=250,
+                        ultimo_horometro=h_act,
+                        proximo_horometro=prox_250,
+                        horometro_actual=h_act,
+                        estado_alerta='Al Día',
+                        fecha_ultimo_servicio=timezone.now().date(),
+                        observaciones='Control preventivo estándar de 250h generado automáticamente.'
+                    )
+                    creados += 1
+
+                # Crear servicio de 500h si no existe
+                if not ControlServicioHorometro.objects.filter(codigo_maquina__iexact=maq.codigo_maquina, intervalo_horas=500).exists():
+                    prox_500 = h_act + 500
+                    ControlServicioHorometro.objects.create(
+                        codigo_maquina=maq.codigo_maquina,
+                        tipo_servicio='Servicio 500 Horas (Sistema Hidráulico)',
+                        intervalo_horas=500,
+                        ultimo_horometro=h_act,
+                        proximo_horometro=prox_500,
+                        horometro_actual=h_act,
+                        estado_alerta='Al Día',
+                        fecha_ultimo_servicio=timezone.now().date(),
+                        observaciones='Control preventivo mayor de 500h generado automáticamente.'
+                    )
+                    creados += 1
+
+            messages.success(request, f'Se sincronizaron y crearon {creados} controles preventivos para la maquinaria.')
+            return redirect('control_horometros')
+
+        else: # registrar_servicio por defecto
+            codigo_maquina = request.POST.get('codigo_maquina', '').strip()
+            tipo_servicio = request.POST.get('tipo_servicio', '').strip()
+            horometro_ejecutado = float(request.POST.get('horometro_ejecutado', 0) or 0)
+            intervalo = int(request.POST.get('intervalo_horas', 250) or 250)
+            observaciones = request.POST.get('observaciones', '').strip()
+
+            servicio = ControlServicioHorometro.objects.filter(
+                codigo_maquina__iexact=codigo_maquina,
+                tipo_servicio__iexact=tipo_servicio
+            ).first()
+
+            proximo = horometro_ejecutado + intervalo
+
+            if servicio:
+                servicio.ultimo_horometro = horometro_ejecutado
+                servicio.proximo_horometro = proximo
+                servicio.horometro_actual = max(float(servicio.horometro_actual or 0), horometro_ejecutado)
+                servicio.estado_alerta = 'Al Día'
+                servicio.fecha_ultimo_servicio = timezone.now().date()
+                if observaciones:
+                    servicio.observaciones = observaciones
+                servicio.save()
+            else:
+                ControlServicioHorometro.objects.create(
+                    codigo_maquina=codigo_maquina,
+                    tipo_servicio=tipo_servicio,
+                    intervalo_horas=intervalo,
+                    ultimo_horometro=horometro_ejecutado,
+                    proximo_horometro=proximo,
+                    horometro_actual=horometro_ejecutado,
+                    estado_alerta='Al Día',
+                    fecha_ultimo_servicio=timezone.now().date(),
+                    observaciones=observaciones or 'Servicio preventivo registrado.'
+                )
+
+            # Actualizar disponibilidad
+            disp = DisponibilidadMaquinaria.objects.filter(codigo_maquina__iexact=codigo_maquina).first()
+            if disp and horometro_ejecutado > float(disp.horometro_actual or 0):
+                disp.horometro_actual = horometro_ejecutado
+                disp.save()
+
+            messages.success(request, f'¡Servicio preventivo registrado para {codigo_maquina}! Próximo servicio programado a las {proximo:.2f} hrs.')
+            return redirect('control_horometros')
+
+    # Filtros GET
+    filtro_alerta = request.GET.get('alerta', '').strip()
+    filtro_maquina = request.GET.get('maquina', '').strip()
+    busqueda = request.GET.get('q', '').strip()
+
+    controles = ControlServicioHorometro.objects.all().order_by('codigo_maquina', 'proximo_horometro')
     maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
+    disponibilidades = {d.codigo_maquina: d for d in DisponibilidadMaquinaria.objects.all()}
 
     items = []
     total_al_dia = 0
@@ -1477,12 +1653,13 @@ def control_horometros(request):
 
         if c.estado_alerta != alerta:
             c.estado_alerta = alerta
-            c.save()
+            c.save(update_fields=['estado_alerta'])
 
         intervalo = float(c.intervalo_horas or 250)
         recorrido = actual - ultimo
         pct_uso = min(100.0, max(0.0, (recorrido / intervalo * 100))) if intervalo > 0 else 0.0
 
+        # Enviar todos los items para permitir filtrado interactivo fluido en la interfaz
         items.append({
             'control': c,
             'restante': round(restante, 1),
@@ -1493,10 +1670,14 @@ def control_horometros(request):
     return render(request, 'mantenimiento_horometros.html', {
         'items': items,
         'maquinarias': maquinarias,
-        'total_monitoreadas': len(items),
+        'disponibilidades': disponibilidades,
+        'total_monitoreadas': len(controles),
         'total_al_dia': total_al_dia,
         'total_proximos': total_proximos,
         'total_vencidos': total_vencidos,
+        'filtro_alerta': filtro_alerta,
+        'filtro_maquina': filtro_maquina,
+        'busqueda': busqueda,
         'is_admin': user_is_admin(request.user),
     })
 

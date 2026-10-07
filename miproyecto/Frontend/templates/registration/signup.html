@@ -1,63 +1,408 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crear usuario</title>
+  <title>Crear usuario - Sistema de Servicios Agrícolas</title>
   {% load static %}
   <link rel="stylesheet" href="{% static 'css/login.css' %}" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
+  <style>
+    /* Estilos refinados y sobrios para Crear Usuario */
+    .login-page {
+      width: 100%;
+      max-width: 490px;
+    }
+
+    .login-card {
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+      padding: 1.8rem 2rem 1.6rem;
+      border: 1px solid #e2e8f0;
+      backdrop-filter: none;
+    }
+
+    .signup-header {
+      margin-bottom: 1.2rem;
+      text-align: left;
+    }
+
+    .signup-header h1 {
+      margin: 0 0 0.3rem;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1e3a24;
+      letter-spacing: -0.01em;
+    }
+
+    .signup-header p {
+      margin: 0;
+      font-size: 0.84rem;
+      color: #64748b;
+      line-height: 1.35;
+    }
+
+    /* Mensajes y Alertas */
+    .success-banner {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+      padding: 0.65rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      font-weight: 500;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .error-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 0.65rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+
+    /* Campos de formulario */
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .field label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #334155;
+      letter-spacing: 0.01em;
+    }
+
+    .field input,
+    .field select {
+      height: 38px;
+      padding: 0 0.75rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      color: #1e293b;
+      background: #f8fafc;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+      font-family: inherit;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: #2e7d32;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12);
+    }
+
+    .field input[readonly] {
+      background: #f1f5f9;
+      color: #475569;
+      cursor: not-allowed;
+      border-color: #e2e8f0;
+      font-weight: 600;
+    }
+
+    .field-hint {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.75rem;
+      color: #4b6a51;
+      line-height: 1.25;
+    }
+
+    /* Acciones y Botones Refinados y Sobrios */
+    .form-actions-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 1.15rem;
+    }
+
+    .btn-submit-clean {
+      flex: 1.6;
+      height: 42px;
+      border: 1px solid #1c4523;
+      border-radius: 9px;
+      background: #24522b;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.88rem;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 5px rgba(36, 82, 43, 0.18);
+    }
+
+    .btn-submit-clean:hover {
+      background: #1b3f21;
+      border-color: #14311a;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(36, 82, 43, 0.22);
+    }
+
+    .btn-submit-clean:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-cancel-clean {
+      flex: 1;
+      height: 42px;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      background: #ffffff;
+      color: #475569;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.15s ease-in-out;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .btn-cancel-clean:hover {
+      background: #f8fafc;
+      color: #1e293b;
+      border-color: #94a3b8;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .btn-cancel-clean:active {
+      transform: translateY(0);
+    }
+
+    /* Modal sobrio y balanceado */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      inset: 0;
+      background-color: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-content {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+      padding: 1.6rem 1.8rem;
+      border: 1px solid #e2e8f0;
+      width: 90%;
+      max-width: 410px;
+      margin: 12% auto;
+      position: relative;
+    }
+
+    .modal-content h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .modal-content p {
+      margin: 0 0 0.8rem;
+      color: #475569;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .modal-credential-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin: 0.8rem 0;
+    }
+
+    .modal-credential-box p {
+      margin: 0.3rem 0;
+      font-size: 0.85rem;
+    }
+
+    .modal-credential-box strong {
+      color: #334155;
+    }
+
+    .modal-credential-box span {
+      color: #1e3a24;
+      font-family: monospace;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .close {
+      color: #94a3b8;
+      font-size: 22px;
+      cursor: pointer;
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      line-height: 1;
+    }
+
+    .close:hover {
+      color: #334155;
+    }
+
+    .btn-modal-close {
+      height: 38px;
+      padding: 0 1.4rem;
+      background: #24522b;
+      color: #ffffff;
+      border: 1px solid #1c4523;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.86rem;
+      cursor: pointer;
+      transition: all 0.15s ease-in-out;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 1px 3px rgba(36, 82, 43, 0.2);
+    }
+
+    .btn-modal-close:hover {
+      background: #1b3f21;
+      transform: translateY(-1px);
+      box-shadow: 0 3px 8px rgba(36, 82, 43, 0.25);
+    }
+
+    .btn-modal-close:active {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 520px) {
+      .login-card {
+        padding: 1.4rem 1.2rem;
+      }
+
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+    }
+  </style>
 </head>
-<body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
+
+<body data-device-type="{{ request.device_type|default:'unknown' }}"
+  data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
   <main class="login-page">
     <section class="login-card">
-      <h1>Crear un nuevo usuario</h1>
+      <div class="signup-header">
+        <h1>Crear nuevo usuario</h1>
+        <p>Completa la información para habilitar el acceso al sistema</p>
+      </div>
 
       {% if mensaje %}
-        <div class="success-message" style="display: block;">✓ {{ mensaje }}</div>
+      <div class="success-banner">
+        <span>✓</span>
+        <span>{{ mensaje }}</span>
+      </div>
+      {% endif %}
+
+      {% if form.errors %}
+      <div class="error-banner">
+        {% for field in form %}
+        {% for error in field.errors %}
+        <div>• <strong>{{ field.label }}:</strong> {{ error }}</div>
+        {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+        <div>• {{ error }}</div>
+        {% endfor %}
+      </div>
       {% endif %}
 
       <form method="post" action="." id="signupForm">
         {% csrf_token %}
+
         <div class="field">
           <label for="id_full_name">Nombre completo</label>
           {{ form.full_name }}
         </div>
+
         <div class="field">
           <label for="id_username">Usuario</label>
           {{ form.username }}
-          <small style="color: #2e7d32; font-size: 0.9rem;">El usuario se genera automáticamente y no se puede editar.</small>
+          <small class="field-hint">Se genera automáticamente según el nombre y no se puede editar.</small>
         </div>
-        <div class="field">
-          <label for="id_puesto">Puesto</label>
-          {{ form.puesto }}
+
+        <div class="form-grid-2">
+          <div class="field">
+            <label for="id_puesto">Puesto</label>
+            {{ form.puesto }}
+          </div>
+          <div class="field">
+            <label for="id_rol">Rol asignado</label>
+            {{ form.rol }}
+          </div>
         </div>
-        <div class="field">
-          <label for="id_rol">Rol</label>
-          {{ form.rol }}
+
+        <div class="form-grid-2">
+          <div class="field">
+            <label for="id_password1">Contraseña</label>
+            {{ form.password1 }}
+          </div>
+          <div class="field">
+            <label for="id_password2">Confirmar contraseña</label>
+            {{ form.password2 }}
+          </div>
         </div>
-        <div class="field">
-          <label for="id_password1">Contraseña</label>
-          {{ form.password1 }}
+
+        <div class="form-actions-row">
+          <a href="{% url 'home' %}" class="btn-cancel-clean">
+            Volver
+          </a>
+          <button type="submit" class="btn-submit-clean" id="createBtn">
+            <span>✓</span> Registrar usuario
+          </button>
         </div>
-        <div class="field">
-          <label for="id_password2">Confirmar contraseña</label>
-          {{ form.password2 }}
-        </div>
-        <button type="submit" class="btn" id="createBtn">Crear usuario</button>
       </form>
 
-      <p>¿Quieres regresar? <a href="{% url 'home' %}">Ir al inicio</a></p>
-
+      <!-- Modal de Credenciales -->
       <div id="infoModal" class="modal">
         <div class="modal-content">
           <span class="close" id="closeModal">&times;</span>
           <h2>Guarda esta información</h2>
-          <p id="modalMessage">Guarda tu usuario y contraseña, y no compartas tu contraseña con nadie.</p>
-          <p><strong>Usuario:</strong> <span id="modalUsername"></span></p>
-          <p><strong>Contraseña:</strong> <span id="modalPassword"></span></p>
-          <div class="modal-buttons">
-            <button class="btn-secondary" id="closeModalButton" type="button">Cerrar</button>
+          <p id="modalMessage">Guarda el usuario y contraseña en un lugar seguro. No compartas las credenciales con
+            terceros.</p>
+
+          <div class="modal-credential-box">
+            <p><strong>Usuario:</strong> <span id="modalUsername"></span></p>
+            <p><strong>Contraseña:</strong> <span id="modalPassword"></span></p>
+          </div>
+
+          <div class="modal-buttons" style="justify-content: flex-end; margin-top: 1rem;">
+            <button class="btn-modal-close" id="closeModalButton" type="button">Entendido</button>
           </div>
         </div>
       </div>
@@ -101,11 +446,11 @@
             const username = usernameInput.value.trim();
             const password = passwordInput.value.trim();
             if (!username) {
-              showModal('', '', 'Ingresa tu nombre completo para generar el usuario.');
+              showModal('', '', 'Ingresa el nombre completo para generar el usuario.');
               return;
             }
             if (!password) {
-              showModal(username, '', 'Ingresa tu contraseña para poder ver tus credenciales y guárdalas en un lugar seguro.');
+              showModal(username, '', 'Ingresa tu contraseña para poder visualizar tus credenciales.');
               return;
             }
             showModal(username, password, 'Guarda esta información y no compartas tu contraseña con nadie.');
@@ -120,15 +465,16 @@
           });
 
           const showModalOnSuccess = {% if show_modal %}true{% else %}false{% endif %};
-          const createdUsername = '{{ created_username|escapejs }}';
-          const createdPassword = '{{ created_password|escapejs }}';
-          if (showModalOnSuccess && createdUsername) {
-            showModal(createdUsername, createdPassword, 'Usuario creado con éxito. Guarda esta información y no compartas tu contraseña con nadie.');
-          }
+        const createdUsername = '{{ created_username|escapejs }}';
+        const createdPassword = '{{ created_password|escapejs }}';
+        if (showModalOnSuccess && createdUsername) {
+          showModal(createdUsername, createdPassword, 'Usuario creado con éxito. Guarda esta información en un lugar seguro.');
+        }
         });
       </script>
     </section>
   </main>
   <script src="{% static 'js/notificaciones.js' %}"></script>
 </body>
+
 </html>
