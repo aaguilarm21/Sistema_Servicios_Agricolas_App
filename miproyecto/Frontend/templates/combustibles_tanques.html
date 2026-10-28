@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Combustibles - Inventario de Tanques y Cisternas</title>
   {% load static %}
+  <script src="{% static 'js/notificaciones.js' %}" defer></script>
   <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
   <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
@@ -127,6 +128,7 @@
             data-estado="{{ item.objeto.estado }}" onclick="abrirModalEditarTanque(this)">
             Editar
           </button>
+          {% if is_admin %}
           <form method="post" action="{% url 'tanques_combustible' %}"
             onsubmit="return confirm('¿Eliminar este tanque? Solo se permite si no tiene vales asociados.');">
             {% csrf_token %}
@@ -134,6 +136,7 @@
             <input type="hidden" name="codigo_tanque" value="{{ item.objeto.codigo }}" />
             <button type="submit" class="btn-sm fuel-delete-link">Eliminar</button>
           </form>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -310,7 +313,54 @@
         if (e.target === this) cerrarModales();
       });
     });
+
+    // Reabrir modal y restaurar datos si hubo error o advertencia
+    document.addEventListener('DOMContentLoaded', function() {
+      const modalAbierto = "{{ modal_abierto|default:'' }}";
+      const formDataEl = document.getElementById('form-data-json');
+      if (!modalAbierto || !formDataEl) return;
+      try {
+        const formData = JSON.parse(formDataEl.textContent);
+        if (!formData) return;
+
+        if (modalAbierto === 'crear_tanque') {
+          abrirModalCrearTanque();
+          if (formData.codigo) document.getElementById('tanque-codigo').value = formData.codigo;
+          if (formData.nombre) document.getElementById('tanque-nombre').value = formData.nombre;
+          if (formData.tipo_combustible) document.getElementById('tanque-tipo').value = formData.tipo_combustible;
+          if (formData.ubicacion) document.getElementById('tanque-ubicacion').value = formData.ubicacion;
+          if (formData.capacidad_galones) document.getElementById('tanque-capacidad').value = formData.capacidad_galones;
+          if (formData.nivel_actual_galones) document.getElementById('tanque-nivel').value = formData.nivel_actual_galones;
+          if (formData.estado) document.getElementById('tanque-estado').value = formData.estado;
+        } else if (modalAbierto === 'editar_tanque') {
+          document.getElementById('tanque-action').value = 'editar_tanque';
+          document.getElementById('tanque-codigo-original').value = formData.codigo_original || formData.codigo || '';
+          if (formData.codigo) document.getElementById('tanque-codigo').value = formData.codigo;
+          if (formData.nombre) document.getElementById('tanque-nombre').value = formData.nombre;
+          if (formData.tipo_combustible) document.getElementById('tanque-tipo').value = formData.tipo_combustible;
+          if (formData.ubicacion) document.getElementById('tanque-ubicacion').value = formData.ubicacion;
+          if (formData.capacidad_galones) document.getElementById('tanque-capacidad').value = formData.capacidad_galones;
+          if (formData.nivel_actual_galones) document.getElementById('tanque-nivel').value = formData.nivel_actual_galones;
+          if (formData.estado) document.getElementById('tanque-estado').value = formData.estado;
+          document.getElementById('modal-tanque-title').textContent = 'Editar Tanque ' + (formData.codigo_original || formData.codigo || '');
+          document.getElementById('guardar-tanque').textContent = 'Guardar Cambios';
+          document.getElementById('modal-tanque').classList.add('is-open');
+        } else if (modalAbierto === 'recarga') {
+          document.getElementById('recarga-codigo-tanque').value = formData.codigo_tanque || '';
+          if (formData.galones_recarga) document.getElementById('galones_recarga').value = formData.galones_recarga;
+          document.getElementById('modal-recarga').classList.add('is-open');
+        } else if (modalAbierto === 'ajuste') {
+          document.getElementById('ajuste-codigo-tanque').value = formData.codigo_tanque || '';
+          if (formData.nuevo_nivel) document.getElementById('nuevo_nivel').value = formData.nuevo_nivel;
+          if (formData.estado) document.getElementById('estado').value = formData.estado;
+          document.getElementById('modal-ajuste').classList.add('is-open');
+        }
+      } catch (e) {
+        console.error('Error al restaurar datos de modal de tanque:', e);
+      }
+    });
   </script>
+  {{ form_data|json_script:"form-data-json" }}
 </body>
 
 </html>

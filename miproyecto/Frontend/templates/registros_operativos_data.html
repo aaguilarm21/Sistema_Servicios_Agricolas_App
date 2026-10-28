@@ -72,7 +72,7 @@
         <div class="header">
             <div>
                 <h1>📋 Registros Operativos en Base de Datos</h1>
-                <p>{% if is_admin %}Administración de registros: editar o eliminar{% else %}Vista de registros operativos en solo lectura.{% endif %}</p>
+                <p>{% if is_admin %}Administración de registros: editar o eliminar{% elif can_edit %}Administración de registros: editar{% else %}Vista de registros operativos en solo lectura.{% endif %}</p>
             </div>
             <a href="{% url 'modulos' %}?sector=reportes" class="btn-volver">Volver a Módulos</a>
         </div>
@@ -87,10 +87,12 @@
             {% endif %}
 
             <div class="form-section" style="margin-bottom: 0; padding: 10px;">
-                {% if is_admin %}
+                {% if can_edit or is_admin %}
                 <div class="datos-acciones-toolbar registros-acciones-toolbar">
                     <button id="registro-btn-modificar" class="btn-secondary" type="button" disabled>Modificar</button>
+                    {% if is_admin %}
                     <button id="registro-btn-eliminar" class="btn-secondary" type="button" disabled>Eliminar</button>
+                    {% endif %}
                 </div>
                 {% endif %}
                 <div class="table-container">

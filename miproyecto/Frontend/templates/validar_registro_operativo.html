@@ -179,13 +179,15 @@
           <article class="boleta-detail">
             <h2>Boleta {{ registro.no_boleta }}{% if registros|length > 1 %} (coincidencia {{ forloop.counter }} de {{ registros|length }}){% endif %}</h2>
 
-            {% if is_admin %}
+            {% if can_edit or is_admin %}
             <div class="registro-actions" aria-label="Acciones del registro">
               <a href="{% url 'editar_registro' registro.id %}">Editar</a>
+              {% if is_admin %}
               <form method="post" action="{% url 'borrar_registro' registro.id %}" onsubmit="return confirm('¿Eliminar esta boleta? Esta acción no se puede deshacer.');">
                 {% csrf_token %}
                 <button class="delete-action" type="submit">Eliminar</button>
               </form>
+              {% endif %}
             </div>
             {% endif %}
 

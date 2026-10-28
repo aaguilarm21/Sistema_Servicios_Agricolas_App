@@ -9,7 +9,7 @@ from django.core.management import call_command, CommandError
 from django.test import Client
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.apps import apps
 from datetime import date, timedelta
 from decimal import Decimal
@@ -889,7 +889,7 @@ class CombustiblesInventoryTests(TestCase):
             'despachado_por': 'Persona No Autorizada',
         })
 
-        self.assertRedirects(response, reverse('despacho_combustible'))
+        self.assertEqual(response.status_code, 200)
         self.assertFalse(DespachoCombustible.objects.exists())
         self.articulo.refresh_from_db()
         self.tanque.refresh_from_db()
@@ -902,7 +902,7 @@ class CombustiblesInventoryTests(TestCase):
             self.datos_despacho(galones='20.01'),
         )
 
-        self.assertRedirects(response, reverse('despacho_combustible'))
+        self.assertEqual(response.status_code, 200)
         self.articulo.refresh_from_db()
         self.tanque.refresh_from_db()
         self.assertEqual(self.articulo.stock, Decimal('20.00'))
@@ -925,7 +925,7 @@ class CombustiblesInventoryTests(TestCase):
             'estacion_tanque': tanque_regular.codigo,
         })
 
-        self.assertRedirects(response, reverse('despacho_combustible'))
+        self.assertEqual(response.status_code, 200)
         self.assertFalse(DespachoCombustible.objects.exists())
         tanque_regular.refresh_from_db()
         self.assertEqual(tanque_regular.nivel_actual_galones, Decimal('30.00'))
@@ -938,7 +938,7 @@ class CombustiblesInventoryTests(TestCase):
             'galones_recarga': '80.01',
         })
 
-        self.assertRedirects(response, reverse('tanques_combustible'))
+        self.assertEqual(response.status_code, 200)
         self.tanque.refresh_from_db()
         self.assertEqual(self.tanque.nivel_actual_galones, Decimal('20.00'))
 
@@ -950,7 +950,7 @@ class CombustiblesInventoryTests(TestCase):
             'estado': 'Operativo',
         })
 
-        self.assertRedirects(response, reverse('tanques_combustible'))
+        self.assertEqual(response.status_code, 200)
         self.tanque.refresh_from_db()
         self.assertEqual(self.tanque.nivel_actual_galones, Decimal('20.00'))
 
@@ -1171,7 +1171,7 @@ class AreaLoteLimitTests(TestCase):
             'codigo_labor': 'LAB-RIEGO-SIN-CUENTA',
         })
 
-        self.assertRedirects(response, reverse('registros'))
+        self.assertEqual(response.status_code, 200)
         self.assertFalse(RegistroOperativo.objects.filter(no_boleta='AREA-SIN-CUENTA').exists())
 
     def test_transport_locations_are_saved_only_for_allowed_services(self):
@@ -1209,7 +1209,7 @@ class AreaLoteLimitTests(TestCase):
     def test_area_lote_above_150_is_rejected(self):
         response = self.client.post(reverse('registros'), self.datos_registro('150.01'))
 
-        self.assertRedirects(response, reverse('registros'))
+        self.assertEqual(response.status_code, 200)
         self.assertFalse(RegistroOperativo.objects.filter(no_boleta='AREA-150.01').exists())
 
 
@@ -1257,7 +1257,7 @@ class SemillaCanaSourceTests(TestCase):
     def test_seed_cut_requires_origin_farm_and_lot(self):
         response = self.client.post(reverse('registros'), self.datos_envio_semilla(lote_corte_semilla=''))
 
-        self.assertRedirects(response, reverse('registros'))
+        self.assertEqual(response.status_code, 200)
         self.assertFalse(RegistroOperativo.objects.filter(no_boleta='SEMILLA-ORIGEN-01').exists())
 
     def test_other_services_do_not_save_cane_details(self):
@@ -1341,3 +1341,108 @@ class ProcesosLaborTests(TestCase):
                 self.assertContains(response, '<optgroup label="Siembras">')
                 self.assertContains(response, '<optgroup label="Fertilización">')
                 self.assertContains(response, '<optgroup label="Riego">')
+
+
+class UsuarioRolePermissionsTests(TestCase):
+    def setUp(self):
+        self.usuario_group, _ = Group.objects.get_or_create(name='Usuario')
+        self.user = User.objects.create_user(
+            username='operador-usuario',
+            password='TestPassword@123',
+        )
+        self.user.groups.add(self.usuario_group)
+        self.client.force_login(self.user)
+        self.client.cookies['jwt_token'] = generate_jwt_token(self.user)
+
+    def test_usuario_can_create_and_edit_catalog_but_cannot_delete(self):
+        # 1. Crear proveedor (POST)
+        crear_res = self.client.post(
+            reverse('api_proveedores'),
+            data=json.dumps({
+                'codigo': 'PROV-USER-01',
+                'nit': '123456-7',
+                'razonSocial': 'Proveedor Usuario Test',
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(crear_res.status_code, 201)
+        proveedor_id = crear_res.json()['id']
+
+        # 2. Editar proveedor (PUT)
+        editar_res = self.client.put(
+            reverse('api_proveedor_detalle', args=[proveedor_id]),
+            data=json.dumps({
+                'codigo': 'PROV-USER-01',
+                'nit': '123456-7',
+                'razonSocial': 'Proveedor Usuario Modificado',
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(editar_res.status_code, 200)
+        proveedor = Proveedor.objects.get(id=proveedor_id)
+        self.assertEqual(proveedor.razon_social, 'Proveedor Usuario Modificado')
+
+        # 3. Eliminar proveedor (DELETE) -> Debe estar BLOQUEADO (403)
+        eliminar_res = self.client.delete(
+            reverse('api_proveedor_detalle', args=[proveedor_id]),
+        )
+        self.assertEqual(eliminar_res.status_code, 403)
+        self.assertTrue(Proveedor.objects.filter(id=proveedor_id).exists())
+
+    def test_usuario_can_edit_operational_record_but_cannot_delete(self):
+        registro = RegistroOperativo.objects.create(
+            no_boleta='BOL-USER-PERM',
+            fecha_labor=date(2026, 10, 5),
+            tipo_servicio='Aplicaciones aereas',
+            proveedor='Proveedor Test',
+            finca='Finca La Union',
+            lote='Lote 5',
+            area_lote=Decimal('10.00'),
+        )
+
+        # GET a editar registro permitido
+        get_edit_res = self.client.get(reverse('editar_registro', args=[registro.id]))
+        self.assertEqual(get_edit_res.status_code, 200)
+
+        # POST para modificar registro permitido
+        post_edit_res = self.client.post(reverse('editar_registro', args=[registro.id]), {
+            'lote': 'Lote 10 Modificado',
+        })
+        self.assertRedirects(post_edit_res, reverse('registros_data'))
+        registro.refresh_from_db()
+        self.assertEqual(registro.lote, 'Lote 10 Modificado')
+
+        # Intento de eliminar registro -> Bloqueado para usuario normal
+        borrar_res = self.client.post(reverse('borrar_registro', args=[registro.id]))
+        self.assertRedirects(borrar_res, reverse('modulos'))
+        self.assertTrue(RegistroOperativo.objects.filter(id=registro.id).exists())
+
+    def test_usuario_cannot_delete_scheduled_operation(self):
+        operacion = ProgramacionOperacion.objects.create(
+            fecha=date(2026, 10, 10),
+            tipo_servicio='Aplicaciones aereas',
+            finca='Finca 1',
+            lote='Lote 1',
+            area=Decimal('5.00'),
+            estado='Programada',
+        )
+        del_res = self.client.post(reverse('eliminar_operacion_programada', args=[operacion.id]))
+        self.assertEqual(del_res.status_code, 403)
+        self.assertTrue(ProgramacionOperacion.objects.filter(id=operacion.id).exists())
+
+    def test_validar_registro_shows_edit_but_hides_delete_for_usuario_role(self):
+        registro = RegistroOperativo.objects.create(
+            no_boleta='BOL-VALIDAR-PERM',
+            fecha_labor=date(2026, 10, 5),
+            tipo_servicio='Aplicaciones aereas',
+            proveedor='Proveedor Test',
+            finca='Finca La Union',
+            lote='Lote 5',
+            area_lote=Decimal('10.00'),
+        )
+        response = self.client.get(reverse('validar_registro_operativo'), {
+            'no_boleta': registro.no_boleta,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('editar_registro', args=[registro.id]))
+        self.assertNotContains(response, reverse('borrar_registro', args=[registro.id]))

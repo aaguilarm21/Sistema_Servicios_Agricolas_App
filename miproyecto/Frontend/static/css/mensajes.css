@@ -1,25 +1,31 @@
-/* Estilos personalizados para mensajes de validación según los colores del proyecto */
+/* ==========================================================================
+   MENSAJES.CSS – Mensajes, Notificaciones y Alertas
+   Sistema de Servicios Agrícolas
+   Paleta: Verde y Blanco
+   ========================================================================== */
+
+@import url('variables.css');
 
 :root {
-  --color-success: #2e7d32;
-  --color-success-light: #81c784;
-  --color-success-bg: #e8f5e9;
-  --color-success-border: #4caf50;
+  --color-success: var(--verde-700);
+  --color-success-light: var(--verde-300);
+  --color-success-bg: var(--verde-50);
+  --color-success-border: var(--verde-500);
   
-  --color-error: #1b5e20;
-  --color-error-light: #81c784;
-  --color-error-bg: #e8f5e9;
-  --color-error-border: #4caf50;
+  --color-error: var(--verde-800);
+  --color-error-light: var(--verde-300);
+  --color-error-bg: var(--verde-50);
+  --color-error-border: var(--verde-500);
   
   --color-warning: #558b2f;
-  --color-warning-light: #a5d6a7;
-  --color-warning-bg: #f1f8e9;
-  --color-warning-border: #81c784;
+  --color-warning-light: var(--verde-200);
+  --color-warning-bg: var(--verde-25);
+  --color-warning-border: var(--verde-300);
   
-  --color-info: #2e7d32;
-  --color-info-light: #81c784;
-  --color-info-bg: #e8f5e9;
-  --color-info-border: #66bb6a;
+  --color-info: var(--verde-700);
+  --color-info-light: var(--verde-300);
+  --color-info-bg: var(--verde-50);
+  --color-info-border: var(--verde-400);
 }
 
 /* Mensajes de error */
@@ -328,12 +334,14 @@
 }
 
 .btn-cancel {
-  background: #f0f0f0;
-  color: #333;
+  background: #f1f8e9;
+  color: #1b5e20;
+  border: 1px solid #a5d6a7;
 }
 
 .btn-cancel:hover {
-  background: #e0e0e0;
+  background: #dcedc8;
+  color: #14532d;
 }
 
 /* Estilos responsive adicionales para dispositivos móviles muy pequeños (480px y menos) */

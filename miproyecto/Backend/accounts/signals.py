@@ -11,6 +11,9 @@ from django.dispatch import receiver
 from .device_detection import detect_device_type
 from .models import LoginAttempt
 
+# Señales y funciones auxiliares para registrar intentos de acceso al sistema.
+# También se crean automáticamente los grupos de roles al ejecutar migraciones.
+
 
 def _location_data(request):
     if request is None or request.POST.get('share_location') != 'yes':
@@ -63,12 +66,14 @@ def registrar_intento_acceso(request, username='', user=None, successful=False):
 
 
 @receiver(user_logged_in)
-def record_successful_login(sender, request, user, **kwargs):
+def registrar_login_exitoso(sender, request, user, **kwargs):
+    """Registra en el log de intentos cuando un inicio de sesión es exitoso."""
     registrar_intento_acceso(request, username=user.get_username(), user=user, successful=True)
 
 
 @receiver(user_login_failed)
-def record_failed_login(sender, credentials, request, **kwargs):
+def registrar_login_fallido(sender, credentials, request, **kwargs):
+    """Registra en el log de intentos cuando un inicio de sesión falla."""
     username = credentials.get(get_user_model().USERNAME_FIELD, '')
     registrar_intento_acceso(request, username=username, successful=False)
 

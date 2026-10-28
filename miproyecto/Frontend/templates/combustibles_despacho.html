@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Combustibles - Despacho de Combustible</title>
   {% load static %}
+  <script src="{% static 'js/notificaciones.js' %}" defer></script>
   <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
   <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
@@ -102,11 +103,11 @@
         <div class="form-grid-3">
           <div class="form-group">
             <label for="no_vale">No. de Vale *</label>
-            <input type="text" name="no_vale" id="no_vale" class="form-control" maxlength="50" value="{% if despacho_edicion %}{{ despacho_edicion.no_vale }}{% else %}{{ siguiente_vale }}{% endif %}" readonly required />
+            <input type="text" name="no_vale" id="no_vale" class="form-control" maxlength="50" value="{% if despacho_edicion %}{{ despacho_edicion.no_vale }}{% elif form_data.no_vale %}{{ form_data.no_vale }}{% else %}{{ siguiente_vale }}{% endif %}" readonly required />
           </div>
           <div class="form-group">
             <label for="fecha">Fecha de Despacho *</label>
-            <input type="date" name="fecha" id="fecha" class="form-control" value="{% if despacho_edicion %}{{ despacho_edicion.fecha|date:'Y-m-d' }}{% else %}{{ fecha_hoy|date:'Y-m-d' }}{% endif %}" required />
+            <input type="date" name="fecha" id="fecha" class="form-control" value="{% if despacho_edicion %}{{ despacho_edicion.fecha|date:'Y-m-d' }}{% elif form_data.fecha %}{{ form_data.fecha }}{% else %}{{ fecha_hoy|date:'Y-m-d' }}{% endif %}" required />
           </div>
           <div class="form-group">
             <label for="tipo_combustible">Tipo de Combustible *</label>
@@ -144,14 +145,14 @@
           <div class="form-group">
             <label for="galones">Cantidad despachada *</label>
             <div class="input-with-unit">
-              <input type="number" step="0.01" min="0.01" name="galones" id="galones" class="form-control" value="{{ despacho_edicion.galones|default:'' }}" required />
+              <input type="number" step="0.01" min="0.01" name="galones" id="galones" class="form-control" value="{% if despacho_edicion %}{{ despacho_edicion.galones }}{% else %}{{ form_data.galones|default:'' }}{% endif %}" required />
               <span class="unit-suffix">Gal</span>
             </div>
           </div>
           <div class="form-group">
             <label for="horometro_actual">Horómetro de Despacho *</label>
             <div class="input-with-unit">
-              <input type="number" step="0.01" min="0" name="horometro_actual" id="horometro_actual" class="form-control" value="{{ despacho_edicion.horometro_actual|default:'' }}" required />
+              <input type="number" step="0.01" min="0" name="horometro_actual" id="horometro_actual" class="form-control" value="{% if despacho_edicion %}{{ despacho_edicion.horometro_actual }}{% else %}{{ form_data.horometro_actual|default:'' }}{% endif %}" required />
               <span class="unit-suffix">hrs</span>
             </div>
           </div>
@@ -202,7 +203,7 @@
 
         <div class="form-group form-group-spaced">
           <label for="observaciones">Observaciones</label>
-          <textarea name="observaciones" id="observaciones" class="form-control" rows="3">{{ despacho_edicion.observaciones|default:'' }}</textarea>
+          <textarea name="observaciones" id="observaciones" class="form-control" rows="3">{% if despacho_edicion %}{{ despacho_edicion.observaciones|default:'' }}{% else %}{{ form_data.observaciones|default:'' }}{% endif %}</textarea>
         </div>
 
         <div class="form-group form-group-spaced">
@@ -314,12 +315,14 @@
               <td>{{ d.despachado_por|default:'-' }}</td>
               <td><div class="fuel-row-actions">
                 <a class="btn-sm fuel-edit-link" href="{% url 'despacho_combustible' %}?editar={{ d.id }}">Editar</a>
+                {% if is_admin %}
                 <form method="post" action="{% url 'gestionar_despacho_combustible' d.id %}" onsubmit="return confirm('¿Eliminar este vale y devolver su saldo al tanque?');">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="delete" />
                   <input type="hidden" name="return_to" value="despachos" />
                   <button type="submit" class="btn-sm fuel-delete-link">Eliminar</button>
                 </form>
+                {% endif %}
               </div></td>
             </tr>
             {% empty %}
@@ -415,7 +418,30 @@
 
     tipoCombustible.addEventListener('change', filtrarTanquesPorCombustible);
     filtrarTanquesPorCombustible();
+
+    // Restaurar selecciones previas del formulario si hubo error o advertencia
+    const formDataElement = document.getElementById('form-data-json');
+    if (formDataElement) {
+      try {
+        const formData = JSON.parse(formDataElement.textContent);
+        if (formData && Object.keys(formData).length > 0) {
+          if (formData.tipo_combustible && tipoCombustible) {
+            tipoCombustible.value = formData.tipo_combustible;
+            filtrarTanquesPorCombustible();
+          }
+          ['codigo_maquina', 'labor', 'operador', 'estacion_tanque', 'finca', 'proveedor', 'despachado_por'].forEach(k => {
+            if (formData[k]) {
+              const el = document.getElementById(k);
+              if (el) el.value = formData[k];
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error al restaurar datos de despacho:', e);
+      }
+    }
   </script>
+  {{ form_data|json_script:"form-data-json" }}
 </body>
 
 </html>

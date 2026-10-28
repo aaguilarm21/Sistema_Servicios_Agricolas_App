@@ -67,7 +67,8 @@ def modulos(request):
 def configuracion_catalogos(request):
     """Muestra la página de configuración y catálogos para el usuario autenticado."""
     return render(request, 'configuracion_catalogos.html', {
-        'is_admin': user_is_admin(request.user)
+        'is_admin': user_is_admin(request.user),
+        'can_edit': user_is_user_or_admin(request.user),
     })
 
 
@@ -75,25 +76,30 @@ def configuracion_catalogos(request):
 def datos_registrados(request):
     """Muestra en una pantalla independiente los datos guardados en catálogos."""
     return render(request, 'datos_registrados.html', {
-        'is_admin': user_is_admin(request.user)
+        'is_admin': user_is_admin(request.user),
+        'can_edit': user_is_user_or_admin(request.user),
     })
 
 
 def to_title_case(val):
+    """Convierte un valor de texto al formato Titulo usando la normalización del modelo."""
     return normalizar_texto(val)
 
 
 def _normalizar_tipo_servicio(tipo_servicio):
+    """Normaliza el tipo de servicio eliminando tildes y convirtiendo a minúsculas para comparaciones."""
     normalizado = unicodedata.normalize('NFKD', tipo_servicio or '')
     normalizado = normalizado.encode('ascii', 'ignore').decode('ascii').casefold()
     return ' '.join(normalizado.split())
 
 
 def _es_servicio_envio_semilla(tipo_servicio):
+    """Verifica si el tipo de servicio corresponde al envío de semilla de caña."""
     return _normalizar_tipo_servicio(tipo_servicio) == 'envio de semilla de cana'
 
 
 def _es_servicio_transporte(tipo_servicio):
+    """Verifica si el tipo de servicio implica transporte de personal, material o semilla."""
     return _normalizar_tipo_servicio(tipo_servicio) in {
         'envio de semilla de cana',
         'transporte de personal',
@@ -102,6 +108,7 @@ def _es_servicio_transporte(tipo_servicio):
 
 
 def _catalogos_registro_operativo():
+    """Retorna un diccionario con todos los catálogos requeridos por el formulario de registro operativo."""
     return {
         'proveedores': Proveedor.objects.all().order_by('razon_social'),
         'maquinarias': Maquinaria.objects.all().order_by('codigo_maquina'),
@@ -117,7 +124,7 @@ def _catalogos_registro_operativo():
 @login_required
 @require_http_methods(['GET', 'POST'])
 def firmas_autorizadas(request):
-    if not user_is_admin(request.user):
+    if not user_is_user_or_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
@@ -160,13 +167,21 @@ def registros_operativos(request):
     if not user_is_user_or_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
+    form_data = {}
     if request.method == 'POST':
+        form_data = request.POST.dict()
         tipo_servicio = to_title_case(request.POST.get('tipo_servicio', ''))
         es_envio_semilla = _es_servicio_envio_semilla(tipo_servicio)
         es_transporte = _es_servicio_transporte(tipo_servicio)
         corte_semilla = request.POST.get('corte_semilla', '').strip() or None
         if not es_envio_semilla:
             corte_semilla = None
+
+        def _render_error():
+            return render(request, 'registros_operativos.html', {
+                **_catalogos_registro_operativo(),
+                'form_data': form_data,
+            })
 
         finca_corte_semilla = None
         lote_corte_semilla = None
@@ -175,77 +190,84 @@ def registros_operativos(request):
             lote_corte_semilla = request.POST.get('lote_corte_semilla', '').strip()
             if not finca_corte_semilla or not lote_corte_semilla:
                 messages.error(request, 'Indica la finca y el lote donde se cortó la semilla.')
-                return redirect('registros')
+                return _render_error()
 
         area_lote_raw = request.POST.get('area_lote', '').strip()
         try:
             area_lote = Decimal(area_lote_raw) if area_lote_raw else None
         except InvalidOperation:
             messages.error(request, 'El área del lote debe ser un número válido y no puede superar 150 hectáreas.')
-            return redirect('registros')
+            return _render_error()
 
         if area_lote is not None and (not area_lote.is_finite() or area_lote > Decimal('150')):
             messages.error(request, 'El área del lote no puede superar 150 hectáreas.')
-            return redirect('registros')
+            return _render_error()
 
         codigo_labor = request.POST.get('codigo_labor', '').strip()
         labor_seleccionada = Labor.objects.filter(codigo=codigo_labor).first()
         if not labor_seleccionada:
             messages.error(request, 'Selecciona una labor válida.')
-            return redirect('registros')
+            return _render_error()
         cuenta_proceso = Cuenta.objects.filter(proceso=labor_seleccionada.proceso).first()
         if not cuenta_proceso:
             proceso = dict(Labor.PROCESO_CHOICES)[labor_seleccionada.proceso]
             messages.error(request, f'No hay una cuenta configurada para el proceso {proceso}.')
-            return redirect('registros')
+            return _render_error()
 
-        RegistroOperativo.objects.create(
-            no_boleta=request.POST.get('no_boleta', '').strip(),
-            fecha_labor=request.POST.get('fecha_labor') or None,
-            tipo_servicio=tipo_servicio,
-            proveedor=to_title_case(request.POST.get('proveedor', '')),
-            codigo_maquina=request.POST.get('codigo_maquina', '').strip() or None,
-            placa=request.POST.get('placa', '').strip() or None,
-            operador=to_title_case(request.POST.get('operador', '')) or None,
-            finca=to_title_case(request.POST.get('finca', '')),
-            lote=to_title_case(request.POST.get('lote', '')),
-            area_lote=area_lote,
-            actividad=to_title_case(request.POST.get('actividad', '')) or None,
-            labor=labor_seleccionada.descripcion,
-            corte_semilla=corte_semilla,
-            finca_corte_semilla=to_title_case(finca_corte_semilla) or None,
-            lote_corte_semilla=to_title_case(lote_corte_semilla) or None,
-            unidades=request.POST.get('unidades') or None,
-            horometro_inicial=request.POST.get('horometro_inicial') or None,
-            horometro_final=request.POST.get('horometro_final') or None,
-            costo_unitario=request.POST.get('costo_unitario') or None,
-            num_factura=request.POST.get('num_factura', '').strip() or None,
-            cuenta_contable=cuenta_proceso.codigo,
-            variedad=to_title_case(request.POST.get('variedad', '')) or None if es_envio_semilla else None,
-            total_paquetes=request.POST.get('total_paquetes') or None if es_envio_semilla else None,
-            peso_kg=request.POST.get('peso_kg') or None if es_envio_semilla else None,
-            caporal_01=to_title_case(request.POST.get('caporal_01', '')) or None,
-            caporal_02=to_title_case(request.POST.get('caporal_02', '')) or None,
-            mayordomo=to_title_case(request.POST.get('mayordomo', '')) or None,
-            administrador=to_title_case(request.POST.get('administrador', '')) or None,
-            lugar_origen=to_title_case(request.POST.get('lugar_origen', '')) or None if es_transporte else None,
-            lugar_destino=to_title_case(request.POST.get('lugar_destino', '')) or None if es_transporte else None,
-            observaciones=request.POST.get('observaciones', '').strip() or None,
-        )
-        messages.success(request, 'Boleta guardada correctamente.')
-        return redirect('registros')
+        try:
+            RegistroOperativo.objects.create(
+                no_boleta=request.POST.get('no_boleta', '').strip(),
+                fecha_labor=request.POST.get('fecha_labor') or None,
+                tipo_servicio=tipo_servicio,
+                proveedor=to_title_case(request.POST.get('proveedor', '')),
+                codigo_maquina=request.POST.get('codigo_maquina', '').strip() or None,
+                placa=request.POST.get('placa', '').strip() or None,
+                operador=to_title_case(request.POST.get('operador', '')) or None,
+                finca=to_title_case(request.POST.get('finca', '')),
+                lote=to_title_case(request.POST.get('lote', '')),
+                area_lote=area_lote,
+                actividad=to_title_case(request.POST.get('actividad', '')) or None,
+                labor=labor_seleccionada.descripcion,
+                corte_semilla=corte_semilla,
+                finca_corte_semilla=to_title_case(finca_corte_semilla) or None,
+                lote_corte_semilla=to_title_case(lote_corte_semilla) or None,
+                unidades=request.POST.get('unidades') or None,
+                horometro_inicial=request.POST.get('horometro_inicial') or None,
+                horometro_final=request.POST.get('horometro_final') or None,
+                costo_unitario=request.POST.get('costo_unitario') or None,
+                num_factura=request.POST.get('num_factura', '').strip() or None,
+                cuenta_contable=cuenta_proceso.codigo,
+                variedad=to_title_case(request.POST.get('variedad', '')) or None if es_envio_semilla else None,
+                total_paquetes=request.POST.get('total_paquetes') or None if es_envio_semilla else None,
+                peso_kg=request.POST.get('peso_kg') or None if es_envio_semilla else None,
+                caporal_01=to_title_case(request.POST.get('caporal_01', '')) or None,
+                caporal_02=to_title_case(request.POST.get('caporal_02', '')) or None,
+                mayordomo=to_title_case(request.POST.get('mayordomo', '')) or None,
+                administrador=to_title_case(request.POST.get('administrador', '')) or None,
+                lugar_origen=to_title_case(request.POST.get('lugar_origen', '')) or None if es_transporte else None,
+                lugar_destino=to_title_case(request.POST.get('lugar_destino', '')) or None if es_transporte else None,
+                observaciones=request.POST.get('observaciones', '').strip() or None,
+            )
+            messages.success(request, 'Boleta guardada correctamente.')
+            return redirect('registros')
+        except Exception as e:
+            messages.error(request, f'Error al guardar la boleta: {e}')
+            return _render_error()
     
     return render(request, 'registros_operativos.html', {
         **_catalogos_registro_operativo(),
+        'form_data': form_data,
     })
 
 
 @login_required
 def registros_operativos_data(request):
+    """Muestra la tabla de todos los registros operativos con permisos diferenciados por rol."""
     registros = RegistroOperativo.objects.all()
     return render(request, 'registros_operativos_data.html', {
         'registros': registros,
         'is_admin': user_is_admin(request.user),
+        'can_edit': user_is_user_or_admin(request.user),
     })
 
 @login_required
@@ -262,12 +284,13 @@ def validar_registro_operativo(request):
         'numero_boleta': numero_boleta,
         'registros': registros,
         'is_admin': user_is_admin(request.user),
+        'can_edit': user_is_user_or_admin(request.user),
     })
 
 
 @login_required
 def editar_registro_operativo(request, registro_id):
-    if not user_is_admin(request.user):
+    if not user_is_user_or_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
     
@@ -291,12 +314,21 @@ def editar_registro_operativo(request, registro_id):
         registro.actividad = request.POST.get('actividad', '').strip() or None
         registro.labor = request.POST.get('labor', '').strip() or None
         registro.corte_semilla = request.POST.get('corte_semilla', '').strip() or None if es_envio_semilla else None
+        def _render_error_editar():
+            return render(request, 'editar_registro_operativo.html', {
+                'registro': registro,
+                'labor_actual_catalogada': bool(
+                    registro.labor and Labor.objects.filter(descripcion__iexact=registro.labor).exists()
+                ),
+                **_catalogos_registro_operativo(),
+            })
+
         if es_envio_semilla and registro.corte_semilla == '1':
             registro.finca_corte_semilla = request.POST.get('finca_corte_semilla', '').strip() or None
             registro.lote_corte_semilla = request.POST.get('lote_corte_semilla', '').strip() or None
             if not registro.finca_corte_semilla or not registro.lote_corte_semilla:
                 messages.error(request, 'Indica la finca y el lote donde se cortó la semilla.')
-                return redirect('editar_registro', registro_id=registro.id)
+                return _render_error_editar()
         else:
             registro.finca_corte_semilla = None
             registro.lote_corte_semilla = None
@@ -316,9 +348,13 @@ def editar_registro_operativo(request, registro_id):
         registro.lugar_destino = request.POST.get('lugar_destino', '').strip() or None if es_transporte else None
         registro.observaciones = request.POST.get('observaciones', '').strip() or None
         
-        registro.save()
-        messages.success(request, 'Registro actualizado correctamente.')
-        return redirect('registros_data')
+        try:
+            registro.save()
+            messages.success(request, 'Registro actualizado correctamente.')
+            return redirect('registros_data')
+        except Exception as e:
+            messages.error(request, f'Error al actualizar el registro: {e}')
+            return _render_error_editar()
     
     return render(request, 'editar_registro_operativo.html', {
         'registro': registro,
@@ -349,6 +385,7 @@ def borrar_registro_operativo(request, registro_id):
 
 @login_required
 def usuarios(request):
+    """Muestra el módulo de gestión de usuarios con visibilidad condicional según el rol."""
     return render(request, 'usuarios.html', {
         'is_admin': user_is_admin(request.user)
     })
@@ -461,11 +498,38 @@ def usuarios_creados(request):
 
 @login_required
 def operacion(request):
+    """Vista del módulo de programación de operaciones agrícolas y logística de campo."""
     if not user_is_user_or_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
+    form_data = {}
+
+    def _render_operacion(form_data_ctx=None):
+        fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
+        empleados = Empleado.objects.all().order_by('empleado')
+        programaciones = ProgramacionOperacion.objects.all().order_by('-fecha', '-created_at')
+
+        total_programadas = programaciones.count()
+        total_area = sum((p.area for p in programaciones if p.area), 0)
+        pendientes_count = programaciones.filter(estado__in=['Programada', 'En Proceso']).count()
+        realizadas_count = programaciones.filter(estado='Realizada').count()
+
+        return render(request, 'operacion.html', {
+            'fincas': fincas,
+            'empleados': empleados,
+            'programaciones': programaciones,
+            'total_programadas': total_programadas,
+            'total_area': total_area,
+            'pendientes_count': pendientes_count,
+            'realizadas_count': realizadas_count,
+            'is_admin': user_is_admin(request.user),
+            'ver_logistica': request.GET.get('ver') == 'logistica',
+            'form_data': form_data_ctx or {},
+        })
+
     if request.method == 'POST':
+        form_data = request.POST.dict()
         accion = request.POST.get('action', 'create').strip()
         tipo_servicio = request.POST.get('tipo_servicio', '').strip()
         fecha = request.POST.get('fecha') or timezone.now().date()
@@ -484,14 +548,14 @@ def operacion(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('operacion')
+            return _render_operacion(form_data)
 
         if accion not in ('create', 'update'):
             error_msg = 'La acción solicitada no es válida.'
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('operacion')
+            return _render_operacion(form_data)
 
         if prioridad not in dict(ProgramacionOperacion.PRIORIDAD_CHOICES):
             prioridad = 'Normal'
@@ -505,45 +569,52 @@ def operacion(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('operacion')
+            return _render_operacion(form_data)
 
-        if accion == 'update':
-            try:
-                nueva_programacion = ProgramacionOperacion.objects.get(
-                    pk=request.POST.get('operacion_id')
+        try:
+            if accion == 'update':
+                try:
+                    nueva_programacion = ProgramacionOperacion.objects.get(
+                        pk=request.POST.get('operacion_id')
+                    )
+                except (ProgramacionOperacion.DoesNotExist, ValueError, TypeError):
+                    error_msg = 'La operación que intentas editar ya no existe.'
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error': error_msg}, status=404)
+                    messages.error(request, error_msg)
+                    return redirect('/operacion/?ver=logistica')
+
+                nueva_programacion.tipo_servicio = tipo_servicio
+                nueva_programacion.fecha = fecha
+                nueva_programacion.finca = finca
+                nueva_programacion.lote = lote
+                nueva_programacion.area = area
+                nueva_programacion.responsable = responsable
+                nueva_programacion.prioridad = prioridad
+                nueva_programacion.estado = estado
+                nueva_programacion.observaciones = observaciones
+                nueva_programacion.save()
+                mensaje = 'Operación actualizada correctamente en Logística.'
+            else:
+                nueva_programacion = ProgramacionOperacion.objects.create(
+                    tipo_servicio=tipo_servicio,
+                    fecha=fecha,
+                    finca=finca,
+                    lote=lote,
+                    area=area,
+                    responsable=responsable,
+                    prioridad=prioridad,
+                    estado=estado,
+                    observaciones=observaciones,
+                    creado_por=request.user if request.user.is_authenticated else None,
                 )
-            except (ProgramacionOperacion.DoesNotExist, ValueError, TypeError):
-                error_msg = 'La operación que intentas editar ya no existe.'
-                if is_ajax:
-                    return JsonResponse({'success': False, 'error': error_msg}, status=404)
-                messages.error(request, error_msg)
-                return redirect('/operacion/?ver=logistica')
-
-            nueva_programacion.tipo_servicio = tipo_servicio
-            nueva_programacion.fecha = fecha
-            nueva_programacion.finca = finca
-            nueva_programacion.lote = lote
-            nueva_programacion.area = area
-            nueva_programacion.responsable = responsable
-            nueva_programacion.prioridad = prioridad
-            nueva_programacion.estado = estado
-            nueva_programacion.observaciones = observaciones
-            nueva_programacion.save()
-            mensaje = 'Operación actualizada correctamente en Logística.'
-        else:
-            nueva_programacion = ProgramacionOperacion.objects.create(
-                tipo_servicio=tipo_servicio,
-                fecha=fecha,
-                finca=finca,
-                lote=lote,
-                area=area,
-                responsable=responsable,
-                prioridad=prioridad,
-                estado=estado,
-                observaciones=observaciones,
-                creado_por=request.user if request.user.is_authenticated else None,
-            )
-            mensaje = '¡Operación programada exitosamente en Logística!'
+                mensaje = '¡Operación programada exitosamente en Logística!'
+        except Exception as e:
+            error_msg = f'Error al guardar la operación: {e}'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg}, status=400)
+            messages.error(request, error_msg)
+            return _render_operacion(form_data)
 
         if is_ajax:
             return JsonResponse({
@@ -563,26 +634,7 @@ def operacion(request):
         messages.success(request, mensaje)
         return redirect('/operacion/?ver=logistica')
 
-    fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
-    empleados = Empleado.objects.all().order_by('empleado')
-    programaciones = ProgramacionOperacion.objects.all().order_by('-fecha', '-created_at')
-
-    total_programadas = programaciones.count()
-    total_area = sum((p.area for p in programaciones if p.area), 0)
-    pendientes_count = programaciones.filter(estado__in=['Programada', 'En Proceso']).count()
-    realizadas_count = programaciones.filter(estado='Realizada').count()
-
-    return render(request, 'operacion.html', {
-        'fincas': fincas,
-        'empleados': empleados,
-        'programaciones': programaciones,
-        'total_programadas': total_programadas,
-        'total_area': total_area,
-        'pendientes_count': pendientes_count,
-        'realizadas_count': realizadas_count,
-        'is_admin': user_is_admin(request.user),
-        'ver_logistica': request.GET.get('ver') == 'logistica',
-    })
+    return _render_operacion()
 
 
 @login_required
@@ -605,7 +657,7 @@ def cambiar_estado_operacion(request, operacion_id):
 @login_required
 @require_http_methods(['POST'])
 def eliminar_operacion_programada(request, operacion_id):
-    if not user_is_user_or_admin(request.user):
+    if not user_is_admin(request.user):
         return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
     try:
         prog = ProgramacionOperacion.objects.get(id=operacion_id)
@@ -624,6 +676,7 @@ def eliminar_operacion_programada(request, operacion_id):
 
 @login_required
 def reportes(request):
+    """Genera reportes de registros operativos filtrados por tipo de servicio y rango de fechas."""
     tipo_reporte = request.GET.get('tipo_reporte')
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
@@ -646,6 +699,7 @@ def reportes(request):
 
 @login_required
 def indicadores(request):
+    """Calcula y presenta indicadores globales de registros operativos (cantidad, área, costos y servicios)."""
     registros = RegistroOperativo.objects.all()
     totales = registros.aggregate(
         cantidad=Count('id'),
@@ -713,7 +767,47 @@ def despacho_combustible(request):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
+    form_data = {}
+
+    def _render_despacho(form_data_ctx=None, despacho_ed=None):
+        despachos = DespachoCombustible.objects.all().order_by('-fecha', '-created_at')
+        maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
+        empleados = Empleado.objects.all().order_by('empleado')
+        labores = Labor.objects.all().order_by('proceso', 'codigo')
+        tanques = TanqueCombustible.objects.all().order_by('codigo')
+        proveedores = Proveedor.objects.all().order_by('razon_social')
+        firmas_autorizadas = FirmaAutorizada.objects.all().order_by('nombre')
+        fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
+
+        total_despachos = despachos.count()
+        total_galones = sum((float(d.galones) for d in despachos if d.galones), 0.0)
+        promedio_despacho = (total_galones / total_despachos) if total_despachos > 0 else 0.0
+        maquinas_atendidas = len(set(d.codigo_maquina for d in despachos if d.codigo_maquina))
+        siguiente_vale = _siguiente_no_vale()
+
+        return render(request, 'combustibles_despacho.html', {
+            'despachos': despachos,
+            'maquinarias': maquinarias,
+            'empleados': empleados,
+            'labores': labores,
+            'tanques': tanques,
+            'proveedores': proveedores,
+            'firmas_autorizadas': firmas_autorizadas,
+            'fincas': fincas,
+            'total_despachos': total_despachos,
+            'total_galones': round(total_galones, 2),
+            'promedio_despacho': round(promedio_despacho, 2),
+            'maquinas_atendidas': maquinas_atendidas,
+            'siguiente_vale': siguiente_vale,
+            'fecha_hoy': timezone.now().date(),
+            'is_admin': user_is_admin(request.user),
+            'despacho_edicion': despacho_ed,
+            'return_to': request.GET.get('return_to') == 'consumo',
+            'form_data': form_data_ctx or {},
+        })
+
     if request.method == 'POST':
+        form_data = request.POST.dict()
         fecha = request.POST.get('fecha') or timezone.now().date()
         codigo_maquina = request.POST.get('codigo_maquina', '').strip()
         tipo_combustible = request.POST.get('tipo_combustible', 'Diésel').strip()
@@ -737,7 +831,7 @@ def despacho_combustible(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('despacho_combustible')
+            return _render_despacho(form_data)
 
         try:
             galones = Decimal(galones_val)
@@ -749,64 +843,67 @@ def despacho_combustible(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('despacho_combustible')
+            return _render_despacho(form_data)
 
         if galones <= 0 or horometro < 0:
             error_msg = 'Los galones deben ser mayores a cero y el horómetro no puede ser negativo.'
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('despacho_combustible')
+            return _render_despacho(form_data)
 
         error_msg = None
-        with transaction.atomic():
-            tanque = _buscar_tanque_por_referencia(estacion_tanque, bloquear=True)
-            if not tanque:
-                error_msg = 'Selecciona un tanque válido.'
-            elif tanque.estado != 'Operativo':
-                error_msg = 'El tanque seleccionado no está operativo.'
-            elif _normalizar_referencia_combustible(tanque.tipo_combustible) != _normalizar_referencia_combustible(tipo_combustible):
-                error_msg = 'El tipo de combustible no coincide con el tanque seleccionado.'
-            elif galones > Decimal(tanque.nivel_actual_galones):
-                error_msg = f'Existencia insuficiente en el tanque. Disponible: {tanque.nivel_actual_galones} galones.'
+        try:
+            with transaction.atomic():
+                tanque = _buscar_tanque_por_referencia(estacion_tanque, bloquear=True)
+                if not tanque:
+                    error_msg = 'Selecciona un tanque válido.'
+                elif tanque.estado != 'Operativo':
+                    error_msg = 'El tanque seleccionado no está operativo.'
+                elif _normalizar_referencia_combustible(tanque.tipo_combustible) != _normalizar_referencia_combustible(tipo_combustible):
+                    error_msg = 'El tipo de combustible no coincide con el tanque seleccionado.'
+                elif galones > Decimal(tanque.nivel_actual_galones):
+                    error_msg = f'Existencia insuficiente en el tanque. Disponible: {tanque.nivel_actual_galones} galones.'
 
-            if not error_msg:
-                no_vale = _reservar_no_vale()
-                despacho = DespachoCombustible.objects.create(
-                    no_vale=no_vale,
-                    fecha=fecha,
-                    codigo_maquina=codigo_maquina,
-                    tipo_combustible=tipo_combustible,
-                    galones=galones,
-                    horometro_actual=horometro,
-                    labor=labor.descripcion,
-                    operador=operador,
-                    estacion_tanque=tanque.codigo,
-                    proveedor=proveedor.razon_social,
-                    finca=finca,
-                    despachado_por=firma.nombre,
-                    observaciones=observaciones,
-                )
-                tanque.nivel_actual_galones = Decimal(tanque.nivel_actual_galones) - galones
-                tanque.save(update_fields=['nivel_actual_galones', 'updated_at'])
+                if not error_msg:
+                    no_vale = _reservar_no_vale()
+                    despacho = DespachoCombustible.objects.create(
+                        no_vale=no_vale,
+                        fecha=fecha,
+                        codigo_maquina=codigo_maquina,
+                        tipo_combustible=tipo_combustible,
+                        galones=galones,
+                        horometro_actual=horometro,
+                        labor=labor.descripcion,
+                        operador=operador,
+                        estacion_tanque=tanque.codigo,
+                        proveedor=proveedor.razon_social,
+                        finca=finca,
+                        despachado_por=firma.nombre,
+                        observaciones=observaciones,
+                    )
+                    tanque.nivel_actual_galones = Decimal(tanque.nivel_actual_galones) - galones
+                    tanque.save(update_fields=['nivel_actual_galones', 'updated_at'])
 
-                # Mantener actualizado el horómetro de la máquina cuando avance.
-                disp = DisponibilidadMaquinaria.objects.select_for_update().filter(
-                    codigo_maquina__iexact=codigo_maquina
-                ).first()
-                if disp and horometro > Decimal(disp.horometro_actual or 0):
-                    disp.horometro_actual = horometro
-                    if finca:
-                        disp.finca_actual = finca
-                    if operador:
-                        disp.operador_asignado = operador
-                    disp.save()
+                    # Mantener actualizado el horómetro de la máquina cuando avance.
+                    disp = DisponibilidadMaquinaria.objects.select_for_update().filter(
+                        codigo_maquina__iexact=codigo_maquina
+                    ).first()
+                    if disp and horometro > Decimal(disp.horometro_actual or 0):
+                        disp.horometro_actual = horometro
+                        if finca:
+                            disp.finca_actual = finca
+                        if operador:
+                            disp.operador_asignado = operador
+                        disp.save()
+        except Exception as e:
+            error_msg = f'Error al registrar el despacho: {e}'
 
         if error_msg:
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('despacho_combustible')
+            return _render_despacho(form_data)
 
         msg = f'¡Despacho de combustible #{no_vale} registrado con éxito ({galones} galones)!'
         if is_ajax:
@@ -822,40 +919,7 @@ def despacho_combustible(request):
         except (DespachoCombustible.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'El despacho que intentas editar no existe.')
 
-    despachos = DespachoCombustible.objects.all().order_by('-fecha', '-created_at')
-    maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
-    empleados = Empleado.objects.all().order_by('empleado')
-    labores = Labor.objects.all().order_by('proceso', 'codigo')
-    tanques = TanqueCombustible.objects.all().order_by('codigo')
-    proveedores = Proveedor.objects.all().order_by('razon_social')
-    firmas_autorizadas = FirmaAutorizada.objects.all().order_by('nombre')
-    fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
-
-    total_despachos = despachos.count()
-    total_galones = sum((float(d.galones) for d in despachos if d.galones), 0.0)
-    promedio_despacho = (total_galones / total_despachos) if total_despachos > 0 else 0.0
-    maquinas_atendidas = len(set(d.codigo_maquina for d in despachos if d.codigo_maquina))
-    siguiente_vale = _siguiente_no_vale()
-
-    return render(request, 'combustibles_despacho.html', {
-        'despachos': despachos,
-        'maquinarias': maquinarias,
-        'empleados': empleados,
-        'labores': labores,
-        'tanques': tanques,
-        'proveedores': proveedores,
-        'firmas_autorizadas': firmas_autorizadas,
-        'fincas': fincas,
-        'total_despachos': total_despachos,
-        'total_galones': round(total_galones, 2),
-        'promedio_despacho': round(promedio_despacho, 2),
-        'maquinas_atendidas': maquinas_atendidas,
-        'siguiente_vale': siguiente_vale,
-        'fecha_hoy': timezone.now().date(),
-        'is_admin': user_is_admin(request.user),
-        'despacho_edicion': despacho_edicion,
-        'return_to': request.GET.get('return_to') == 'consumo',
-    })
+    return _render_despacho(despacho_ed=despacho_edicion)
 
 
 @login_required
@@ -878,14 +942,17 @@ def gestionar_despacho_combustible(request, despacho_id):
             if not tanque_anterior:
                 error_msg = 'No se encontró el tanque asociado al despacho.'
             elif accion == 'delete':
-                existencia_restaurada = Decimal(tanque_anterior.nivel_actual_galones) + Decimal(despacho.galones)
-                if existencia_restaurada > Decimal(tanque_anterior.capacidad_galones):
-                    error_msg = 'No se puede devolver el combustible porque se superaría la capacidad del tanque.'
+                if not user_is_admin(request.user):
+                    error_msg = 'No tienes permisos para eliminar vales de combustible.'
                 else:
-                    tanque_anterior.nivel_actual_galones = existencia_restaurada
-                    tanque_anterior.save(update_fields=['nivel_actual_galones', 'updated_at'])
-                    despacho.delete()
-                    mensaje = f'Vale {despacho.no_vale} eliminado y saldo del tanque restaurado.'
+                    existencia_restaurada = Decimal(tanque_anterior.nivel_actual_galones) + Decimal(despacho.galones)
+                    if existencia_restaurada > Decimal(tanque_anterior.capacidad_galones):
+                        error_msg = 'No se puede devolver el combustible porque se superaría la capacidad del tanque.'
+                    else:
+                        tanque_anterior.nivel_actual_galones = existencia_restaurada
+                        tanque_anterior.save(update_fields=['nivel_actual_galones', 'updated_at'])
+                        despacho.delete()
+                        mensaje = f'Vale {despacho.no_vale} eliminado y saldo del tanque restaurado.'
             elif accion == 'update':
                 fecha = parse_date(request.POST.get('fecha', '').strip())
                 codigo_maquina = request.POST.get('codigo_maquina', '').strip()
@@ -1065,70 +1132,7 @@ def consumo_combustible(request):
     })
 
 
-@login_required
-def tanques_combustible(request):
-    if not user_is_user_or_admin(request.user):
-        messages.warning(request, 'No tienes permisos para acceder a este módulo.')
-        return redirect('modulos')
-
-    if request.method == 'POST':
-        action = request.POST.get('action', '').strip()
-        if action in ('crear_tanque', 'editar_tanque', 'eliminar_tanque'):
-            return _gestionar_tanque_combustible(request, action)
-
-        codigo_tanque = request.POST.get('codigo_tanque', '').strip()
-        if action not in ('recarga', 'ajuste'):
-            messages.error(request, 'La operación solicitada no es válida.')
-            return redirect('tanques_combustible')
-
-        try:
-            cantidad = Decimal(
-                request.POST.get('galones_recarga' if action == 'recarga' else 'nuevo_nivel', '0') or '0'
-            )
-            if not cantidad.is_finite():
-                raise InvalidOperation
-        except (InvalidOperation, ValueError, TypeError):
-            messages.error(request, 'Ingresa una cantidad numérica válida.')
-            return redirect('tanques_combustible')
-
-        with transaction.atomic():
-            tanque = TanqueCombustible.objects.select_for_update().filter(
-                codigo__iexact=codigo_tanque
-            ).first()
-
-            if not tanque:
-                messages.error(request, 'Tanque de combustible no encontrado.')
-                return redirect('tanques_combustible')
-
-            capacidad = Decimal(tanque.capacidad_galones)
-            nivel_actual = Decimal(tanque.nivel_actual_galones)
-
-            if action == 'recarga':
-                nuevo_nivel = nivel_actual + cantidad
-                if cantidad <= 0:
-                    messages.error(request, 'La recarga debe ser mayor a cero.')
-                    return redirect('tanques_combustible')
-                if nuevo_nivel > capacidad:
-                    messages.error(request, 'La recarga supera la capacidad disponible del tanque.')
-                    return redirect('tanques_combustible')
-                tanque.nivel_actual_galones = nuevo_nivel
-                tanque.save(update_fields=['nivel_actual_galones', 'updated_at'])
-                messages.success(request, f'¡Recarga de {cantidad} galones aplicada a {tanque.nombre}!')
-            else:
-                estado = request.POST.get('estado', tanque.estado)
-                if cantidad < 0 or cantidad > capacidad:
-                    messages.error(request, 'El nivel debe estar entre cero y la capacidad total del tanque.')
-                    return redirect('tanques_combustible')
-                if estado not in dict(TanqueCombustible.ESTADO_CHOICES):
-                    messages.error(request, 'El estado seleccionado no es válido.')
-                    return redirect('tanques_combustible')
-                tanque.nivel_actual_galones = cantidad
-                tanque.estado = estado
-                tanque.save(update_fields=['nivel_actual_galones', 'estado', 'updated_at'])
-                messages.success(request, f'¡Nivel y estado de {tanque.nombre} actualizados correctamente!')
-
-        return redirect('tanques_combustible')
-
+def _render_tanques_combustible(request, form_data=None, modal_abierto=None):
     tanques = TanqueCombustible.objects.all().order_by('codigo')
     tanques_cards = []
     capacidad_total = 0.0
@@ -1158,7 +1162,76 @@ def tanques_combustible(request):
         'pct_global': round(pct_global, 1),
         'tanques_operativos': tanques_operativos,
         'is_admin': user_is_admin(request.user),
+        'form_data': form_data or {},
+        'modal_abierto': modal_abierto,
     })
+
+
+@login_required
+def tanques_combustible(request):
+    if not user_is_user_or_admin(request.user):
+        messages.warning(request, 'No tienes permisos para acceder a este módulo.')
+        return redirect('modulos')
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '').strip()
+        if action in ('crear_tanque', 'editar_tanque', 'eliminar_tanque'):
+            return _gestionar_tanque_combustible(request, action)
+
+        codigo_tanque = request.POST.get('codigo_tanque', '').strip()
+        if action not in ('recarga', 'ajuste'):
+            messages.error(request, 'La operación solicitada no es válida.')
+            return _render_tanques_combustible(request, request.POST.dict(), action)
+
+        try:
+            cantidad = Decimal(
+                request.POST.get('galones_recarga' if action == 'recarga' else 'nuevo_nivel', '0') or '0'
+            )
+            if not cantidad.is_finite():
+                raise InvalidOperation
+        except (InvalidOperation, ValueError, TypeError):
+            messages.error(request, 'Ingresa una cantidad numérica válida.')
+            return _render_tanques_combustible(request, request.POST.dict(), action)
+
+        with transaction.atomic():
+            tanque = TanqueCombustible.objects.select_for_update().filter(
+                codigo__iexact=codigo_tanque
+            ).first()
+
+            if not tanque:
+                messages.error(request, 'Tanque de combustible no encontrado.')
+                return _render_tanques_combustible(request, request.POST.dict(), action)
+
+            capacidad = Decimal(tanque.capacidad_galones)
+            nivel_actual = Decimal(tanque.nivel_actual_galones)
+
+            if action == 'recarga':
+                nuevo_nivel = nivel_actual + cantidad
+                if cantidad <= 0:
+                    messages.error(request, 'La recarga debe ser mayor a cero.')
+                    return _render_tanques_combustible(request, request.POST.dict(), action)
+                if nuevo_nivel > capacidad:
+                    messages.error(request, 'La recarga supera la capacidad disponible del tanque.')
+                    return _render_tanques_combustible(request, request.POST.dict(), action)
+                tanque.nivel_actual_galones = nuevo_nivel
+                tanque.save(update_fields=['nivel_actual_galones', 'updated_at'])
+                messages.success(request, f'¡Recarga de {cantidad} galones aplicada a {tanque.nombre}!')
+            else:
+                estado = request.POST.get('estado', tanque.estado)
+                if cantidad < 0 or cantidad > capacidad:
+                    messages.error(request, 'El nivel debe estar entre cero y la capacidad total del tanque.')
+                    return _render_tanques_combustible(request, request.POST.dict(), action)
+                if estado not in dict(TanqueCombustible.ESTADO_CHOICES):
+                    messages.error(request, 'El estado seleccionado no es válido.')
+                    return _render_tanques_combustible(request, request.POST.dict(), action)
+                tanque.nivel_actual_galones = cantidad
+                tanque.estado = estado
+                tanque.save(update_fields=['nivel_actual_galones', 'estado', 'updated_at'])
+                messages.success(request, f'¡Nivel y estado de {tanque.nombre} actualizados correctamente!')
+
+        return redirect('tanques_combustible')
+
+    return _render_tanques_combustible(request)
 
 
 def _gestionar_tanque_combustible(request, action):
@@ -1167,6 +1240,9 @@ def _gestionar_tanque_combustible(request, action):
     codigo_eliminar = request.POST.get('codigo_tanque', '').strip()
 
     if action == 'eliminar_tanque':
+        if not user_is_admin(request.user):
+            messages.warning(request, 'No tienes permisos para eliminar tanques.')
+            return redirect('tanques_combustible')
         with transaction.atomic():
             tanque = TanqueCombustible.objects.select_for_update().filter(
                 codigo__iexact=codigo_eliminar
@@ -1197,20 +1273,20 @@ def _gestionar_tanque_combustible(request, action):
             raise InvalidOperation
     except (InvalidOperation, ValueError, TypeError):
         messages.error(request, 'La capacidad y el nivel deben ser números válidos.')
-        return redirect('tanques_combustible')
+        return _render_tanques_combustible(request, request.POST.dict(), action)
 
     if not all((codigo, nombre, tipo_combustible, ubicacion)):
         messages.error(request, 'Completa todos los campos requeridos del tanque.')
-        return redirect('tanques_combustible')
+        return _render_tanques_combustible(request, request.POST.dict(), action)
     if capacidad <= 0 or nivel_actual < 0 or nivel_actual > capacidad:
         messages.error(request, 'El nivel debe estar entre cero y la capacidad del tanque, que debe ser mayor a cero.')
-        return redirect('tanques_combustible')
+        return _render_tanques_combustible(request, request.POST.dict(), action)
     if estado not in dict(TanqueCombustible.ESTADO_CHOICES):
         messages.error(request, 'El estado seleccionado no es válido.')
-        return redirect('tanques_combustible')
+        return _render_tanques_combustible(request, request.POST.dict(), action)
     if action == 'editar_tanque' and not codigo_original:
         messages.error(request, 'No se identificó el tanque que deseas editar.')
-        return redirect('tanques_combustible')
+        return _render_tanques_combustible(request, request.POST.dict(), action)
 
     with transaction.atomic():
         tanque = None
@@ -1220,14 +1296,14 @@ def _gestionar_tanque_combustible(request, action):
             ).first()
             if not tanque:
                 messages.error(request, 'Tanque de combustible no encontrado.')
-                return redirect('tanques_combustible')
+                return _render_tanques_combustible(request, request.POST.dict(), action)
 
         duplicado = TanqueCombustible.objects.filter(codigo__iexact=codigo)
         if tanque:
             duplicado = duplicado.exclude(pk=tanque.pk)
         if duplicado.exists():
             messages.error(request, f'Ya existe un tanque con el código "{codigo}".')
-            return redirect('tanques_combustible')
+            return _render_tanques_combustible(request, request.POST.dict(), action)
 
         if action == 'crear_tanque':
             TanqueCombustible.objects.create(
@@ -1267,7 +1343,61 @@ def ordenes_mantenimiento(request):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
+    form_data = {}
+
+    def _render_ordenes(form_data_ctx=None):
+        filtro_estado = request.GET.get('estado', '').strip()
+        filtro_tipo = request.GET.get('tipo', '').strip()
+
+        qs = OrdenMantenimiento.objects.all().order_by('-fecha_ingreso', '-created_at')
+        if filtro_estado:
+            qs = qs.filter(estado__iexact=filtro_estado)
+        if filtro_tipo:
+            qs = qs.filter(tipo_mantenimiento__iexact=filtro_tipo)
+
+        ordenes = qs
+        todas_ordenes = OrdenMantenimiento.objects.all()
+
+        total_ordenes = todas_ordenes.count()
+        en_taller = todas_ordenes.filter(estado='En Taller').count()
+        pendientes = todas_ordenes.filter(estado='Pendiente').count()
+        finalizadas = todas_ordenes.filter(estado='Finalizada').count()
+        costo_total = sum((float(o.costo_estimado or 0) for o in todas_ordenes), 0.0)
+        year = timezone.now().year
+        prefix = f"OT-{year}-"
+        ultima_orden = OrdenMantenimiento.objects.filter(
+            codigo_orden__startswith=prefix
+        ).order_by('-codigo_orden').first()
+        if ultima_orden:
+            try:
+                ultimo_num = int(ultima_orden.codigo_orden.replace(prefix, ''))
+            except (ValueError, TypeError):
+                ultimo_num = total_ordenes
+        else:
+            ultimo_num = 0
+        siguiente_codigo = f"{prefix}{ultimo_num + 1:03d}"
+        maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
+        mecanicos = Empleado.objects.filter(nombre_puesto__icontains='mecanico').order_by('empleado')
+
+        return render(request, 'mantenimiento_ordenes.html', {
+            'ordenes': ordenes,
+            'maquinarias': maquinarias,
+            'mecanicos': mecanicos,
+            'total_ordenes': total_ordenes,
+            'en_taller': en_taller,
+            'pendientes': pendientes,
+            'finalizadas': finalizadas,
+            'costo_total': round(costo_total, 2),
+            'siguiente_codigo': siguiente_codigo,
+            'fecha_hoy': timezone.now().date(),
+            'filtro_estado': filtro_estado,
+            'filtro_tipo': filtro_tipo,
+            'is_admin': user_is_admin(request.user),
+            'form_data': form_data_ctx or {},
+        })
+
     if request.method == 'POST':
+        form_data = request.POST.dict()
         codigo_orden = request.POST.get('codigo_orden', '').strip()
         fecha_ingreso = request.POST.get('fecha_ingreso') or timezone.now().date()
         codigo_maquina = request.POST.get('codigo_maquina', '').strip()
@@ -1286,7 +1416,7 @@ def ordenes_mantenimiento(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('ordenes_mantenimiento')
+            return _render_ordenes(form_data)
 
         try:
             horometro = float(horometro_val or 0)
@@ -1296,84 +1426,42 @@ def ordenes_mantenimiento(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('ordenes_mantenimiento')
+            return _render_ordenes(form_data)
 
         if OrdenMantenimiento.objects.filter(codigo_orden__iexact=codigo_orden).exists():
             error_msg = f'Ya existe una orden con el código "{codigo_orden}".'
             if is_ajax:
                 return JsonResponse({'success': False, 'error': error_msg}, status=400)
             messages.error(request, error_msg)
-            return redirect('ordenes_mantenimiento')
+            return _render_ordenes(form_data)
 
-        nueva_orden = OrdenMantenimiento.objects.create(
-            codigo_orden=codigo_orden,
-            fecha_ingreso=fecha_ingreso,
-            codigo_maquina=codigo_maquina,
-            tipo_mantenimiento=tipo_mantenimiento,
-            prioridad=prioridad,
-            estado='Pendiente',
-            mecanico=mecanico,
-            horometro=horometro,
-            falla_reportada=falla_reportada,
-            costo_estimado=costo,
-            fecha_entrega=fecha_entrega,
-        )
-
-        msg = f'¡Orden de mantenimiento {codigo_orden} creada correctamente para {codigo_maquina}!'
-        if is_ajax:
-            return JsonResponse({'success': True, 'message': msg, 'id': nueva_orden.id})
-        messages.success(request, msg)
-        return redirect('ordenes_mantenimiento')
-
-    filtro_estado = request.GET.get('estado', '').strip()
-    filtro_tipo = request.GET.get('tipo', '').strip()
-
-    qs = OrdenMantenimiento.objects.all().order_by('-fecha_ingreso', '-created_at')
-    if filtro_estado:
-        qs = qs.filter(estado__iexact=filtro_estado)
-    if filtro_tipo:
-        qs = qs.filter(tipo_mantenimiento__iexact=filtro_tipo)
-
-    ordenes = qs
-    todas_ordenes = OrdenMantenimiento.objects.all()
-
-    total_ordenes = todas_ordenes.count()
-    en_taller = todas_ordenes.filter(estado='En Taller').count()
-    pendientes = todas_ordenes.filter(estado='Pendiente').count()
-    finalizadas = todas_ordenes.filter(estado='Finalizada').count()
-    costo_total = sum((float(o.costo_estimado or 0) for o in todas_ordenes), 0.0)
-    # Generar siguiente código auto-incremental basado en el último existente
-    year = timezone.now().year
-    prefix = f"OT-{year}-"
-    ultima_orden = OrdenMantenimiento.objects.filter(
-        codigo_orden__startswith=prefix
-    ).order_by('-codigo_orden').first()
-    if ultima_orden:
         try:
-            ultimo_num = int(ultima_orden.codigo_orden.replace(prefix, ''))
-        except (ValueError, TypeError):
-            ultimo_num = total_ordenes
-    else:
-        ultimo_num = 0
-    siguiente_codigo = f"{prefix}{ultimo_num + 1:03d}"
-    maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
-    mecanicos = Empleado.objects.filter(nombre_puesto__icontains='mecanico').order_by('empleado')
+            nueva_orden = OrdenMantenimiento.objects.create(
+                codigo_orden=codigo_orden,
+                fecha_ingreso=fecha_ingreso,
+                codigo_maquina=codigo_maquina,
+                tipo_mantenimiento=tipo_mantenimiento,
+                prioridad=prioridad,
+                estado='Pendiente',
+                mecanico=mecanico,
+                horometro=horometro,
+                falla_reportada=falla_reportada,
+                costo_estimado=costo,
+                fecha_entrega=fecha_entrega,
+            )
+            msg = f'¡Orden de mantenimiento {codigo_orden} creada correctamente para {codigo_maquina}!'
+            if is_ajax:
+                return JsonResponse({'success': True, 'message': msg, 'id': nueva_orden.id})
+            messages.success(request, msg)
+            return redirect('ordenes_mantenimiento')
+        except Exception as e:
+            error_msg = f'Error al crear la orden: {e}'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg}, status=400)
+            messages.error(request, error_msg)
+            return _render_ordenes(form_data)
 
-    return render(request, 'mantenimiento_ordenes.html', {
-        'ordenes': ordenes,
-        'maquinarias': maquinarias,
-        'mecanicos': mecanicos,
-        'total_ordenes': total_ordenes,
-        'en_taller': en_taller,
-        'pendientes': pendientes,
-        'finalizadas': finalizadas,
-        'costo_total': round(costo_total, 2),
-        'siguiente_codigo': siguiente_codigo,
-        'fecha_hoy': timezone.now().date(),
-        'filtro_estado': filtro_estado,
-        'filtro_tipo': filtro_tipo,
-        'is_admin': user_is_admin(request.user),
-    })
+    return _render_ordenes()
 
 
 @login_required
@@ -1431,6 +1519,68 @@ def cambiar_estado_orden_mantenimiento(request, orden_id):
         return redirect('ordenes_mantenimiento')
 
 
+def _render_control_horometros(request, form_data=None, modal_abierto=None):
+    filtro_alerta = request.GET.get('alerta', '').strip()
+    filtro_maquina = request.GET.get('maquina', '').strip()
+    busqueda = request.GET.get('q', '').strip()
+
+    controles = ControlServicioHorometro.objects.all().order_by('codigo_maquina', 'proximo_horometro')
+    maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
+    disponibilidades = {d.codigo_maquina: d for d in DisponibilidadMaquinaria.objects.all()}
+
+    items = []
+    total_al_dia = 0
+    total_proximos = 0
+    total_vencidos = 0
+
+    for c in controles:
+        actual = float(c.horometro_actual or 0)
+        proximo = float(c.proximo_horometro or 0)
+        ultimo = float(c.ultimo_horometro or 0)
+        restante = proximo - actual
+
+        if restante <= 0:
+            alerta = 'Vencido'
+            total_vencidos += 1
+        elif restante <= 25:
+            alerta = 'Próximo a Vencer'
+            total_proximos += 1
+        else:
+            alerta = 'Al Día'
+            total_al_dia += 1
+
+        if c.estado_alerta != alerta:
+            c.estado_alerta = alerta
+            c.save(update_fields=['estado_alerta'])
+
+        intervalo = float(c.intervalo_horas or 250)
+        recorrido = actual - ultimo
+        pct_uso = min(100.0, max(0.0, (recorrido / intervalo * 100))) if intervalo > 0 else 0.0
+
+        items.append({
+            'control': c,
+            'restante': round(restante, 1),
+            'pct_uso': round(pct_uso, 1),
+            'alerta': alerta,
+        })
+
+    return render(request, 'mantenimiento_horometros.html', {
+        'items': items,
+        'maquinarias': maquinarias,
+        'disponibilidades': disponibilidades,
+        'total_monitoreadas': len(controles),
+        'total_al_dia': total_al_dia,
+        'total_proximos': total_proximos,
+        'total_vencidos': total_vencidos,
+        'filtro_alerta': filtro_alerta,
+        'filtro_maquina': filtro_maquina,
+        'busqueda': busqueda,
+        'is_admin': user_is_admin(request.user),
+        'form_data': form_data or {},
+        'modal_abierto': modal_abierto,
+    })
+
+
 @login_required
 def control_horometros(request):
     if not user_is_user_or_admin(request.user):
@@ -1450,9 +1600,10 @@ def control_horometros(request):
 
             if not (codigo_maquina and tipo_servicio):
                 messages.error(request, 'Por favor especifica la máquina y el tipo de servicio.')
-                return redirect('control_horometros')
+                return _render_control_horometros(request, request.POST.dict(), 'modal-nuevo-control')
 
-            # Si la máquina ya tiene horómetro en disponibilidad y el usuario no lo ingresó
+            # Si la máquina ya tiene horómetro registrado en disponibilidad y el usuario no ingresó uno nuevo,
+            # se utiliza automáticamente el valor existente para calcular el próximo servicio.
             disp = DisponibilidadMaquinaria.objects.filter(codigo_maquina__iexact=codigo_maquina).first()
             if disp and horometro_actual_input == 0 and disp.horometro_actual:
                 horometro_actual_input = float(disp.horometro_actual)
@@ -1481,7 +1632,7 @@ def control_horometros(request):
                 }
             )
 
-            # Sincronizar horómetro con disponibilidad si aplica
+            # Sincronizar el horómetro actual con el registro de disponibilidad de maquinaria si corresponde.
             if disp and horometro_actual_input > float(disp.horometro_actual or 0):
                 disp.horometro_actual = horometro_actual_input
                 disp.save()
@@ -1498,7 +1649,7 @@ def control_horometros(request):
 
             if not codigo_maquina or nuevo_horometro <= 0:
                 messages.error(request, 'Debe indicar una máquina y una lectura válida de horómetro.')
-                return redirect('control_horometros')
+                return _render_control_horometros(request, request.POST.dict(), 'modal-horometro-rapido')
 
             controles_maq = ControlServicioHorometro.objects.filter(codigo_maquina__iexact=codigo_maquina)
             for c in controles_maq:
@@ -1513,7 +1664,7 @@ def control_horometros(request):
                     c.estado_alerta = 'Al Día'
                 c.save()
 
-            # Sincronizar con disponibilidad de maquinaria
+            # Sincronizar la lectura de horómetro con el registro de disponibilidad de la maquinaria.
             disp, _ = DisponibilidadMaquinaria.objects.get_or_create(codigo_maquina=codigo_maquina)
             disp.horometro_actual = nuevo_horometro
             disp.save()
@@ -1522,6 +1673,9 @@ def control_horometros(request):
             return redirect('control_horometros')
 
         elif accion == 'eliminar_control':
+            if not user_is_admin(request.user):
+                messages.warning(request, 'No tienes permisos para eliminar controles.')
+                return redirect('control_horometros')
             control_id = request.POST.get('control_id', '').strip()
             if control_id:
                 try:
@@ -1541,7 +1695,7 @@ def control_horometros(request):
                 disp = DisponibilidadMaquinaria.objects.filter(codigo_maquina__iexact=maq.codigo_maquina).first()
                 h_act = float(disp.horometro_actual or 0) if disp else 0.0
 
-                # Crear servicio de 250h si no existe
+                # Crear registro de control preventivo de 250 horas si aún no existe para esta máquina.
                 if not ControlServicioHorometro.objects.filter(codigo_maquina__iexact=maq.codigo_maquina, intervalo_horas=250).exists():
                     prox_250 = h_act + 250
                     ControlServicioHorometro.objects.create(
@@ -1557,7 +1711,7 @@ def control_horometros(request):
                     )
                     creados += 1
 
-                # Crear servicio de 500h si no existe
+                # Crear registro de control preventivo de 500 horas si aún no existe para esta máquina.
                 if not ControlServicioHorometro.objects.filter(codigo_maquina__iexact=maq.codigo_maquina, intervalo_horas=500).exists():
                     prox_500 = h_act + 500
                     ControlServicioHorometro.objects.create(
@@ -1612,7 +1766,7 @@ def control_horometros(request):
                     observaciones=observaciones or 'Servicio preventivo registrado.'
                 )
 
-            # Actualizar disponibilidad
+            # Actualizar el horómetro en el registro de disponibilidad si la lectura nueva es mayor.
             disp = DisponibilidadMaquinaria.objects.filter(codigo_maquina__iexact=codigo_maquina).first()
             if disp and horometro_ejecutado > float(disp.horometro_actual or 0):
                 disp.horometro_actual = horometro_ejecutado
@@ -1621,65 +1775,7 @@ def control_horometros(request):
             messages.success(request, f'¡Servicio preventivo registrado para {codigo_maquina}! Próximo servicio programado a las {proximo:.2f} hrs.')
             return redirect('control_horometros')
 
-    # Filtros GET
-    filtro_alerta = request.GET.get('alerta', '').strip()
-    filtro_maquina = request.GET.get('maquina', '').strip()
-    busqueda = request.GET.get('q', '').strip()
-
-    controles = ControlServicioHorometro.objects.all().order_by('codigo_maquina', 'proximo_horometro')
-    maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
-    disponibilidades = {d.codigo_maquina: d for d in DisponibilidadMaquinaria.objects.all()}
-
-    items = []
-    total_al_dia = 0
-    total_proximos = 0
-    total_vencidos = 0
-
-    for c in controles:
-        actual = float(c.horometro_actual or 0)
-        proximo = float(c.proximo_horometro or 0)
-        ultimo = float(c.ultimo_horometro or 0)
-        restante = proximo - actual
-
-        if restante <= 0:
-            alerta = 'Vencido'
-            total_vencidos += 1
-        elif restante <= 25:
-            alerta = 'Próximo a Vencer'
-            total_proximos += 1
-        else:
-            alerta = 'Al Día'
-            total_al_dia += 1
-
-        if c.estado_alerta != alerta:
-            c.estado_alerta = alerta
-            c.save(update_fields=['estado_alerta'])
-
-        intervalo = float(c.intervalo_horas or 250)
-        recorrido = actual - ultimo
-        pct_uso = min(100.0, max(0.0, (recorrido / intervalo * 100))) if intervalo > 0 else 0.0
-
-        # Enviar todos los items para permitir filtrado interactivo fluido en la interfaz
-        items.append({
-            'control': c,
-            'restante': round(restante, 1),
-            'pct_uso': round(pct_uso, 1),
-            'alerta': alerta,
-        })
-
-    return render(request, 'mantenimiento_horometros.html', {
-        'items': items,
-        'maquinarias': maquinarias,
-        'disponibilidades': disponibilidades,
-        'total_monitoreadas': len(controles),
-        'total_al_dia': total_al_dia,
-        'total_proximos': total_proximos,
-        'total_vencidos': total_vencidos,
-        'filtro_alerta': filtro_alerta,
-        'filtro_maquina': filtro_maquina,
-        'busqueda': busqueda,
-        'is_admin': user_is_admin(request.user),
-    })
+    return _render_control_horometros(request)
 
 
 @login_required

@@ -36,11 +36,11 @@
                     <div class="form-row three-cols">
                         <div class="form-group">
                             <label for="no_boleta">No. Boleta</label>
-                            <input type="text" id="no_boleta" name="no_boleta" class="highlight" required>
+                            <input type="text" id="no_boleta" name="no_boleta" class="highlight" value="{{ form_data.no_boleta|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="fecha_labor">Fecha Labor</label>
-                            <input type="date" id="fecha_labor" name="fecha_labor" required>
+                            <input type="date" id="fecha_labor" name="fecha_labor" value="{{ form_data.fecha_labor|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="tipo_servicio">Tipo Servicio</label>
@@ -82,17 +82,17 @@
                         </div>
                         <div class="form-group">
                             <label for="placa">Placa</label>
-                            <input type="text" id="placa" name="placa" required readonly>
+                            <input type="text" id="placa" name="placa" value="{{ form_data.placa|default:'' }}" required readonly>
                         </div>
                     </div>
                     <div class="form-row two-cols">
                         <div class="form-group">
                             <label for="codigo_operador">Código de operador</label>
-                            <input type="text" id="codigo_operador" required>
+                            <input type="text" id="codigo_operador" name="codigo_operador" value="{{ form_data.codigo_operador|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="operador">Nombre del operador</label>
-                            <input type="text" id="operador" name="operador" readonly style="background-color: #f5f5f5;" required>
+                            <input type="text" id="operador" name="operador" value="{{ form_data.operador|default:'' }}" readonly style="background-color: #f5f5f5;" required>
                         </div>
                     </div>
                 </div>
@@ -112,11 +112,11 @@
                         </div>
                         <div class="form-group">
                             <label for="lote">Lote</label>
-                            <input type="text" id="lote" name="lote" required>
+                            <input type="text" id="lote" name="lote" value="{{ form_data.lote|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="area_lote">Área Lote (Ha)</label>
-                            <input type="number" id="area_lote" name="area_lote" min="0" max="150" step="0.01" required>
+                            <input type="number" id="area_lote" name="area_lote" min="0" max="150" step="0.01" value="{{ form_data.area_lote|default:'' }}" required>
                         </div>
                     </div>
                     <div class="form-row three-cols">
@@ -135,7 +135,7 @@
                         </div>
                         <div class="form-group">
                             <label for="labor">Descripción de labor</label>
-                            <input type="text" id="labor" name="labor" readonly style="background-color: #f5f5f5;" required>
+                            <input type="text" id="labor" name="labor" value="{{ form_data.labor|default:'' }}" readonly style="background-color: #f5f5f5;" required>
                         </div>
                         <div class="form-group" id="campo-corte-semilla" hidden>
                                 <label for="corte_semilla">Corte de semilla</label>
@@ -157,29 +157,29 @@
                     <div class="form-row three-cols">
                         <div class="form-group">
                             <label for="unidades">Unidades</label>
-                            <input type="number" id="unidades" name="unidades" step="0.01" required>
+                            <input type="number" id="unidades" name="unidades" step="0.01" value="{{ form_data.unidades|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="horometro_inicial">Horómetros Inicial</label>
-                            <input type="number" id="horometro_inicial" name="horometro_inicial" step="0.01" required>
+                            <input type="number" id="horometro_inicial" name="horometro_inicial" step="0.01" value="{{ form_data.horometro_inicial|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="horometro_final">Horómetros Final</label>
-                            <input type="number" id="horometro_final" name="horometro_final" step="0.01" required>
+                            <input type="number" id="horometro_final" name="horometro_final" step="0.01" value="{{ form_data.horometro_final|default:'' }}" required>
                         </div>
                     </div>
                     <div class="form-row three-cols">
                         <div class="form-group">
                             <label for="costo_unitario">Costo Unitario</label>
-                            <input type="number" id="costo_unitario" name="costo_unitario" step="0.01" required>
+                            <input type="number" id="costo_unitario" name="costo_unitario" step="0.01" value="{{ form_data.costo_unitario|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="num_factura">No. Factura</label>
-                            <input type="text" id="num_factura" name="num_factura" required>
+                            <input type="text" id="num_factura" name="num_factura" value="{{ form_data.num_factura|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="cuenta_contable">Cuenta Contable</label>
-                            <input type="text" id="cuenta_contable" name="cuenta_contable" required readonly>
+                            <input type="text" id="cuenta_contable" name="cuenta_contable" value="{{ form_data.cuenta_contable|default:'' }}" required readonly>
                         </div>
                     </div>
                 </div>
@@ -199,11 +199,11 @@
                         </div>
                         <div class="form-group">
                             <label for="total_paquetes">Total de paquetes</label>
-                            <input type="number" id="total_paquetes" name="total_paquetes" required disabled>
+                            <input type="number" id="total_paquetes" name="total_paquetes" value="{{ form_data.total_paquetes|default:'' }}" required disabled>
                         </div>
                         <div class="form-group">
                             <label for="peso_kg">Peso Kg</label>
-                            <input type="number" id="peso_kg" name="peso_kg" step="0.01" required disabled>
+                            <input type="number" id="peso_kg" name="peso_kg" step="0.01" value="{{ form_data.peso_kg|default:'' }}" required disabled>
                         </div>
                     </div>
                     <div class="form-row two-cols" id="datos-lote-corte" hidden>
@@ -218,7 +218,7 @@
                         </div>
                         <div class="form-group">
                             <label for="lote_corte_semilla">Lote donde se cortó *</label>
-                            <input type="text" id="lote_corte_semilla" name="lote_corte_semilla" required disabled>
+                            <input type="text" id="lote_corte_semilla" name="lote_corte_semilla" value="{{ form_data.lote_corte_semilla|default:'' }}" required disabled>
                         </div>
                     </div>
                 </div>
@@ -229,31 +229,31 @@
                     <div class="form-row two-cols">
                         <div class="form-group">
                             <label for="codigo_caporal_01">Código Supervisor 1</label>
-                            <input type="text" id="codigo_caporal_01" required>
+                            <input type="text" id="codigo_caporal_01" name="codigo_caporal_01" value="{{ form_data.codigo_caporal_01|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="caporal_01">Supervisor 1 (Nombre)</label>
-                            <input type="text" id="caporal_01" name="caporal_01" readonly style="background-color: #f5f5f5;" required>
+                            <input type="text" id="caporal_01" name="caporal_01" value="{{ form_data.caporal_01|default:'' }}" readonly style="background-color: #f5f5f5;" required>
                         </div>
                     </div>
                     <div class="form-row two-cols">
                         <div class="form-group">
                             <label for="codigo_caporal_02">Código Supervisor 2</label>
-                            <input type="text" id="codigo_caporal_02" required>
+                            <input type="text" id="codigo_caporal_02" name="codigo_caporal_02" value="{{ form_data.codigo_caporal_02|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="caporal_02">Supervisor 2 (Nombre)</label>
-                            <input type="text" id="caporal_02" name="caporal_02" readonly style="background-color: #f5f5f5;" required>
+                            <input type="text" id="caporal_02" name="caporal_02" value="{{ form_data.caporal_02|default:'' }}" readonly style="background-color: #f5f5f5;" required>
                         </div>
                     </div>
                     <div class="form-row two-cols">
                         <div class="form-group">
                             <label for="codigo_mayordomo">Código Supervisor 3</label>
-                            <input type="text" id="codigo_mayordomo" required>
+                            <input type="text" id="codigo_mayordomo" name="codigo_mayordomo" value="{{ form_data.codigo_mayordomo|default:'' }}" required>
                         </div>
                         <div class="form-group">
                             <label for="mayordomo">Supervisor 3 (Nombre)</label>
-                            <input type="text" id="mayordomo" name="mayordomo" readonly style="background-color: #f5f5f5;" required>
+                            <input type="text" id="mayordomo" name="mayordomo" value="{{ form_data.mayordomo|default:'' }}" readonly style="background-color: #f5f5f5;" required>
                         </div>
                     </div>
                 </div>
@@ -289,7 +289,7 @@
                     <div class="form-row full">
                         <div class="form-group">
                             <label for="observaciones">Notas Adicionales</label>
-                            <textarea id="observaciones" name="observaciones"></textarea>
+                            <textarea id="observaciones" name="observaciones">{{ form_data.observaciones|default:'' }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -304,6 +304,7 @@
     </div>
 
     {{ cuentas_por_proceso|json_script:"cuentas-por-proceso" }}
+    {{ form_data|json_script:"form-data-json" }}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const selectMaquina = document.getElementById('codigo_maquina');
@@ -465,6 +466,37 @@
                         this.value = 'Ninguna';
                     }
                 });
+            }
+
+            // Restaurar datos de campos seleccionados tras error o advertencia
+            const formDataElem = document.getElementById('form-data-json');
+            if (formDataElem) {
+                try {
+                    const savedData = JSON.parse(formDataElem.textContent);
+                    if (savedData && typeof savedData === 'object' && Object.keys(savedData).length > 0) {
+                        if (savedData.tipo_servicio) {
+                            tipoServicio.value = savedData.tipo_servicio;
+                            actualizarDetallesCana();
+                            actualizarDetalleTransporte();
+                        }
+                        if (savedData.corte_semilla) {
+                            selectCorteSemilla.value = savedData.corte_semilla;
+                            actualizarDetallesCana();
+                        }
+                        for (const [key, val] of Object.entries(savedData)) {
+                            if (key === 'csrfmiddlewaretoken' || key === 'tipo_servicio' || key === 'corte_semilla') continue;
+                            const el = document.querySelector(`[name="${key}"]`);
+                            if (el && val !== undefined && val !== null && val !== '') {
+                                el.value = val;
+                                if (el.tagName === 'SELECT') {
+                                    el.dispatchEvent(new Event('change'));
+                                }
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error restaurando formulario:', err);
+                }
             }
 
         });

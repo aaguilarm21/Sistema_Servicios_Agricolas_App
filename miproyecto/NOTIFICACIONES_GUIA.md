@@ -7,7 +7,7 @@ Se ha implementado un sistema de notificaciones completamente personalizado para
 ## Características
 
 ### 1. **Notificaciones Toast**
-Notificaciones flotantes elegantes en la esquina superior derecha con auto-desaparición.
+Notificaciones flotantes pequeñas en la esquina superior derecha que desaparecen a los 5 segundos. Los mensajes de Django y las llamadas a `alert()` también se muestran como notificaciones en las páginas que cargan `notificaciones.js`.
 
 ### 2. **Validación de Formularios**
 Sistema inteligente de validación con mensajes en tiempo real.
@@ -38,7 +38,7 @@ notifySystem.showSuccess('Usuario creado correctamente', 4000);
 notifySystem.showError('No se pudo guardar los datos', 5000);
 
 // Advertencia
-notifySystem.showWarning('Este archivo ya existe', 4000);
+notifySystem.showWarning('Este archivo ya existe', 5000);
 
 // Información
 notifySystem.showInfo('Operación completada', 3000);
@@ -47,6 +47,7 @@ notifySystem.showInfo('Operación completada', 3000);
 **Parámetros:**
 - `message` (string): Mensaje a mostrar
 - `duration` (number, opcional): Duración en milisegundos (0 = sin auto-cierre)
+- Los mensajes de error y advertencia se cierran automáticamente después de 5 segundos.
 
 ---
 

@@ -96,15 +96,15 @@ class RegistroOperativoAdmin(admin.ModelAdmin):
     actions = ['delete_selected']
     
     def has_add_permission(self, request):
-        # Permitir agregar registros desde el admin
+        # Permite agregar registros de boletas desde el panel administrativo.
         return True
     
     def has_change_permission(self, request, obj=None):
-        # Permitir editar registros
+        # Permite editar registros de boletas desde el panel administrativo.
         return True
     
     def has_delete_permission(self, request, obj=None):
-        # Permitir eliminar registros
+        # Permite eliminar registros de boletas desde el panel administrativo.
         return True
     
     class Media:

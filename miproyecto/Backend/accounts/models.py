@@ -2,7 +2,12 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MaxLengthValidator, RegexValidator
 
+# Modelos de base de datos del sistema agrícola.
+# Incluye entidades para usuarios, proveedores, empleados, maquinaria, bodegas,
+# artículos, catálogos auxiliares, registros operativos, combustibles y mantenimiento.
 
+
+# Diccionario de siglas especiales para preservar mayúsculas al normalizar texto.
 SIGLAS = {
     'api': 'API',
     'cui': 'CUI',

@@ -1,0 +1,78 @@
+/* ==========================================================================
+   VARIABLES GLOBALES - SISTEMA DE SERVICIOS AGRÍCOLAS
+   Paleta de color: Verde y Blanco
+   ========================================================================== */
+
+:root {
+  /* === PALETA VERDE PRINCIPAL === */
+  --verde-900: #14532d;       /* Verde muy oscuro – títulos, textos clave */
+  --verde-800: #1b5e20;       /* Verde oscuro – encabezados, íconos */
+  --verde-700: #2e7d32;       /* Verde base – botones primarios, bordes activos */
+  --verde-600: #388e3c;       /* Verde medio – hovers, acentos */
+  --verde-500: #4caf50;       /* Verde estándar – badges, indicadores */
+  --verde-400: #66bb6a;       /* Verde claro – estados, bordes suaves */
+  --verde-300: #81c784;       /* Verde pastel – fondos ligeros */
+  --verde-200: #a5d6a7;       /* Verde muy suave – bordes tenues */
+  --verde-100: #c8e6c9;       /* Verde casi blanco – fondos hover */
+  --verde-50:  #e8f5e9;       /* Verde mínimo – fondos de sección */
+  --verde-25:  #f1f8e9;       /* Verde casi transparente – fondos de tabla, toolbar */
+
+  /* === BLANCO Y NEUTROS === */
+  --blanco:       #ffffff;
+  --gris-50:      #f9fafb;
+  --gris-100:     #f3f4f6;
+  --gris-200:     #e5e7eb;
+  --gris-300:     #d1d5db;
+  --gris-400:     #9ca3af;
+  --gris-500:     #6b7280;
+  --gris-700:     #374151;
+  --gris-900:     #111827;
+
+  /* === TEXTO === */
+  --texto-primario:   #173b2a;  /* Verde muy oscuro sobre fondo blanco */
+  --texto-secundario: #2e7d32;  /* Verde para subtítulos y etiquetas */
+  --texto-tenue:      #55705a;  /* Verde grisáceo para textos de apoyo */
+  --texto-oscuro:     #111827;  /* Casi negro para texto de alta legibilidad */
+  --texto-blanco:     #ffffff;
+
+  /* === FONDOS === */
+  --fondo-pagina:   linear-gradient(150deg, #f1f8e9 0%, #e8f5e9 60%, #c8e6c9 100%);
+  --fondo-card:     #ffffff;
+  --fondo-seccion:  #f9fafb;
+  --fondo-toolbar:  #f1f8e9;
+  --fondo-tabla-th: #e8f5e9;
+  --fondo-hover:    #f1f8e9;
+  --fondo-input:    #fafefa;
+
+  /* === BORDES === */
+  --borde-card:    #d4ead6;
+  --borde-input:   #b0d4b3;
+  --borde-tabla:   #c8e6c9;
+  --borde-activo:  var(--verde-700);
+  --borde-sutil:   #e0eee1;
+
+  /* === SOMBRAS === */
+  --sombra-xs:  0 1px 3px rgba(0, 0, 0, 0.06);
+  --sombra-sm:  0 2px 8px rgba(0, 0, 0, 0.08);
+  --sombra-md:  0 4px 16px rgba(46, 125, 50, 0.10);
+  --sombra-lg:  0 8px 28px rgba(46, 125, 50, 0.14);
+  --sombra-xl:  0 12px 40px rgba(46, 125, 50, 0.18);
+
+  /* === RADIOS === */
+  --radio-sm:  6px;
+  --radio-md:  10px;
+  --radio-lg:  14px;
+  --radio-xl:  20px;
+
+  /* === TRANSICIONES === */
+  --transicion: all 0.22s ease;
+  --transicion-lenta: all 0.35s ease;
+
+  /* === TIPOGRAFÍA === */
+  --fuente-sistema: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+
+  /* === ENCABEZADO DEGRADADO === */
+  --degradado-header: linear-gradient(135deg, #1b5e20 0%, #2e7d32 60%, #388e3c 100%);
+  --degradado-btn:    linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  --degradado-btn-hover: linear-gradient(135deg, #1b5e20 0%, #14532d 100%);
+}

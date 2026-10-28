@@ -23,7 +23,7 @@ class NotificationSystem {
   /**
    * Mostrar notificación de éxito
    */
-  showSuccess(message, duration = 4000) {
+  showSuccess(message, duration = 5000) {
     this.showNotification(message, 'success', duration);
   }
 
@@ -37,21 +37,34 @@ class NotificationSystem {
   /**
    * Mostrar notificación de advertencia
    */
-  showWarning(message, duration = 4000) {
+  showWarning(message, duration = 5000) {
     this.showNotification(message, 'warning', duration);
   }
 
   /**
    * Mostrar notificación de información
    */
-  showInfo(message, duration = 3000) {
+  showInfo(message, duration = 5000) {
     this.showNotification(message, 'info', duration);
+  }
+
+  showAlert(message, duration = 5000) {
+    const text = String(message);
+    const type = /error|no se pudo|no se puede|fall[oó]|incorrect|inv[aá]lid/i.test(text)
+      ? 'error'
+      : /debes|selecciona|requerid|obligatori|falta/i.test(text)
+        ? 'warning'
+        : /correctamente|guardad[oa]|actualizad[oa]|eliminad[oa]/i.test(text)
+          ? 'success'
+          : 'info';
+
+    this.showNotification(text, type, duration);
   }
 
   /**
    * Método principal para mostrar notificaciones
    */
-  showNotification(message, type = 'info', duration = 4000) {
+  showNotification(message, type = 'info', duration = 5000) {
     // Buscar o crear contenedor de notificaciones
     let container = document.getElementById('notifications-container');
     if (!container) {
@@ -63,20 +76,31 @@ class NotificationSystem {
         right: 20px;
         z-index: 10000;
         pointer-events: none;
+        width: min(420px, calc(100vw - 40px));
       `;
+      container.setAttribute('aria-live', 'polite');
       document.body.appendChild(container);
     }
 
     // Crear elemento de notificación
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-      <div class="notification-content">
-        <span class="notification-icon">${this.getIcon(type)}</span>
-        <span class="notification-message">${message}</span>
-        <button class="notification-close" aria-label="Cerrar">&times;</button>
-      </div>
-    `;
+    notification.setAttribute('role', type === 'error' ? 'alert' : 'status');
+    const content = document.createElement('div');
+    content.className = 'notification-content';
+    const icon = document.createElement('span');
+    icon.className = 'notification-icon';
+    icon.textContent = this.getIcon(type);
+    const messageElement = document.createElement('span');
+    messageElement.className = 'notification-message';
+    messageElement.textContent = String(message);
+    const closeButton = document.createElement('button');
+    closeButton.className = 'notification-close';
+    closeButton.setAttribute('aria-label', 'Cerrar');
+    closeButton.type = 'button';
+    closeButton.textContent = '×';
+    content.append(icon, messageElement, closeButton);
+    notification.appendChild(content);
 
     container.appendChild(notification);
 
@@ -119,10 +143,11 @@ class NotificationSystem {
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       pointer-events: all;
       animation: slideInRight 0.3s ease-out;
+      max-width: 100%;
     `;
 
     // Cerrar notificación
-    const closeBtn = notification.querySelector('.notification-close');
+    const closeBtn = closeButton;
     closeBtn.style.cssText = `
       background: none;
       border: none;
@@ -139,9 +164,43 @@ class NotificationSystem {
     closeBtn.onclick = () => this.closeNotification(notification);
 
     // Auto-cerrar después de duración
-    if (duration > 0) {
-      setTimeout(() => this.closeNotification(notification), duration);
+    const autoCloseDuration = type === 'error' || type === 'warning' ? 5000 : duration;
+    if (autoCloseDuration > 0) {
+      setTimeout(() => this.closeNotification(notification), autoCloseDuration);
     }
+  }
+
+  showPageMessages() {
+    document.querySelectorAll('.messages-container, .messages').forEach(container => {
+      const messages = container.querySelectorAll('.alert, .alert-operacion');
+      if (messages.length) {
+        messages.forEach(message => {
+          const typeClass = Array.from(message.classList)
+            .find(className => /^alert-(error|danger|warning|success|info)$/.test(className));
+          const taggedType = typeClass ? typeClass.replace('alert-', '') : 'info';
+          const type = taggedType === 'danger' ? 'error' : taggedType;
+          this.showNotification(message.textContent.trim(), type, 5000);
+        });
+      } else if (container.textContent.trim()) {
+        this.showNotification(container.textContent.trim(), 'info', 5000);
+      }
+      container.remove();
+    });
+
+    const messageSelectors = [
+      ['#warningPopup .warning-text', 'warning'],
+      ['#loginWarningPopup', 'error'],
+      ['.success-banner', 'success'],
+      ['.error-banner', 'error'],
+    ];
+    messageSelectors.forEach(([selector, type]) => {
+      document.querySelectorAll(selector).forEach(message => {
+        const text = message.textContent.trim();
+        if (text) this.showNotification(text, type, 5000);
+        message.remove();
+      });
+    });
+    document.getElementById('warningPopup')?.remove();
   }
 
   /**
@@ -428,6 +487,7 @@ class NotificationSystem {
 
 // Crear instancia global
 const notifySystem = new NotificationSystem();
+window.alert = message => notifySystem.showAlert(message);
 
 // Agregar estilos necesarios al DOM si no existen
 function initializeNotificationStyles() {
@@ -517,7 +577,11 @@ function initializeNotificationStyles() {
 
 // Inicializar cuando el DOM esté listo
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeNotificationStyles);
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeNotificationStyles();
+    notifySystem.showPageMessages();
+  });
 } else {
   initializeNotificationStyles();
+  notifySystem.showPageMessages();
 }

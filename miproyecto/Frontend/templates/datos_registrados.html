@@ -70,10 +70,12 @@
         <label for="datos-seleccion">Selecciona una tabla
           <select id="datos-seleccion"></select>
         </label>
-        {% if is_admin %}
+        {% if can_edit or is_admin %}
           <div class="datos-acciones-toolbar">
             <button id="datos-btn-modificar" class="btn-secondary" type="button" disabled>Modificar</button>
+            {% if is_admin %}
             <button id="datos-btn-eliminar" class="btn-secondary" type="button" disabled>Eliminar</button>
+            {% endif %}
           </div>
         {% endif %}
       </div>
@@ -88,6 +90,7 @@
   </div>
 
   <script src="{% static 'js/common.js' %}"></script>
+  <script src="{% static 'js/notificaciones.js' %}"></script>
   <script>
     const isAdmin = {% if is_admin %}true{% else %}false{% endif %};
     const tablas = {

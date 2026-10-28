@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Operación Agrícola / Logística</title>
   {% load static %}
+  <script src="{% static 'js/notificaciones.js' %}" defer></script>
   <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
   <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
@@ -114,7 +115,7 @@
 
           <div class="form-group">
             <label for="fecha">Fecha de la Operación *</label>
-            <input type="date" name="fecha" id="fecha" class="form-control" required />
+            <input type="date" name="fecha" id="fecha" class="form-control" required value="{{ form_data.fecha|default:'' }}" />
           </div>
 
           <div class="form-group">
@@ -160,7 +161,7 @@
             <label for="lote">N.º de Lote *</label>
             <input type="text" name="lote" id="lote" list="lotes-sugeridos" class="form-control"
               required autocomplete="off" pattern="\d{4}" maxlength="4" inputmode="numeric"
-              />
+              value="{{ form_data.lote|default:'' }}" />
             <datalist id="lotes-sugeridos">
               <option value="0001">
               <option value="0002">
@@ -179,7 +180,7 @@
           <div class="form-group">
             <label for="area">Área *</label>
             <div class="input-with-unit">
-              <input type="number" step="0.01" min="0.01" name="area" id="area" class="form-control" required />
+              <input type="number" step="0.01" min="0.01" name="area" id="area" class="form-control" required value="{{ form_data.area|default:'' }}" />
               <span class="unit-suffix">Ha</span>
             </div>
           </div>
@@ -192,15 +193,15 @@
         <div class="form-grid-3">
           <div class="form-group">
             <label for="codigo_responsable">Código del Responsable *</label>
-            <input type="text" id="codigo_responsable" class="form-control"
-              autocomplete="off" required
+            <input type="text" name="codigo_responsable" id="codigo_responsable" class="form-control"
+              autocomplete="off" required value="{{ form_data.codigo_responsable|default:'' }}"
               aria-describedby="responsable-lookup-status" />
             <small id="responsable-lookup-status" role="status" aria-live="polite"
               style="min-height: 1.1em; color: var(--text-muted);"></small>
           </div>
           <div class="form-group">
             <label for="responsable">Responsable de la Operación *</label>
-            <input type="text" name="responsable" id="responsable" class="form-control" required readonly />
+            <input type="text" name="responsable" id="responsable" class="form-control" required readonly value="{{ form_data.responsable|default:'' }}" />
           </div>
 
           <div class="form-group">
@@ -216,7 +217,7 @@
 
         <div class="form-group form-group-spaced">
           <label for="observaciones">Descripción</label>
-          <textarea name="observaciones" id="observaciones" class="form-control" rows="3"></textarea>
+          <textarea name="observaciones" id="observaciones" class="form-control" rows="3">{{ form_data.observaciones|default:'' }}</textarea>
         </div>
 
         <!-- BOTONES -->
@@ -333,11 +334,13 @@
                   <button type="button" class="btn-edit-mini" onclick="editarOperacion({{ prog.id }})"
                     title="Editar operación" aria-label="Editar operación {{ prog.id }}">Editar</button>
 
+                  {% if is_admin %}
                   <form method="POST" action="{% url 'eliminar_operacion_programada' prog.id %}"
                     class="delete-form-inline" onsubmit="eliminarOperacionAjax(event, {{ prog.id }}, this)">
                     {% csrf_token %}
                     <button type="submit" class="btn-delete-mini" title="Eliminar operación">🗑️</button>
                   </form>
+                  {% endif %}
                 </div>
               </td>
             </tr>
@@ -361,6 +364,8 @@
     </section>
   </div>
 
+  {{ form_data|json_script:"form-data-json" }}
+
   <!-- Script interactivo -->
   <script>
     // Inicializar fecha de hoy por defecto si el campo está vacío
@@ -369,6 +374,38 @@
       if (fechaInput && !fechaInput.value) {
         const today = new Date().toISOString().split('T')[0];
         fechaInput.value = today;
+      }
+
+      // Restaurar valores previos del formulario si hubo error o advertencia
+      const formDataElement = document.getElementById('form-data-json');
+      if (formDataElement) {
+        try {
+          const formData = JSON.parse(formDataElement.textContent);
+          if (formData && Object.keys(formData).length > 0) {
+            ['tipo_servicio', 'prioridad', 'finca', 'estado'].forEach(campo => {
+              if (formData[campo]) {
+                const el = document.getElementById(campo);
+                if (el) el.value = formData[campo];
+              }
+            });
+            if (formData.action && document.getElementById('operacion-action')) {
+              document.getElementById('operacion-action').value = formData.action;
+            }
+            if (formData.operacion_id && document.getElementById('operacion-id')) {
+              document.getElementById('operacion-id').value = formData.operacion_id;
+              if (formData.action === 'update') {
+                const banner = document.getElementById('edit-mode-banner');
+                const cancelBtn = document.getElementById('cancel-edit-btn');
+                const submitBtn = document.getElementById('submit-operation-btn');
+                if (banner) banner.hidden = false;
+                if (cancelBtn) cancelBtn.hidden = false;
+                if (submitBtn) submitBtn.textContent = 'Guardar cambios';
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error al restaurar datos del formulario de operación:', e);
+        }
       }
 
       const codigoResponsable = document.getElementById('codigo_responsable');

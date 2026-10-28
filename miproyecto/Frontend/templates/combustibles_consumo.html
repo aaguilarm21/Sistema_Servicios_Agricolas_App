@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Combustibles - Control de Consumo y Rendimiento</title>
   {% load static %}
+  <script src="{% static 'js/notificaciones.js' %}" defer></script>
   <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
   <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
@@ -206,12 +207,14 @@
               <td>{{ d.finca|default:'-' }}</td>
               <td><div class="fuel-row-actions">
                 <a class="btn-sm fuel-edit-link" href="{% url 'despacho_combustible' %}?editar={{ d.id }}&amp;return_to=consumo">Editar</a>
+                {% if is_admin %}
                 <form method="post" action="{% url 'gestionar_despacho_combustible' d.id %}" onsubmit="return confirm('¿Eliminar este vale y devolver su saldo al tanque?');">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="delete" />
                   <input type="hidden" name="return_to" value="consumo" />
                   <button type="submit" class="btn-sm fuel-delete-link">Eliminar</button>
                 </form>
+                {% endif %}
               </div></td>
             </tr>
             {% empty %}

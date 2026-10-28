@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Módulos</title>
   {% load static %}
+  <script src="{% static 'js/notificaciones.js' %}" defer></script>
   <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
 </head>
 
@@ -59,17 +60,6 @@
         {% endfor %}
       </div>
     </div>
-    <script>
-      setTimeout(function () {
-        const warningPopup = document.getElementById('warningPopup');
-        if (warningPopup) {
-          warningPopup.style.opacity = '0';
-          setTimeout(function () {
-            warningPopup.style.display = 'none';
-          }, 300);
-        }
-      }, 3000);
-    </script>
     {% endif %}
     <script src="{% static 'js/common.js' %}"></script>
     <script>

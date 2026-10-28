@@ -153,8 +153,10 @@
   </div>
 
   <script src="{% static 'js/common.js' %}"></script>
+  <script src="{% static 'js/notificaciones.js' %}"></script>
   <script>
-    const isAdmin = {% if is_admin %}true{% else %} false{% endif %};
+    const isAdmin = {% if is_admin %}true{% else %}false{% endif %};
+    const canEdit = {% if can_edit or is_admin %}true{% else %}false{% endif %};
     // ==================== FUNCIONALIDAD DE PESTAÑAS ====================
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -492,8 +494,10 @@
       if (!item) return;
       cfg.setRow(item, cfgFormElements);
       cfgEditando = id;
-      if (isAdmin) {
+      if (canEdit) {
         document.getElementById('cfg-btn-modificar').disabled = false;
+      }
+      if (isAdmin) {
         document.getElementById('cfg-btn-eliminar').disabled = false;
       }
     }
@@ -626,12 +630,14 @@
     document.getElementById('cfg-btn-limpiar').addEventListener('click', cfgLimpiar);
 
     if (!isAdmin) {
+      document.getElementById('cfg-btn-eliminar').style.display = 'none';
+      document.getElementById('cat-btn-eliminar').style.display = 'none';
+    }
+    if (!canEdit) {
       document.getElementById('cfg-btn-guardar').style.display = 'none';
       document.getElementById('cfg-btn-modificar').style.display = 'none';
-      document.getElementById('cfg-btn-eliminar').style.display = 'none';
       document.getElementById('cat-btn-guardar').style.display = 'none';
       document.getElementById('cat-btn-modificar').style.display = 'none';
-      document.getElementById('cat-btn-eliminar').style.display = 'none';
     }
 
     // Click en items del sidebar de configuraciones
@@ -789,8 +795,12 @@
       if (!item) return;
       cfg.setRow(item);
       catEditando = id;
-      document.getElementById('cat-btn-modificar').disabled = false;
-      document.getElementById('cat-btn-eliminar').disabled = false;
+      if (canEdit) {
+        document.getElementById('cat-btn-modificar').disabled = false;
+      }
+      if (isAdmin) {
+        document.getElementById('cat-btn-eliminar').disabled = false;
+      }
     }
 
     document.getElementById('cat-btn-guardar').addEventListener('click', () => {

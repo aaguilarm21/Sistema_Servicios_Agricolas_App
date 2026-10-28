@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mantenimiento - Órdenes de Trabajo y Taller</title>
   {% load static %}
+  <script src="{% static 'js/notificaciones.js' %}" defer></script>
   <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
   <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
@@ -93,7 +94,7 @@
           </div>
           <div class="form-group">
             <label for="fecha_ingreso">Fecha de Ingreso *</label>
-            <input type="date" name="fecha_ingreso" id="fecha_ingreso" class="form-control" value="{{ fecha_hoy|date:'Y-m-d' }}" required />
+            <input type="date" name="fecha_ingreso" id="fecha_ingreso" class="form-control" value="{% if form_data.fecha_ingreso %}{{ form_data.fecha_ingreso }}{% else %}{{ fecha_hoy|date:'Y-m-d' }}{% endif %}" required />
           </div>
           <div class="form-group">
             <label for="codigo_maquina">MAQUINARIA *</label>
@@ -148,26 +149,26 @@
           <div class="form-group">
             <label for="horometro">Horómetro al Ingresar *</label>
             <div class="input-with-unit">
-              <input type="number" step="0.01" min="0" name="horometro" id="horometro" class="form-control" required />
+              <input type="number" step="0.01" min="0" name="horometro" id="horometro" class="form-control" value="{{ form_data.horometro|default:'' }}" required />
               <span class="unit-suffix">hrs</span>
             </div>
           </div>
           <div class="form-group">
             <label for="costo_estimado">Costo estimado</label>
             <div class="input-with-unit">
-              <input type="number" step="0.01" min="0" name="costo_estimado" id="costo_estimado" class="form-control" value="0.00" />
+              <input type="number" step="0.01" min="0" name="costo_estimado" id="costo_estimado" class="form-control" value="{{ form_data.costo_estimado|default:'0.00' }}" />
               <span class="unit-suffix">Q</span>
             </div>
           </div>
           <div class="form-group">
             <label for="fecha_entrega">Fecha Estimada de Entrega</label>
-            <input type="date" name="fecha_entrega" id="fecha_entrega" class="form-control" />
+            <input type="date" name="fecha_entrega" id="fecha_entrega" class="form-control" value="{{ form_data.fecha_entrega|default:'' }}" />
           </div>
         </div>
 
         <div class="form-group form-group-spaced">
           <label for="falla_reportada">Descripción del Problema o Falla Reportada *</label>
-          <textarea name="falla_reportada" id="falla_reportada" rows="3" class="form-control" required></textarea>
+          <textarea name="falla_reportada" id="falla_reportada" rows="3" class="form-control" required>{{ form_data.falla_reportada|default:'' }}</textarea>
         </div>
 
         <!-- BOTONES -->
@@ -393,7 +394,28 @@
     function cerrarModalOrden() {
       document.getElementById('modal-estado-orden').style.display = 'none';
     }
+
+    // Restaurar selecciones previas si hubo error o advertencia
+    document.addEventListener('DOMContentLoaded', function() {
+      const formDataEl = document.getElementById('form-data-json');
+      if (formDataEl) {
+        try {
+          const formData = JSON.parse(formDataEl.textContent);
+          if (formData && Object.keys(formData).length > 0) {
+            ['codigo_maquina', 'tipo_mantenimiento', 'prioridad', 'mecanico'].forEach(function(k) {
+              if (formData[k]) {
+                const el = document.getElementById(k);
+                if (el) el.value = formData[k];
+              }
+            });
+          }
+        } catch (e) {
+          console.error('Error al restaurar datos de orden de mantenimiento:', e);
+        }
+      }
+    });
   </script>
+  {{ form_data|json_script:"form-data-json" }}
 </body>
 
 </html>

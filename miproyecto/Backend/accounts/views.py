@@ -20,15 +20,17 @@ from .models import (
 )
 
 
+# Vistas de autenticación, registro de usuarios y APIs internas.
+# Aquí se centraliza el inicio de sesión, el cambio de usuario desde el panel,
+# la creación de nuevos usuarios y la administración de estados y roles.
+
+
 def normalizar_datos(data):
+    """Normaliza el texto de los campos del formulario, exceptuando campos de identificación."""
     return {
         campo: valor if campo in CAMPOS_IDENTIFICACION or campo == 'puesto' else normalizar_texto(valor)
         for campo, valor in data.items()
     }
-
-# Vistas de autenticación, registro de usuarios y APIs internas.
-# Aquí se centraliza el inicio de sesión, el cambio de usuario desde el panel,
-# la creación de nuevos usuarios y la administración de estados y roles.
 
 
 # Vista personalizada para el inicio de sesión del sistema.
@@ -76,6 +78,12 @@ class CustomLoginView(LoginView):
 # Un usuario administrador debe estar activo, autenticado y ser superusuario o pertenecer al grupo Admin.
 def is_admin_user(user):
     return user is not None and user.is_authenticated and user.is_active and (user.is_superuser or user.groups.filter(name='Admin').exists())
+
+
+def is_user_or_admin(user):
+    return user is not None and user.is_authenticated and user.is_active and (
+        is_admin_user(user) or user.groups.filter(name='Usuario').exists()
+    )
 
 
 
@@ -193,8 +201,6 @@ def signup(request):
             created_password = password
             show_modal = True
             form = AdminUserCreationForm()
-        else:
-            form = AdminUserCreationForm()
     else:
         form = AdminUserCreationForm()
 
@@ -283,7 +289,7 @@ def api_proveedores(request):
         return JsonResponse(list(proveedores), safe=False)
 
     elif request.method == 'POST':
-        if not is_admin_user(request.user):
+        if not is_user_or_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -314,10 +320,9 @@ def api_proveedor_detalle(request, proveedor_id):
     except Proveedor.DoesNotExist:
         return JsonResponse({'error': 'Proveedor no encontrado'}, status=404)
 
-    if not is_admin_user(request.user):
-        return JsonResponse({'error': 'No autorizado.'}, status=403)
-
     if request.method == 'PUT':
+        if not is_user_or_admin(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             data = normalizar_datos(data)
@@ -335,6 +340,8 @@ def api_proveedor_detalle(request, proveedor_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         proveedor.delete()
         return JsonResponse({'success': True, 'message': 'Proveedor eliminado correctamente'})
 
@@ -354,7 +361,7 @@ def api_empleados(request):
         return JsonResponse(list(empleados), safe=False)
 
     elif request.method == 'POST':
-        if not is_admin_user(request.user):
+        if not is_user_or_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -388,10 +395,9 @@ def api_empleado_detalle(request, empleado_id):
     except Empleado.DoesNotExist:
         return JsonResponse({'error': 'Empleado no encontrado'}, status=404)
 
-    if not is_admin_user(request.user):
-        return JsonResponse({'error': 'No autorizado.'}, status=403)
-
     if request.method == 'PUT':
+        if not is_user_or_admin(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             data = normalizar_datos(data)
@@ -419,6 +425,8 @@ def api_empleado_detalle(request, empleado_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         empleado.delete()
         return JsonResponse({'success': True, 'message': 'Empleado eliminado correctamente'})
 
@@ -432,7 +440,7 @@ def api_maquinaria(request):
         return JsonResponse(list(maquinaria), safe=False)
 
     elif request.method == 'POST':
-        if not is_admin_user(request.user):
+        if not is_user_or_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -461,10 +469,9 @@ def api_maquinaria_detalle(request, maquinaria_id):
     except Maquinaria.DoesNotExist:
         return JsonResponse({'error': 'Máquina no encontrada'}, status=404)
 
-    if not is_admin_user(request.user):
-        return JsonResponse({'error': 'No autorizado.'}, status=403)
-
     if request.method == 'PUT':
+        if not is_user_or_admin(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             maquinaria.codigo_maquina = data.get('codigo_maquina', maquinaria.codigo_maquina)
@@ -481,6 +488,8 @@ def api_maquinaria_detalle(request, maquinaria_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         maquinaria.delete()
         return JsonResponse({'success': True, 'message': 'Máquina eliminada correctamente'})
 
@@ -494,7 +503,7 @@ def api_bodegas(request):
         return JsonResponse(list(bodegas), safe=False)
 
     elif request.method == 'POST':
-        if not is_admin_user(request.user):
+        if not is_user_or_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -520,10 +529,9 @@ def api_bodega_detalle(request, bodega_id):
     except Bodega.DoesNotExist:
         return JsonResponse({'error': 'Bodega no encontrada'}, status=404)
 
-    if not is_admin_user(request.user):
-        return JsonResponse({'error': 'No autorizado.'}, status=403)
-
     if request.method == 'PUT':
+        if not is_user_or_admin(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             bodega.codigo = data.get('codigo', bodega.codigo)
@@ -537,6 +545,8 @@ def api_bodega_detalle(request, bodega_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         bodega.delete()
         return JsonResponse({'success': True, 'message': 'Bodega eliminada correctamente'})
 
@@ -550,7 +560,7 @@ def api_articulos(request):
         return JsonResponse(list(articulos), safe=False)
 
     elif request.method == 'POST':
-        if not is_admin_user(request.user):
+        if not is_user_or_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -576,10 +586,9 @@ def api_articulo_detalle(request, articulo_id):
     except Articulo.DoesNotExist:
         return JsonResponse({'error': 'Artículo no encontrado'}, status=404)
 
-    if not is_admin_user(request.user):
-        return JsonResponse({'error': 'No autorizado.'}, status=403)
-
     if request.method == 'PUT':
+        if not is_user_or_admin(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             articulo.codigo_articulo = data.get('codigo_articulo', articulo.codigo_articulo)
@@ -593,6 +602,8 @@ def api_articulo_detalle(request, articulo_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         articulo.delete()
         return JsonResponse({'success': True, 'message': 'Artículo eliminado correctamente'})
 
@@ -604,7 +615,7 @@ def _api_catalogo_list_create(request, ModelClass, required_fields, create_fn):
         items = list(ModelClass.objects.all().values())
         return JsonResponse(items, safe=False)
 
-    if not is_admin_user(request.user):
+    if not is_user_or_admin(request.user):
         return JsonResponse({'error': 'No autorizado.'}, status=403)
 
     try:
@@ -625,10 +636,9 @@ def _api_catalogo_detail(request, ModelClass, obj_id, update_fn, nombre='Registr
     except ModelClass.DoesNotExist:
         return JsonResponse({'error': f'{nombre} no encontrado'}, status=404)
 
-    if not is_admin_user(request.user):
-        return JsonResponse({'error': 'No autorizado.'}, status=403)
-
     if request.method == 'PUT':
+        if not is_user_or_admin(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
             data = normalizar_datos(data)
@@ -638,6 +648,8 @@ def _api_catalogo_detail(request, ModelClass, obj_id, update_fn, nombre='Registr
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     elif request.method == 'DELETE':
+        if not is_admin_user(request.user):
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
         obj.delete()
         return JsonResponse({'success': True})
 

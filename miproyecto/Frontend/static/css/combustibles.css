@@ -1,7 +1,10 @@
 /* ==========================================================================
-   ESTILOS PARA MÓDULO DE COMBUSTIBLES
+   COMBUSTIBLES.CSS – Módulo de Combustibles y Tanques
    Sistema de Servicios Agrícolas
+   Paleta: Verde y Blanco
    ========================================================================== */
+
+@import url('variables.css');
 
 :root {
   --fuel-primary: #2e7d32;
@@ -9,17 +12,17 @@
   --fuel-darker: #14532d;
   --fuel-light: #e8f5e9;
   --fuel-border: #a5d6a7;
-  --fuel-accent: #66bb6a;
+  --fuel-accent: #388e3c;
   --bg-gradient: linear-gradient(135deg, #f1f8e9 0%, #e8f5e9 100%);
   --card-bg: #ffffff;
-  --text-main: #1f2937;
-  --text-muted: #6b7280;
+  --text-main: #173b2a;
+  --text-muted: #55705a;
 }
 
 body.fuel-body {
   background: var(--bg-gradient);
   min-height: 100vh;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--fuente-sistema);
   padding-bottom: 40px;
   color: var(--text-main);
   margin: 0;
@@ -31,13 +34,13 @@ body.fuel-body {
   padding: 20px 16px;
 }
 
-/* Header bar */
+/* Encabezado */
 .header-bar.fuel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  background: white;
+  background: #ffffff;
   padding: 18px 24px;
   border-radius: 14px;
   box-shadow: 0 4px 18px rgba(46, 125, 50, 0.12);
@@ -113,7 +116,7 @@ body.fuel-body {
   box-shadow: 0 6px 16px rgba(46, 125, 50, 0.34);
 }
 
-/* Metrics Grid */
+/* Tarjetas de métricas */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -130,7 +133,7 @@ body.fuel-body {
   gap: 16px;
   box-shadow: 0 3px 12px rgba(46, 125, 50, 0.08);
   border: 1px solid var(--fuel-border);
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .metric-card:hover {
@@ -138,9 +141,9 @@ body.fuel-body {
   box-shadow: 0 6px 18px rgba(46, 125, 50, 0.15);
 }
 
-.metric-card.gold { border-left: 5px solid #558b2f; }
-.metric-card.blue { border-left: 5px solid #2e7d32; }
-.metric-card.green { border-left: 5px solid #388e3c; }
+.metric-card.gold   { border-left: 5px solid #558b2f; }
+.metric-card.blue   { border-left: 5px solid #2e7d32; }
+.metric-card.green  { border-left: 5px solid #388e3c; }
 .metric-card.orange { border-left: 5px solid #81c784; }
 
 .metric-icon {
@@ -152,6 +155,7 @@ body.fuel-body {
   justify-content: center;
   background: #f1f8e9;
   border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .metric-info h4 {
@@ -176,7 +180,7 @@ body.fuel-body {
   font-weight: 600;
 }
 
-/* Nav Tabs */
+/* Pestañas de navegación */
 .nav-tabs-wrapper {
   display: flex;
   gap: 10px;
@@ -187,14 +191,14 @@ body.fuel-body {
 }
 
 .nav-tab-btn {
-  background: #fff;
+  background: #ffffff;
   border: 1px solid var(--fuel-border);
   border-bottom: none;
   padding: 10px 18px;
   border-radius: 8px 8px 0 0;
   font-weight: 600;
   font-size: 0.93rem;
-  color: #78716c;
+  color: #2e7d32;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -214,7 +218,7 @@ body.fuel-body {
   font-weight: 700;
 }
 
-/* Card Panel */
+/* Panel tipo Card */
 .card-panel {
   background: #ffffff;
   border-radius: 14px;
@@ -244,7 +248,7 @@ body.fuel-body {
   gap: 8px;
 }
 
-/* Form Styling */
+/* Estilos de formularios */
 .form-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -268,7 +272,7 @@ body.fuel-body {
 .form-group label {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #23452f;
+  color: #173b2a;
 }
 
 .form-control {
@@ -277,7 +281,10 @@ body.fuel-body {
   border-radius: 8px;
   font-size: 0.92rem;
   font-family: inherit;
+  background: #ffffff;
+  color: #173b2a;
   transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
 
 .form-control:focus {
@@ -295,7 +302,7 @@ body.fuel-body {
   padding-top: 16px;
 }
 
-/* Tables */
+/* Tablas de datos */
 .table-responsive {
   overflow-x: auto;
   margin-top: 10px;
@@ -320,14 +327,14 @@ body.fuel-body {
 .data-table td {
   padding: 12px 14px;
   border-bottom: 1px solid #e1eee2;
-  color: #23452f;
+  color: #173b2a;
 }
 
 .data-table tr:hover {
   background: #f1f8e9;
 }
 
-/* Badges */
+/* Etiquetas y badges */
 .badge-tag {
   display: inline-flex;
   align-items: center;
@@ -360,7 +367,7 @@ body.fuel-body {
   color: #1b5e20;
 }
 
-/* Tank visual cards */
+/* Tarjetas visuales de tanques */
 .tanks-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
@@ -392,6 +399,7 @@ body.fuel-body {
   padding: 3px 8px;
   border-radius: 6px;
   display: inline-block;
+  border: 1px solid #c8e6c9;
 }
 
 .tank-name {
@@ -433,6 +441,7 @@ body.fuel-body {
   justify-content: space-between;
   font-size: 0.88rem;
   margin-top: 6px;
+  color: #173b2a;
 }
 
 .tank-actions {
@@ -455,11 +464,12 @@ body.fuel-body {
 
 .btn-sm:hover {
   background: #e8f5e9;
+  color: #14532d;
 }
 
 .btn-sm.btn-fuel-recarga {
   background: var(--fuel-primary);
-  color: #fff;
+  color: #ffffff;
   border-color: var(--fuel-primary);
 }
 
@@ -494,10 +504,12 @@ body.fuel-body {
   background: #f1f8e9;
   color: #1b5e20;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .fuel-edit-link:hover {
   background: #dcedc8;
+  color: #14532d;
 }
 
 .fuel-delete-link {
@@ -508,6 +520,7 @@ body.fuel-body {
 
 .fuel-delete-link:hover {
   background: #c8e6c9;
+  color: #0e3b20;
 }
 
 .tank-card-actions {
@@ -551,12 +564,12 @@ body.fuel-body {
   }
 }
 
-/* ==================== MODALES (sistema unificado) ==================== */
+/* Modales */
 .modal-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(20, 83, 45, 0.45);
   z-index: 1000;
   align-items: center;
   justify-content: center;
@@ -566,14 +579,15 @@ body.fuel-body {
 .modal-overlay.is-open { display: flex; }
 
 .modal-box {
-  background: white;
+  background: #ffffff;
   border-radius: 16px;
   width: 90%;
   max-width: 500px;
   padding: 28px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 60px rgba(20, 83, 45, 0.25);
   animation: fuelModalIn 0.25s ease;
   border-top: 4px solid var(--fuel-primary);
+  border: 1px solid var(--fuel-border);
 }
 
 .modal-box.card-panel { margin: 0; }
@@ -594,7 +608,7 @@ body.fuel-body {
 }
 
 .modal-subtitle {
-  color: #78716c;
+  color: #55705a;
   font-size: 0.88rem;
   margin: 0 0 18px;
 }
