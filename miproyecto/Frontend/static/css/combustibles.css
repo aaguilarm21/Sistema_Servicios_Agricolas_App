@@ -623,3 +623,88 @@ body.fuel-body {
 }
 
 .form-group-spaced { margin-top: 8px; }
+
+/* Compacta formularios y navegación sin cambiar el diseño de columnas. */
+.card-panel {
+  padding: 15px;
+  margin-bottom: 12px;
+}
+
+.panel-title-bar {
+  padding-bottom: 7px;
+  margin-bottom: 10px;
+  gap: 6px;
+}
+
+.panel-title-bar h2 {
+  font-size: 0.92rem;
+  line-height: 1.2;
+  gap: 5px;
+}
+
+.form-grid-2,
+.form-grid-3,
+.tank-form-grid {
+  gap: 9px;
+  margin-bottom: 8px;
+}
+
+.form-group {
+  gap: 3px;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.form-control {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 0.8rem;
+}
+
+textarea.form-control {
+  min-height: 56px;
+}
+
+.form-actions,
+.modal-footer {
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 7px;
+}
+
+.form-actions button,
+.modal-footer button,
+.card-panel .btn,
+.card-panel .btn-action-primary,
+.card-panel .btn-secondary {
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  gap: 6px;
+}
+
+.nav-tabs-wrapper {
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.nav-tab-btn {
+  padding: 8px 13px;
+  font-size: 0.84rem;
+  gap: 6px;
+}
+
+.nav-tab-btn .icon,
+.nav-tab-btn svg,
+.panel-title-bar .icon {
+  width: 1em;
+  height: 1em;
+  font-size: 0.9em;
+}
+
+.metric-icon {
+  font-size: 1.55rem;
+}

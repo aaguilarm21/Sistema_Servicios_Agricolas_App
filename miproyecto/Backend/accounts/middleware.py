@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils.cache import patch_vary_headers
-from .device_detection import detect_device_type
+from .device_detection import detectar_tipo_dispositivo
 from .jwt_utils import decode_jwt_token
 
 
@@ -13,7 +13,7 @@ class DeviceDetectionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        request.device_type = detect_device_type(request.META.get('HTTP_USER_AGENT', ''))
+        request.device_type = detectar_tipo_dispositivo(request.META.get('HTTP_USER_AGENT', ''))
         request.is_mobile_device = request.device_type in {'mobile', 'tablet'}
         response = self.get_response(request)
         patch_vary_headers(response, ('User-Agent',))
@@ -29,6 +29,8 @@ class JWTMiddleware:
     EXEMPT_URLS = [
         '/accounts/login/',
         '/accounts/ajax-login/',
+        '/accounts/login-user/',
+        '/accounts/change-password/',
         '/accounts/signup/',
         '/accounts/logout/',
         '/admin/login/',

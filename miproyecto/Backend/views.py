@@ -4,7 +4,7 @@ import unicodedata
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.urls import reverse
@@ -19,6 +19,7 @@ from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
 # edición y eliminación, así como el control de permisos para cada usuario.
 
 from django.core.exceptions import ValidationError
+from accounts.catalog_cache import catalogo_modulo_en_cache
 from accounts.forms import AdminUserCreationForm
 from accounts.validators import PasswordStandardValidator
 from accounts.models import (
@@ -29,14 +30,25 @@ from accounts.models import (
 )
 
 
-# Determina si un usuario tiene permisos administrativos.
-def user_is_admin(user):
-    return user.is_authenticated and (user.is_superuser or user.groups.filter(name='Admin').exists())
+# Carga los grupos una sola vez por petición, para evitar consultas remotas
+# repetidas al validar permisos y preparar el contexto de la plantilla.
+def _nombres_grupos_usuario(usuario):
+    nombres_grupos = getattr(usuario, '_nombres_grupos_rol', None)
+    if nombres_grupos is None:
+        nombres_grupos = frozenset(usuario.groups.values_list('name', flat=True))
+        usuario._nombres_grupos_rol = nombres_grupos
+    return nombres_grupos
+
+
+def usuario_es_admin(usuario):
+    return usuario.is_authenticated and (
+        usuario.is_superuser or 'Admin' in _nombres_grupos_usuario(usuario)
+    )
 
 # Determina si un usuario pertenece a un rol permitido para operar el sistema.
-def user_is_user_or_admin(user):
-    return user.is_authenticated and (
-        user_is_admin(user) or user.groups.filter(name='Usuario').exists()
+def usuario_es_usuario_o_admin(usuario):
+    return usuario.is_authenticated and (
+        usuario_es_admin(usuario) or 'Usuario' in _nombres_grupos_usuario(usuario)
     )
 
 
@@ -51,13 +63,16 @@ def home(request):
 @login_required
 def modulos(request):
     """Renderiza la pantalla de módulos con visibilidad condicional según el rol."""
+    if not usuario_es_usuario_o_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder al sistema.')
+
     try:
         return render(request, 'modulos.html', {
-            'is_admin': user_is_admin(request.user)
+            'is_admin': usuario_es_admin(request.user)
         })
     except Exception:
         return render(request, 'modulos.html', {
-            'is_admin': user_is_admin(request.user),
+            'is_admin': usuario_es_admin(request.user),
             'request': request,
             'messages': [],
         })
@@ -65,25 +80,31 @@ def modulos(request):
 
 @login_required
 def configuracion_catalogos(request):
-    """Muestra la página de configuración y catálogos para el usuario autenticado."""
+    """Muestra la página de configuración y catálogos solo a administradores."""
+    if not usuario_es_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a Administración.')
+
     return render(request, 'configuracion_catalogos.html', {
-        'is_admin': user_is_admin(request.user),
-        'can_edit': user_is_user_or_admin(request.user),
+        'is_admin': usuario_es_admin(request.user),
+        'can_edit': usuario_es_usuario_o_admin(request.user),
     })
 
 
 @login_required
 def datos_registrados(request):
-    """Muestra en una pantalla independiente los datos guardados en catálogos."""
+    """Muestra datos de catálogos solo a administradores."""
+    if not usuario_es_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a Administración.')
+
     return render(request, 'datos_registrados.html', {
-        'is_admin': user_is_admin(request.user),
-        'can_edit': user_is_user_or_admin(request.user),
+        'is_admin': usuario_es_admin(request.user),
+        'can_edit': usuario_es_usuario_o_admin(request.user),
     })
 
 
-def to_title_case(val):
+def poner_en_formato_titulo(texto):
     """Convierte un valor de texto al formato Titulo usando la normalización del modelo."""
-    return normalizar_texto(val)
+    return normalizar_texto(texto)
 
 
 def _normalizar_tipo_servicio(tipo_servicio):
@@ -110,23 +131,36 @@ def _es_servicio_transporte(tipo_servicio):
 def _catalogos_registro_operativo():
     """Retorna un diccionario con todos los catálogos requeridos por el formulario de registro operativo."""
     return {
-        'proveedores': Proveedor.objects.all().order_by('razon_social'),
-        'maquinarias': Maquinaria.objects.all().order_by('codigo_maquina'),
-        'fincas': Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre'),
-        'labores': Labor.objects.all().order_by('proceso', 'codigo'),
+        'proveedores': catalogo_modulo_en_cache(
+            'proveedores', Proveedor.objects.order_by('razon_social')
+        ),
+        'maquinarias': catalogo_modulo_en_cache(
+            'maquinarias', Maquinaria.objects.order_by('codigo_maquina')
+        ),
+        'fincas': catalogo_modulo_en_cache(
+            'fincas', Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
+        ),
+        'labores': catalogo_modulo_en_cache(
+            'labores', Labor.objects.order_by('proceso', 'codigo')
+        ),
         'procesos_labores': Labor.PROCESO_CHOICES,
-        'cuentas_por_proceso': dict(Cuenta.objects.values_list('proceso', 'codigo')),
-        'variedades': Variedad.objects.all().order_by('descripcion'),
-        'municipios': Municipio.objects.all().order_by('nombre'),
+        'cuentas_por_proceso': dict(catalogo_modulo_en_cache(
+            'cuentas_por_proceso', Cuenta.objects.values_list('proceso', 'codigo')
+        )),
+        'variedades': catalogo_modulo_en_cache(
+            'variedades', Variedad.objects.order_by('descripcion')
+        ),
+        'municipios': catalogo_modulo_en_cache(
+            'municipios', Municipio.objects.order_by('nombre')
+        ),
     }
 
 
 @login_required
 @require_http_methods(['GET', 'POST'])
 def firmas_autorizadas(request):
-    if not user_is_user_or_admin(request.user):
-        messages.warning(request, 'No tienes permisos para acceder a este módulo.')
-        return redirect('modulos')
+    if not usuario_es_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a Administración.')
 
     form_data = {'codigo': '', 'nombre': '', 'puesto': '', 'area': ''}
     if request.method == 'POST':
@@ -142,16 +176,16 @@ def firmas_autorizadas(request):
             messages.error(request, 'Ya existe una firma autorizada con ese código.')
             form_data = {
                 'codigo': empleado.puesto,
-                'nombre': to_title_case(' '.join(filter(None, [empleado.empleado, empleado.segundo_apellido]))),
-                'puesto': to_title_case(empleado.nombre_puesto),
-                'area': to_title_case(empleado.empresa),
+                'nombre': poner_en_formato_titulo(' '.join(filter(None, [empleado.empleado, empleado.segundo_apellido]))),
+                'puesto': poner_en_formato_titulo(empleado.nombre_puesto),
+                'area': poner_en_formato_titulo(empleado.empresa),
             }
         else:
             FirmaAutorizada.objects.create(
                 codigo=empleado.puesto,
-                nombre=to_title_case(' '.join(filter(None, [empleado.empleado, empleado.segundo_apellido]))),
-                puesto=to_title_case(empleado.nombre_puesto),
-                area=to_title_case(empleado.empresa),
+                nombre=poner_en_formato_titulo(' '.join(filter(None, [empleado.empleado, empleado.segundo_apellido]))),
+                puesto=poner_en_formato_titulo(empleado.nombre_puesto),
+                area=poner_en_formato_titulo(empleado.empresa),
             )
             messages.success(request, 'Firma autorizada registrada correctamente.')
             return redirect('firmas_autorizadas')
@@ -164,13 +198,13 @@ def firmas_autorizadas(request):
 
 @login_required
 def registros_operativos(request):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
     form_data = {}
     if request.method == 'POST':
         form_data = request.POST.dict()
-        tipo_servicio = to_title_case(request.POST.get('tipo_servicio', ''))
+        tipo_servicio = poner_en_formato_titulo(request.POST.get('tipo_servicio', ''))
         es_envio_semilla = _es_servicio_envio_semilla(tipo_servicio)
         es_transporte = _es_servicio_transporte(tipo_servicio)
         corte_semilla = request.POST.get('corte_semilla', '').strip() or None
@@ -219,33 +253,33 @@ def registros_operativos(request):
                 no_boleta=request.POST.get('no_boleta', '').strip(),
                 fecha_labor=request.POST.get('fecha_labor') or None,
                 tipo_servicio=tipo_servicio,
-                proveedor=to_title_case(request.POST.get('proveedor', '')),
+                proveedor=poner_en_formato_titulo(request.POST.get('proveedor', '')),
                 codigo_maquina=request.POST.get('codigo_maquina', '').strip() or None,
                 placa=request.POST.get('placa', '').strip() or None,
-                operador=to_title_case(request.POST.get('operador', '')) or None,
-                finca=to_title_case(request.POST.get('finca', '')),
-                lote=to_title_case(request.POST.get('lote', '')),
+                operador=poner_en_formato_titulo(request.POST.get('operador', '')) or None,
+                finca=poner_en_formato_titulo(request.POST.get('finca', '')),
+                lote=poner_en_formato_titulo(request.POST.get('lote', '')),
                 area_lote=area_lote,
-                actividad=to_title_case(request.POST.get('actividad', '')) or None,
+                actividad=poner_en_formato_titulo(request.POST.get('actividad', '')) or None,
                 labor=labor_seleccionada.descripcion,
                 corte_semilla=corte_semilla,
-                finca_corte_semilla=to_title_case(finca_corte_semilla) or None,
-                lote_corte_semilla=to_title_case(lote_corte_semilla) or None,
+                finca_corte_semilla=poner_en_formato_titulo(finca_corte_semilla) or None,
+                lote_corte_semilla=poner_en_formato_titulo(lote_corte_semilla) or None,
                 unidades=request.POST.get('unidades') or None,
                 horometro_inicial=request.POST.get('horometro_inicial') or None,
                 horometro_final=request.POST.get('horometro_final') or None,
                 costo_unitario=request.POST.get('costo_unitario') or None,
                 num_factura=request.POST.get('num_factura', '').strip() or None,
                 cuenta_contable=cuenta_proceso.codigo,
-                variedad=to_title_case(request.POST.get('variedad', '')) or None if es_envio_semilla else None,
+                variedad=poner_en_formato_titulo(request.POST.get('variedad', '')) or None if es_envio_semilla else None,
                 total_paquetes=request.POST.get('total_paquetes') or None if es_envio_semilla else None,
                 peso_kg=request.POST.get('peso_kg') or None if es_envio_semilla else None,
-                caporal_01=to_title_case(request.POST.get('caporal_01', '')) or None,
-                caporal_02=to_title_case(request.POST.get('caporal_02', '')) or None,
-                mayordomo=to_title_case(request.POST.get('mayordomo', '')) or None,
-                administrador=to_title_case(request.POST.get('administrador', '')) or None,
-                lugar_origen=to_title_case(request.POST.get('lugar_origen', '')) or None if es_transporte else None,
-                lugar_destino=to_title_case(request.POST.get('lugar_destino', '')) or None if es_transporte else None,
+                caporal_01=poner_en_formato_titulo(request.POST.get('caporal_01', '')) or None,
+                caporal_02=poner_en_formato_titulo(request.POST.get('caporal_02', '')) or None,
+                mayordomo=poner_en_formato_titulo(request.POST.get('mayordomo', '')) or None,
+                administrador=poner_en_formato_titulo(request.POST.get('administrador', '')) or None,
+                lugar_origen=poner_en_formato_titulo(request.POST.get('lugar_origen', '')) or None if es_transporte else None,
+                lugar_destino=poner_en_formato_titulo(request.POST.get('lugar_destino', '')) or None if es_transporte else None,
                 observaciones=request.POST.get('observaciones', '').strip() or None,
             )
             messages.success(request, 'Boleta guardada correctamente.')
@@ -263,15 +297,21 @@ def registros_operativos(request):
 @login_required
 def registros_operativos_data(request):
     """Muestra la tabla de todos los registros operativos con permisos diferenciados por rol."""
+    if not usuario_es_usuario_o_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a este módulo.')
+
     registros = RegistroOperativo.objects.all()
     return render(request, 'registros_operativos_data.html', {
         'registros': registros,
-        'is_admin': user_is_admin(request.user),
-        'can_edit': user_is_user_or_admin(request.user),
+        'is_admin': usuario_es_admin(request.user),
+        'can_edit': usuario_es_usuario_o_admin(request.user),
     })
 
 @login_required
 def validar_registro_operativo(request):
+    if not usuario_es_usuario_o_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a este módulo.')
+
     numero_boleta = request.GET.get('no_boleta', '').strip()
     registros = None
 
@@ -283,14 +323,14 @@ def validar_registro_operativo(request):
     return render(request, 'validar_registro_operativo.html', {
         'numero_boleta': numero_boleta,
         'registros': registros,
-        'is_admin': user_is_admin(request.user),
-        'can_edit': user_is_user_or_admin(request.user),
+        'is_admin': usuario_es_admin(request.user),
+        'can_edit': usuario_es_usuario_o_admin(request.user),
     })
 
 
 @login_required
 def editar_registro_operativo(request, registro_id):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
     
@@ -368,7 +408,7 @@ def editar_registro_operativo(request, registro_id):
 @login_required
 @require_http_methods(['POST'])
 def borrar_registro_operativo(request, registro_id):
-    if not user_is_admin(request.user):
+    if not usuario_es_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
     
@@ -386,15 +426,18 @@ def borrar_registro_operativo(request, registro_id):
 @login_required
 def usuarios(request):
     """Muestra el módulo de gestión de usuarios con visibilidad condicional según el rol."""
+    if not usuario_es_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a Administración.')
+
     return render(request, 'usuarios.html', {
-        'is_admin': user_is_admin(request.user)
+        'is_admin': usuario_es_admin(request.user)
     })
 
 
 @login_required
 @require_http_methods(['POST'])
 def crear_usuario(request):
-    if not user_is_admin(request.user):
+    if not usuario_es_admin(request.user):
         return JsonResponse({'success': False, 'error': 'No autorizado.'}, status=403)
     try:
         payload = json.loads(request.body.decode('utf-8') or '{}')
@@ -475,6 +518,9 @@ def crear_usuario(request):
 
 @login_required
 def usuarios_creados(request):
+    if not usuario_es_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a Administración.')
+
     users = User.objects.all().order_by('-date_joined')
     usuarios_data = [
         {
@@ -492,38 +538,48 @@ def usuarios_creados(request):
     ]
     return render(request, 'usuarios_creados.html', {
         'usuarios': usuarios_data,
-        'is_admin': user_is_admin(request.user)
+        'is_admin': usuario_es_admin(request.user),
+        'can_reset_user_passwords': usuario_es_admin(request.user),
     })
 
 
 @login_required
 def operacion(request):
     """Vista del módulo de programación de operaciones agrícolas y logística de campo."""
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
     form_data = {}
 
     def _render_operacion(form_data_ctx=None):
-        fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
-        empleados = Empleado.objects.all().order_by('empleado')
+        fincas = catalogo_modulo_en_cache(
+            'fincas', Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
+        )
+        empleados = catalogo_modulo_en_cache(
+            'empleados', Empleado.objects.order_by('empleado')
+        )
         programaciones = ProgramacionOperacion.objects.all().order_by('-fecha', '-created_at')
 
-        total_programadas = programaciones.count()
-        total_area = sum((p.area for p in programaciones if p.area), 0)
-        pendientes_count = programaciones.filter(estado__in=['Programada', 'En Proceso']).count()
-        realizadas_count = programaciones.filter(estado='Realizada').count()
+        resumen = programaciones.aggregate(
+            total=Count('pk'),
+            area=Sum('area'),
+            pendientes=Count(
+                'pk',
+                filter=Q(estado__in=['Programada', 'En Proceso']),
+            ),
+            realizadas=Count('pk', filter=Q(estado='Realizada')),
+        )
 
         return render(request, 'operacion.html', {
             'fincas': fincas,
             'empleados': empleados,
             'programaciones': programaciones,
-            'total_programadas': total_programadas,
-            'total_area': total_area,
-            'pendientes_count': pendientes_count,
-            'realizadas_count': realizadas_count,
-            'is_admin': user_is_admin(request.user),
+            'total_programadas': resumen['total'],
+            'total_area': resumen['area'] or 0,
+            'pendientes_count': resumen['pendientes'],
+            'realizadas_count': resumen['realizadas'],
+            'is_admin': usuario_es_admin(request.user),
             'ver_logistica': request.GET.get('ver') == 'logistica',
             'form_data': form_data_ctx or {},
         })
@@ -640,7 +696,7 @@ def operacion(request):
 @login_required
 @require_http_methods(['POST'])
 def cambiar_estado_operacion(request, operacion_id):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
     try:
         prog = ProgramacionOperacion.objects.get(id=operacion_id)
@@ -657,7 +713,7 @@ def cambiar_estado_operacion(request, operacion_id):
 @login_required
 @require_http_methods(['POST'])
 def eliminar_operacion_programada(request, operacion_id):
-    if not user_is_admin(request.user):
+    if not usuario_es_admin(request.user):
         return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
     try:
         prog = ProgramacionOperacion.objects.get(id=operacion_id)
@@ -677,6 +733,9 @@ def eliminar_operacion_programada(request, operacion_id):
 @login_required
 def reportes(request):
     """Genera reportes de registros operativos filtrados por tipo de servicio y rango de fechas."""
+    if not usuario_es_usuario_o_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a este módulo.')
+
     tipo_reporte = request.GET.get('tipo_reporte')
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
@@ -700,6 +759,9 @@ def reportes(request):
 @login_required
 def indicadores(request):
     """Calcula y presenta indicadores globales de registros operativos (cantidad, área, costos y servicios)."""
+    if not usuario_es_usuario_o_admin(request.user):
+        return HttpResponseForbidden('No tienes permisos para acceder a este módulo.')
+
     registros = RegistroOperativo.objects.all()
     totales = registros.aggregate(
         cantidad=Count('id'),
@@ -763,7 +825,7 @@ def _reservar_no_vale():
 
 @login_required
 def despacho_combustible(request):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
@@ -771,18 +833,37 @@ def despacho_combustible(request):
 
     def _render_despacho(form_data_ctx=None, despacho_ed=None):
         despachos = DespachoCombustible.objects.all().order_by('-fecha', '-created_at')
-        maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
-        empleados = Empleado.objects.all().order_by('empleado')
-        labores = Labor.objects.all().order_by('proceso', 'codigo')
-        tanques = TanqueCombustible.objects.all().order_by('codigo')
-        proveedores = Proveedor.objects.all().order_by('razon_social')
-        firmas_autorizadas = FirmaAutorizada.objects.all().order_by('nombre')
-        fincas = Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
+        maquinarias = catalogo_modulo_en_cache(
+            'maquinarias', Maquinaria.objects.order_by('codigo_maquina')
+        )
+        empleados = catalogo_modulo_en_cache(
+            'empleados', Empleado.objects.order_by('empleado')
+        )
+        labores = catalogo_modulo_en_cache(
+            'labores', Labor.objects.order_by('proceso', 'codigo')
+        )
+        tanques = catalogo_modulo_en_cache(
+            'tanques_combustible', TanqueCombustible.objects.order_by('codigo')
+        )
+        proveedores = catalogo_modulo_en_cache(
+            'proveedores', Proveedor.objects.order_by('razon_social')
+        )
+        firmas_autorizadas = catalogo_modulo_en_cache(
+            'firmas_autorizadas', FirmaAutorizada.objects.order_by('nombre')
+        )
+        fincas = catalogo_modulo_en_cache(
+            'fincas', Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre')
+        )
 
-        total_despachos = despachos.count()
-        total_galones = sum((float(d.galones) for d in despachos if d.galones), 0.0)
+        resumen = despachos.aggregate(
+            total=Count('pk'),
+            galones=Sum('galones'),
+            maquinas=Count('codigo_maquina', distinct=True),
+        )
+        total_despachos = resumen['total']
+        total_galones = float(resumen['galones'] or 0)
         promedio_despacho = (total_galones / total_despachos) if total_despachos > 0 else 0.0
-        maquinas_atendidas = len(set(d.codigo_maquina for d in despachos if d.codigo_maquina))
+        maquinas_atendidas = resumen['maquinas']
         siguiente_vale = _siguiente_no_vale()
 
         return render(request, 'combustibles_despacho.html', {
@@ -800,7 +881,7 @@ def despacho_combustible(request):
             'maquinas_atendidas': maquinas_atendidas,
             'siguiente_vale': siguiente_vale,
             'fecha_hoy': timezone.now().date(),
-            'is_admin': user_is_admin(request.user),
+            'is_admin': usuario_es_admin(request.user),
             'despacho_edicion': despacho_ed,
             'return_to': request.GET.get('return_to') == 'consumo',
             'form_data': form_data_ctx or {},
@@ -925,7 +1006,7 @@ def despacho_combustible(request):
 @login_required
 @require_http_methods(['POST'])
 def gestionar_despacho_combustible(request, despacho_id):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para gestionar despachos.')
         return redirect('modulos')
 
@@ -942,7 +1023,7 @@ def gestionar_despacho_combustible(request, despacho_id):
             if not tanque_anterior:
                 error_msg = 'No se encontró el tanque asociado al despacho.'
             elif accion == 'delete':
-                if not user_is_admin(request.user):
+                if not usuario_es_admin(request.user):
                     error_msg = 'No tienes permisos para eliminar vales de combustible.'
                 else:
                     existencia_restaurada = Decimal(tanque_anterior.nivel_actual_galones) + Decimal(despacho.galones)
@@ -1055,7 +1136,7 @@ def gestionar_despacho_combustible(request, despacho_id):
 
 @login_required
 def consumo_combustible(request):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
@@ -1128,7 +1209,7 @@ def consumo_combustible(request):
         'filtro_maquina': filtro_maquina,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
-        'is_admin': user_is_admin(request.user),
+        'is_admin': usuario_es_admin(request.user),
     })
 
 
@@ -1161,7 +1242,7 @@ def _render_tanques_combustible(request, form_data=None, modal_abierto=None):
         'existencia_total': round(existencia_total, 2),
         'pct_global': round(pct_global, 1),
         'tanques_operativos': tanques_operativos,
-        'is_admin': user_is_admin(request.user),
+        'is_admin': usuario_es_admin(request.user),
         'form_data': form_data or {},
         'modal_abierto': modal_abierto,
     })
@@ -1169,7 +1250,7 @@ def _render_tanques_combustible(request, form_data=None, modal_abierto=None):
 
 @login_required
 def tanques_combustible(request):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
@@ -1240,7 +1321,7 @@ def _gestionar_tanque_combustible(request, action):
     codigo_eliminar = request.POST.get('codigo_tanque', '').strip()
 
     if action == 'eliminar_tanque':
-        if not user_is_admin(request.user):
+        if not usuario_es_admin(request.user):
             messages.warning(request, 'No tienes permisos para eliminar tanques.')
             return redirect('tanques_combustible')
         with transaction.atomic():
@@ -1339,7 +1420,7 @@ def _gestionar_tanque_combustible(request, action):
 
 @login_required
 def ordenes_mantenimiento(request):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
@@ -1358,11 +1439,18 @@ def ordenes_mantenimiento(request):
         ordenes = qs
         todas_ordenes = OrdenMantenimiento.objects.all()
 
-        total_ordenes = todas_ordenes.count()
-        en_taller = todas_ordenes.filter(estado='En Taller').count()
-        pendientes = todas_ordenes.filter(estado='Pendiente').count()
-        finalizadas = todas_ordenes.filter(estado='Finalizada').count()
-        costo_total = sum((float(o.costo_estimado or 0) for o in todas_ordenes), 0.0)
+        resumen = todas_ordenes.aggregate(
+            total=Count('pk'),
+            en_taller=Count('pk', filter=Q(estado='En Taller')),
+            pendientes=Count('pk', filter=Q(estado='Pendiente')),
+            finalizadas=Count('pk', filter=Q(estado='Finalizada')),
+            costo_total=Sum('costo_estimado'),
+        )
+        total_ordenes = resumen['total']
+        en_taller = resumen['en_taller']
+        pendientes = resumen['pendientes']
+        finalizadas = resumen['finalizadas']
+        costo_total = float(resumen['costo_total'] or 0)
         year = timezone.now().year
         prefix = f"OT-{year}-"
         ultima_orden = OrdenMantenimiento.objects.filter(
@@ -1376,8 +1464,13 @@ def ordenes_mantenimiento(request):
         else:
             ultimo_num = 0
         siguiente_codigo = f"{prefix}{ultimo_num + 1:03d}"
-        maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
-        mecanicos = Empleado.objects.filter(nombre_puesto__icontains='mecanico').order_by('empleado')
+        maquinarias = catalogo_modulo_en_cache(
+            'maquinarias', Maquinaria.objects.order_by('codigo_maquina')
+        )
+        mecanicos = catalogo_modulo_en_cache(
+            'mecanicos',
+            Empleado.objects.filter(nombre_puesto__icontains='mecanico').order_by('empleado'),
+        )
 
         return render(request, 'mantenimiento_ordenes.html', {
             'ordenes': ordenes,
@@ -1392,7 +1485,7 @@ def ordenes_mantenimiento(request):
             'fecha_hoy': timezone.now().date(),
             'filtro_estado': filtro_estado,
             'filtro_tipo': filtro_tipo,
-            'is_admin': user_is_admin(request.user),
+            'is_admin': usuario_es_admin(request.user),
             'form_data': form_data_ctx or {},
         })
 
@@ -1469,7 +1562,7 @@ def ordenes_mantenimiento(request):
 def cambiar_estado_orden_mantenimiento(request, orden_id):
     is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.POST.get('is_ajax') == '1'
 
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         if is_ajax:
             return JsonResponse({'success': False, 'error': 'Permiso denegado'}, status=403)
         messages.error(request, 'No tienes permisos para realizar esta acción.')
@@ -1525,7 +1618,9 @@ def _render_control_horometros(request, form_data=None, modal_abierto=None):
     busqueda = request.GET.get('q', '').strip()
 
     controles = ControlServicioHorometro.objects.all().order_by('codigo_maquina', 'proximo_horometro')
-    maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
+    maquinarias = catalogo_modulo_en_cache(
+        'maquinarias', Maquinaria.objects.order_by('codigo_maquina')
+    )
     disponibilidades = {d.codigo_maquina: d for d in DisponibilidadMaquinaria.objects.all()}
 
     items = []
@@ -1575,7 +1670,7 @@ def _render_control_horometros(request, form_data=None, modal_abierto=None):
         'filtro_alerta': filtro_alerta,
         'filtro_maquina': filtro_maquina,
         'busqueda': busqueda,
-        'is_admin': user_is_admin(request.user),
+        'is_admin': usuario_es_admin(request.user),
         'form_data': form_data or {},
         'modal_abierto': modal_abierto,
     })
@@ -1583,7 +1678,7 @@ def _render_control_horometros(request, form_data=None, modal_abierto=None):
 
 @login_required
 def control_horometros(request):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
@@ -1673,7 +1768,7 @@ def control_horometros(request):
             return redirect('control_horometros')
 
         elif accion == 'eliminar_control':
-            if not user_is_admin(request.user):
+            if not usuario_es_admin(request.user):
                 messages.warning(request, 'No tienes permisos para eliminar controles.')
                 return redirect('control_horometros')
             control_id = request.POST.get('control_id', '').strip()
@@ -1780,7 +1875,7 @@ def control_horometros(request):
 
 @login_required
 def estado_maquinaria(request):
-    if not user_is_user_or_admin(request.user):
+    if not usuario_es_usuario_o_admin(request.user):
         messages.warning(request, 'No tienes permisos para acceder a este módulo.')
         return redirect('modulos')
 
@@ -1809,7 +1904,9 @@ def estado_maquinaria(request):
     filtro_tipo_maquina = request.GET.get('tipo_maquina', '').strip()
     busqueda = request.GET.get('q', '').strip()
 
-    maquinarias = Maquinaria.objects.all().order_by('codigo_maquina')
+    maquinarias = catalogo_modulo_en_cache(
+        'maquinarias', Maquinaria.objects.order_by('codigo_maquina')
+    )
     tipos_maquina = Maquinaria.objects.exclude(tipo_maquina='').values_list(
         'tipo_maquina', flat=True
     ).distinct().order_by('tipo_maquina')
@@ -1817,7 +1914,7 @@ def estado_maquinaria(request):
 
     flota = []
     conteo_estados = {
-        'total': maquinarias.count(),
+        'total': len(maquinarias),
         'disponible': 0,
         'en_campo': 0,
         'en_taller': 0,
@@ -1871,5 +1968,5 @@ def estado_maquinaria(request):
         'tipos_maquina': tipos_maquina,
         'filtro_tipo_maquina': filtro_tipo_maquina,
         'busqueda': busqueda,
-        'is_admin': user_is_admin(request.user),
+        'is_admin': usuario_es_admin(request.user),
     })

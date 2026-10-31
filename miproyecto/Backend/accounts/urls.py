@@ -1,9 +1,9 @@
 from django.urls import path
 from .views import (
-    ajax_login, signup, buscar_usuario_por_codigo,
+    ajax_login, signup, buscar_usuario_por_codigo, login_user_lookup, change_password,
     api_proveedores, api_proveedor_detalle,
     api_empleados, api_empleado_detalle,
-    api_usuario,
+    api_usuario, reset_user_password,
     api_maquinaria, api_maquinaria_detalle,
     api_bodegas, api_bodega_detalle,
     api_articulos, api_articulo_detalle,
@@ -22,6 +22,8 @@ from .views import (
 urlpatterns = [
     path('signup/', signup, name='signup'),
     path('ajax-login/', ajax_login, name='ajax_login'),
+    path('login-user/', login_user_lookup, name='login_user_lookup'),
+    path('change-password/', change_password, name='change_password'),
     path('api/buscar-usuario/', buscar_usuario_por_codigo, name='buscar_usuario'),
 
     path('api/proveedores/', api_proveedores, name='api_proveedores'),
@@ -30,6 +32,7 @@ urlpatterns = [
     path('api/empleados/', api_empleados, name='api_empleados'),
     path('api/empleados/<int:empleado_id>/', api_empleado_detalle, name='api_empleado_detalle'),
     path('api/usuarios/<int:user_id>/', api_usuario, name='api_usuario'),
+    path('api/usuarios/<int:user_id>/reset-password/', reset_user_password, name='reset_user_password'),
 
     path('api/maquinaria/', api_maquinaria, name='api_maquinaria'),
     path('api/maquinaria/<int:maquinaria_id>/', api_maquinaria_detalle, name='api_maquinaria_detalle'),

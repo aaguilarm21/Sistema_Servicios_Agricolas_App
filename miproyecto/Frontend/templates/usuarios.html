@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Módulo de Usuarios</title>
   {% load static %}
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
   <style>
     .modal {
@@ -52,7 +52,7 @@
         <h1>Módulo de Usuarios</h1>
         <p>Gestiona los usuarios del sistema.</p>
       </div>
-      <a href="{% url 'modulos' %}?sector=administracion" class="btn-volver">Volver a Módulos</a>
+      <a href="{% url 'modulos' %}?sector=administracion" class="btn-volver">← Volver a procesos</a>
     </header>
 
     {% if is_admin %}
@@ -127,7 +127,7 @@
   </div>
 
   <script src="{% static 'js/usuarios.js' %}"></script>
-  <script src="{% static 'js/notificaciones.js' %}"></script>
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030"></script>
   <script>
     // Obtener elementos del DOM
     const codigoInput = document.getElementById('codigoUsuario');

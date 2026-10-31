@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+  {% load static %}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Demostración - Sistema de Notificaciones</title>
@@ -314,7 +315,7 @@
     </div>
   </div>
 
-  <script src="Frontend/static/js/notificaciones.js"></script>
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030"></script>
   <script>
     function validarFormularioDemo() {
       const form = document.getElementById('testForm');

@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Registro de Firmas Autorizadas</title>
   {% load static %}
-  <script src="{% static 'js/notificaciones.js' %}" defer></script>
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030" defer></script>
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
   <style>
     .master-field {
@@ -30,7 +30,7 @@
         <h1>Registro de Firmas Autorizadas</h1>
         <p>Registra a las personas autorizadas para firmar.</p>
       </div>
-      <a href="{% url 'modulos' %}?sector=administracion" class="btn-volver">Volver a Módulos</a>
+      <a href="{% url 'modulos' %}?sector=administracion" class="btn-volver">← Volver a procesos</a>
     </header>
 
     {% if messages %}

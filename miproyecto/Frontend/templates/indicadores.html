@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Indicadores</title>
   {% load static %}
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}?v=20261030" />
 </head>
 
 <body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
@@ -17,7 +17,7 @@
         <h1>📈 Indicadores</h1>
         <p>Resumen de los registros operativos almacenados.</p>
       </div>
-      <a href="{% url 'modulos' %}?sector=reportes" class="btn-volver">Volver a Módulos</a>
+      <a href="{% url 'modulos' %}?sector=reportes" class="btn-volver">← Volver a procesos</a>
     </header>
 
     <section class="metrics-grid" aria-label="Indicadores generales">

@@ -770,3 +770,89 @@ body[data-mobile-device="true"] .logistica-table { width: max-content; min-width
   .filter-select { width: 100%; }
   .btn-action-right { margin-left: 0; width: 100%; }
 }
+
+/* Compacta controles y pestañas sin modificar el número de columnas. */
+.card-panel {
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 0.76rem;
+  line-height: 1.2;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+  gap: 5px;
+}
+
+.section-title-spacing {
+  margin-top: 12px;
+}
+
+.header-title-box h1 {
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.form-grid-2,
+.form-grid-3 {
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.form-group {
+  gap: 3px;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.form-control {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 0.8rem;
+}
+
+textarea.form-control {
+  min-height: 56px;
+}
+
+.button-row {
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+.btn-submit,
+.button-row .btn-secondary,
+.btn-sm {
+  min-height: 36px;
+  padding: 8px 14px;
+  font-size: 0.84rem;
+  gap: 6px;
+}
+
+.nav-tabs-wrapper {
+  gap: 7px;
+  margin-bottom: 14px;
+  padding: 7px 12px 0;
+}
+
+.nav-tab-btn {
+  padding: 8px 13px;
+  font-size: 0.84rem;
+  gap: 6px;
+}
+
+.nav-tab-btn .icon,
+.nav-tab-btn svg {
+  width: 1em;
+  height: 1em;
+  font-size: 0.9em;
+}
+
+.metric-icon {
+  font-size: 1.55rem;
+}

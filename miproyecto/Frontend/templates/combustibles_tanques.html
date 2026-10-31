@@ -6,12 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Combustibles - Inventario de Tanques y Cisternas</title>
   {% load static %}
-  <script src="{% static 'js/notificaciones.js' %}" defer></script>
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030" defer></script>
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}?v=20261030" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/operacion.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/combustibles.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}?v=20261030" />
+  <link rel="stylesheet" href="{% static 'css/combustibles.css' %}?v=20261030" />
 </head>
 
 <body class="operacion-body fuel-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
@@ -25,7 +25,7 @@
       <div class="header-actions">
         <button type="button" class="btn-logistica" onclick="abrirModalCrearTanque()">＋ Nuevo Tanque</button>
         <a href="{% url 'despacho_combustible' %}" class="btn-logistica">⛽ Ir a Despachos</a>
-        <a href="{% url 'modulos' %}?sector=combustibles" class="btn-volver">← Volver A Módulos</a>
+        <a href="{% url 'modulos' %}?sector=combustibles" class="btn-volver">← Volver a procesos</a>
       </div>
     </header>
 

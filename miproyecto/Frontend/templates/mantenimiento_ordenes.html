@@ -6,12 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mantenimiento - Órdenes de Trabajo y Taller</title>
   {% load static %}
-  <script src="{% static 'js/notificaciones.js' %}" defer></script>
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030" defer></script>
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}?v=20261030" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/operacion.css' %}?v=green-20261002" />
-  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}?v=green-20261002" />
+  <link rel="stylesheet" href="{% static 'css/operacion.css' %}?v=20261030" />
+  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}?v=20261030" />
 </head>
 
 <body class="operacion-body maint-body" data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
@@ -23,7 +23,7 @@
         <p>Programación de servicios mecánicos, control de reparaciones preventivas y correctivas</p>
       </div>
       <div class="header-actions">
-        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-volver">← Volver A Módulos</a>
+        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-volver">← Volver a procesos</a>
       </div>
     </header>
 

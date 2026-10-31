@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Datos Registrados</title>
   {% load static %}
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=10" />
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
   <style>
     .datos-toolbar {
       display: flex;
@@ -90,7 +90,7 @@
   </div>
 
   <script src="{% static 'js/common.js' %}"></script>
-  <script src="{% static 'js/notificaciones.js' %}"></script>
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030"></script>
   <script>
     const isAdmin = {% if is_admin %}true{% else %}false{% endif %};
     const tablas = {

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Validación de Registros Operativos</title>
   {% load static %}
-  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}?v=20261030" />
   <style>
     .boleta-search {
       display: flex;
@@ -157,7 +157,7 @@
         <h1>🔎 Validación de Registros Operativos</h1>
         <p>Busca boletas y gestiona sus registros operativos.</p>
       </div>
-      <a href="{% url 'modulos' %}?sector=agricola" class="btn-volver">Volver a Módulos</a>
+      <a href="{% url 'modulos' %}?sector=agricola" class="btn-volver">← Volver a procesos</a>
     </div>
 
     <main class="form-wrapper">
@@ -258,5 +258,6 @@
       {% endif %}
     </main>
   </div>
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030"></script>
 </body>
 </html>

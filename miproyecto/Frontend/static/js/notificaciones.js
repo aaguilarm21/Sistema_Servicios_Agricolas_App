@@ -23,32 +23,32 @@ class NotificationSystem {
   /**
    * Mostrar notificación de éxito
    */
-  showSuccess(message, duration = 5000) {
+  showSuccess(message, duration = 2000) {
     this.showNotification(message, 'success', duration);
   }
 
   /**
    * Mostrar notificación de error
    */
-  showError(message, duration = 5000) {
+  showError(message, duration = 2000) {
     this.showNotification(message, 'error', duration);
   }
 
   /**
    * Mostrar notificación de advertencia
    */
-  showWarning(message, duration = 5000) {
+  showWarning(message, duration = 2000) {
     this.showNotification(message, 'warning', duration);
   }
 
   /**
    * Mostrar notificación de información
    */
-  showInfo(message, duration = 5000) {
+  showInfo(message, duration = 2000) {
     this.showNotification(message, 'info', duration);
   }
 
-  showAlert(message, duration = 5000) {
+  showAlert(message, duration = 2000) {
     const text = String(message);
     const type = /error|no se pudo|no se puede|fall[oó]|incorrect|inv[aá]lid/i.test(text)
       ? 'error'
@@ -64,7 +64,7 @@ class NotificationSystem {
   /**
    * Método principal para mostrar notificaciones
    */
-  showNotification(message, type = 'info', duration = 5000) {
+  showNotification(message, type = 'info', duration = 2000) {
     // Buscar o crear contenedor de notificaciones
     let container = document.getElementById('notifications-container');
     if (!container) {
@@ -72,11 +72,16 @@ class NotificationSystem {
       container.id = 'notifications-container';
       container.style.cssText = `
         position: fixed;
-        top: 20px;
-        right: 20px;
+        inset: 0;
         z-index: 10000;
         pointer-events: none;
-        width: min(420px, calc(100vw - 40px));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 20px;
+        box-sizing: border-box;
       `;
       container.setAttribute('aria-live', 'polite');
       document.body.appendChild(container);
@@ -135,15 +140,15 @@ class NotificationSystem {
       color: ${style.color};
       padding: 14px 16px;
       border-radius: 6px;
-      margin-bottom: 10px;
       display: flex;
       align-items: center;
       gap: 10px;
       font-size: 0.95rem;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       pointer-events: all;
-      animation: slideInRight 0.3s ease-out;
-      max-width: 100%;
+      animation: notificationPopIn 0.25s ease-out;
+      width: min(420px, 100%);
+      box-sizing: border-box;
     `;
 
     // Cerrar notificación
@@ -164,9 +169,8 @@ class NotificationSystem {
     closeBtn.onclick = () => this.closeNotification(notification);
 
     // Auto-cerrar después de duración
-    const autoCloseDuration = type === 'error' || type === 'warning' ? 5000 : duration;
-    if (autoCloseDuration > 0) {
-      setTimeout(() => this.closeNotification(notification), autoCloseDuration);
+    if (duration !== 0) {
+      setTimeout(() => this.closeNotification(notification), 2000);
     }
   }
 
@@ -179,10 +183,10 @@ class NotificationSystem {
             .find(className => /^alert-(error|danger|warning|success|info)$/.test(className));
           const taggedType = typeClass ? typeClass.replace('alert-', '') : 'info';
           const type = taggedType === 'danger' ? 'error' : taggedType;
-          this.showNotification(message.textContent.trim(), type, 5000);
+          this.showNotification(message.textContent.trim(), type, 2000);
         });
       } else if (container.textContent.trim()) {
-        this.showNotification(container.textContent.trim(), 'info', 5000);
+        this.showNotification(container.textContent.trim(), 'info', 2000);
       }
       container.remove();
     });
@@ -192,11 +196,13 @@ class NotificationSystem {
       ['#loginWarningPopup', 'error'],
       ['.success-banner', 'success'],
       ['.error-banner', 'error'],
+      ['.lookup-message', 'warning'],
+      ['.recovery-message', 'success'],
     ];
     messageSelectors.forEach(([selector, type]) => {
       document.querySelectorAll(selector).forEach(message => {
         const text = message.textContent.trim();
-        if (text) this.showNotification(text, type, 5000);
+        if (text) this.showNotification(text, type, 2000);
         message.remove();
       });
     });
@@ -207,7 +213,7 @@ class NotificationSystem {
    * Cerrar una notificación específica
    */
   closeNotification(notification) {
-    notification.style.animation = 'slideOutRight 0.3s ease-out forwards';
+    notification.style.animation = 'notificationPopOut 0.2s ease-in forwards';
     setTimeout(() => notification.remove(), 300);
   }
 
@@ -513,6 +519,24 @@ function initializeNotificationStyles() {
         }
       }
 
+      @keyframes notificationPopIn {
+        from {
+          opacity: 0;
+          transform: scale(0.94);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes notificationPopOut {
+        to {
+          opacity: 0;
+          transform: scale(0.94);
+        }
+      }
+
       .notification {
         animation: slideInRight 0.3s ease-out;
       }
@@ -565,9 +589,7 @@ function initializeNotificationStyles() {
 
       @media (max-width: 768px) {
         #notifications-container {
-          left: 10px !important;
-          right: 10px !important;
-          width: auto !important;
+          padding: 16px !important;
         }
       }
     `;

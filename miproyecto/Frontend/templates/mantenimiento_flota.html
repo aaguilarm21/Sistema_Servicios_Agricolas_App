@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mantenimiento - Ficha Técnica y Disponibilidad de Maquinaria</title>
   {% load static %}
-  <script src="{% static 'js/notificaciones.js' %}" defer></script>
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030" defer></script>
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}?v=20261030" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}?v=20261030" />
 </head>
 
 <body class="maint-body" data-device-type="{{ request.device_type|default:'unknown' }}"
@@ -22,7 +22,7 @@
         <p>Estado operativo, ubicación en campo, asignación de operadores y ficha técnica de maquinaria</p>
       </div>
       <div class="header-actions">
-        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-volver">← Volver a Módulos</a>
+        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-volver">← Volver a procesos</a>
       </div>
     </header>
 

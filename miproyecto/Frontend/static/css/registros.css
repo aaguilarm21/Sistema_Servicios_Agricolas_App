@@ -349,3 +349,74 @@ body[data-mobile-device="true"] .records-table {
   }
   button { min-height: 44px; }
 }
+
+/* Compacta controles manteniendo la distribución actual del formulario. */
+.form-wrapper form {
+  padding: 10px;
+}
+
+.form-wrapper .form-section {
+  padding: 9px;
+  margin-bottom: 10px;
+}
+
+.header h1 {
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.form-wrapper .section-title {
+  font-size: 9.5px;
+  line-height: 1.2;
+  margin-bottom: 7px;
+  padding: 5px 8px;
+}
+
+.form-wrapper .form-row {
+  gap: 7px;
+  margin-bottom: 7px;
+}
+
+.form-wrapper .form-group {
+  gap: 2px;
+}
+
+.form-wrapper label {
+  font-size: 9.5px;
+  line-height: 1.2;
+  margin-bottom: 1px;
+}
+
+.form-wrapper input[type="text"],
+.form-wrapper input[type="date"],
+.form-wrapper input[type="number"],
+.form-wrapper input[type="email"],
+.form-wrapper input[type="password"],
+.form-wrapper select,
+.form-wrapper textarea {
+  min-height: 33px;
+  padding: 5px 8px;
+  font-size: 11.5px;
+}
+
+.form-wrapper textarea {
+  min-height: 56px;
+}
+
+.form-wrapper .button-group {
+  gap: 7px;
+  margin-top: 11px;
+  padding-top: 8px;
+}
+
+.form-wrapper button,
+.form-wrapper .btn-volver {
+  min-height: 33px;
+  padding: 6px 11px;
+  font-size: 10.5px;
+}
+
+.form-wrapper .section-title .icon,
+.form-wrapper label .icon {
+  font-size: 0.9em;
+}

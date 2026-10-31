@@ -681,3 +681,94 @@ body.maint-body {
   .fleet-grid { grid-template-columns: 1fr; }
   .header-bar { flex-direction: column; align-items: flex-start; }
 }
+
+/* Reduce el espacio de formulario conservando el diseño adaptable existente. */
+.card-panel {
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.panel-title-bar {
+  padding-bottom: 9px;
+  margin-bottom: 14px;
+  gap: 8px;
+}
+
+.panel-title-bar h2 {
+  font-size: 1rem;
+  gap: 6px;
+}
+
+.section-title {
+  font-size: 0.76rem;
+  line-height: 1.2;
+  padding: 5px 8px;
+  margin-bottom: 8px;
+  gap: 5px;
+}
+
+.section-title-spacing {
+  margin-top: 12px;
+}
+
+.header-title-box h1 {
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.form-grid-2,
+.form-grid-3 {
+  gap: 9px;
+  margin-bottom: 8px;
+}
+
+.form-group {
+  gap: 3px;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.form-group .hint {
+  font-size: 0.7rem;
+}
+
+.form-control {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 0.8rem;
+}
+
+.button-row {
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.button-row button,
+.button-row .btn,
+.btn-maint-primary,
+.btn-sm {
+  min-height: 36px;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  gap: 6px;
+}
+
+.metric-icon {
+  font-size: 1.7rem;
+}
+
+.nav-tab-btn {
+  padding: 8px 13px;
+  font-size: 0.84rem;
+}
+
+.nav-tab-btn .icon,
+.nav-tab-btn svg,
+.panel-title-bar .icon {
+  width: 1em;
+  height: 1em;
+  font-size: 0.9em;
+}

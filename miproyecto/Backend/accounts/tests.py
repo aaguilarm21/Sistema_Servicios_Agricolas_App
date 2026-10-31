@@ -8,20 +8,135 @@ from django.core.exceptions import ValidationError
 from django.core.management import call_command, CommandError
 from django.test import Client
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.contrib.auth.models import Group, User
 from django.apps import apps
+from django.db import connection
 from datetime import date, timedelta
 from decimal import Decimal
 
 from .models import (
-    Articulo, Cuenta, DespachoCombustible, Empleado, FirmaAutorizada, Labor, LoginAttempt, Proveedor,
+    Articulo, Auxiliar, Cuenta, DespachoCombustible, Empleado, FirmaAutorizada, Labor, LoginAttempt, Proveedor,
     Maquinaria, ProgramacionOperacion, RegistroOperativo, TanqueCombustible,
     normalizar_texto,
 )
+from .catalog_cache import MODULE_CATALOG_CACHE_PREFIX, catalogo_modulo_en_cache
 from .management.commands.createuserrole import Command as CreateUserRoleCommand
 from .validators import PasswordStandardValidator
 from .jwt_utils import generate_jwt_token, decode_jwt_token
+
+
+class AdminPasswordResetTests(TestCase):
+    def setUp(self):
+        self.admin_group, _ = Group.objects.get_or_create(name='Admin')
+        self.user_group, _ = Group.objects.get_or_create(name='Usuario')
+        self.admin = User.objects.create_user(
+            username='admin',
+            password='AdminPassword!2026',
+        )
+        self.admin.groups.add(self.admin_group)
+        self.target = User.objects.create_user(
+            username='usuario-restablecer',
+            first_name='Usuario',
+            last_name='Prueba',
+            password='OriginalPassword!2026',
+        )
+        self.target.groups.add(self.user_group)
+        self.client.force_login(self.admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(self.admin)
+        self.url = reverse('reset_user_password', args=[self.target.pk])
+
+    def post_reset(self, **payload):
+        return self.client.post(
+            self.url,
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+    def test_admin_can_reset_usuario_password_without_current_password(self):
+        response = self.post_reset(
+            new_password='NewPassword!2026',
+            confirm_password='NewPassword!2026',
+        )
+
+        self.target.refresh_from_db()
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.target.check_password('NewPassword!2026'))
+
+    def test_admin_role_can_reset_usuario_password(self):
+        other_admin = User.objects.create_user(
+            username='otro-admin',
+            password='OtherPassword!2026',
+        )
+        other_admin.groups.add(self.admin_group)
+        self.client.force_login(other_admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(other_admin)
+
+        page = self.client.get(reverse('usuarios_creados'))
+        self.assertContains(page, 'usuarios-btn-reset-password')
+
+        response = self.post_reset(
+            new_password='NewPassword!2026',
+            confirm_password='NewPassword!2026',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.target.refresh_from_db()
+        self.assertTrue(self.target.check_password('NewPassword!2026'))
+
+    def test_admin_role_sees_reset_password_process(self):
+        page = self.client.get(reverse('usuarios_creados'))
+        self.assertContains(page, 'usuarios-btn-reset-password')
+        self.assertContains(page, 'data-active="true"')
+        self.assertContains(page, 'estado-activo')
+        self.assertContains(page, 'Activado')
+
+        self.target.is_active = False
+        self.target.save(update_fields=['is_active'])
+        page = self.client.get(reverse('usuarios_creados'))
+        self.assertContains(page, 'data-active="false"')
+        self.assertContains(page, 'estado-inactivo')
+        self.assertContains(page, 'Bloqueado')
+
+    def test_admin_cannot_reset_another_admin_account(self):
+        other_admin = User.objects.create_user(
+            username='otro-administrador',
+            password='OtherPassword!2026',
+        )
+        other_admin.groups.add(self.admin_group)
+
+        response = self.client.post(
+            reverse('reset_user_password', args=[other_admin.pk]),
+            data=json.dumps({
+                'new_password': 'NewPassword!2026',
+                'confirm_password': 'NewPassword!2026',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        other_admin.refresh_from_db()
+        self.assertTrue(other_admin.check_password('OtherPassword!2026'))
+
+    def test_admin_cannot_reset_user_without_usuario_role(self):
+        no_role_user = User.objects.create_user(
+            username='sin-rol',
+            password='OtherPassword!2026',
+        )
+
+        response = self.client.post(
+            reverse('reset_user_password', args=[no_role_user.pk]),
+            data=json.dumps({
+                'new_password': 'NewPassword!2026',
+                'confirm_password': 'NewPassword!2026',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        no_role_user.refresh_from_db()
+        self.assertTrue(no_role_user.check_password('OtherPassword!2026'))
 
 
 class CuentaPorProcesoTests(TestCase):
@@ -192,6 +307,8 @@ class JWTTokenTests(TestCase):
             password='TestPassword@123',
             email='test@example.com'
         )
+        user_group, _ = Group.objects.get_or_create(name='Usuario')
+        self.user.groups.add(user_group)
 
     def test_jwt_generation_and_decoding(self):
         token = generate_jwt_token(self.user)
@@ -273,6 +390,8 @@ class SignupAccessTests(TestCase):
 
     def test_regular_user_cannot_access_signup(self):
         user = User.objects.create_user(username='regular-user', password='TestPassword@123')
+        user_group, _ = Group.objects.get_or_create(name='Usuario')
+        user.groups.add(user_group)
         self.client.force_login(user)
         self.client.cookies['jwt_token'] = generate_jwt_token(user)
 
@@ -303,8 +422,8 @@ class AdminProvisioningTests(TestCase):
         )
         original_hash = admin.password
 
-        from .signals import ensure_default_groups
-        ensure_default_groups(sender=apps.get_app_config('accounts'))
+        from .signals import asegurar_grupos_predeterminados
+        asegurar_grupos_predeterminados(sender=apps.get_app_config('accounts'))
 
         admin.refresh_from_db()
         self.assertEqual(admin.password, original_hash)
@@ -467,6 +586,48 @@ class LockoutTests(TestCase):
         self.user.refresh_from_db()
         self.assertFalse(self.user.is_active)
 
+    @override_settings(LOGIN_RATE_LIMIT_ATTEMPTS=3, LOGIN_RATE_LIMIT_LOCKOUT_SECONDS=300)
+    def test_admin_can_unlock_user_and_clear_failed_login_counter(self):
+        admin_group, _ = Group.objects.get_or_create(name='Admin')
+        user_group, _ = Group.objects.get_or_create(name='Usuario')
+        admin = User.objects.create_user(
+            username='admin',
+            password='AdminPassword!2026',
+        )
+        admin.groups.add(admin_group)
+        self.user.groups.add(user_group)
+        self.user.is_active = False
+        self.user.save(update_fields=['is_active'])
+
+        ip_address = '127.0.0.1'
+        cache_key = f'login_attempts:{ip_address}:{self.user.username.lower()}'
+        cache.set(cache_key, 3, timeout=300)
+        LoginAttempt.objects.create(
+            username_attempt=self.user.username,
+            successful=False,
+            ip_address=ip_address,
+        )
+
+        self.client.force_login(admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(admin)
+        response = self.client.post(
+            reverse('api_usuario', args=[self.user.pk]),
+            data=json.dumps({'action': 'toggle_estado'}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['activo'])
+        self.assertIsNone(cache.get(cache_key))
+
+        login_response = self.client.post(reverse('login'), {
+            'username': self.user.username,
+            'password': 'Password123@',
+        })
+        self.assertEqual(login_response.status_code, 302)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
+
 
 class FirmaAutorizadaTests(TestCase):
     def setUp(self):
@@ -594,6 +755,8 @@ class ValidarRegistroOperativoTests(TestCase):
             username='usuario-validacion',
             password='TestPassword@123',
         )
+        user_group, _ = Group.objects.get_or_create(name='Usuario')
+        self.user.groups.add(user_group)
         self.client.force_login(self.user)
         self.client.cookies['jwt_token'] = generate_jwt_token(self.user)
 
@@ -633,7 +796,7 @@ class ValidarRegistroOperativoTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'No se encontró una boleta')
 
-    def test_validation_shows_create_action_but_hides_admin_actions(self):
+    def test_usuario_can_edit_from_validation_but_cannot_delete(self):
         self.crear_registro('Proveedor Central')
         response = self.client.get(reverse('validar_registro_operativo'), {
             'no_boleta': 'BOLETA-5420',
@@ -641,7 +804,7 @@ class ValidarRegistroOperativoTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Crear registro')
-        self.assertNotContains(response, 'Editar')
+        self.assertContains(response, 'Editar')
         self.assertNotContains(response, 'Eliminar')
 
     def test_admin_can_delete_a_record_with_post_only(self):
@@ -1354,23 +1517,29 @@ class UsuarioRolePermissionsTests(TestCase):
         self.client.force_login(self.user)
         self.client.cookies['jwt_token'] = generate_jwt_token(self.user)
 
-    def test_usuario_can_create_and_edit_catalog_but_cannot_delete(self):
-        # 1. Crear proveedor (POST)
+    def test_usuario_can_read_catalog_but_cannot_create_edit_or_delete(self):
+        proveedor = Proveedor.objects.create(
+            codigo='PROV-USER-01',
+            nit='123456-7',
+            razon_social='Proveedor Usuario Test',
+        )
+
+        leer_res = self.client.get(reverse('api_proveedores'))
+        self.assertEqual(leer_res.status_code, 200)
+
         crear_res = self.client.post(
             reverse('api_proveedores'),
             data=json.dumps({
-                'codigo': 'PROV-USER-01',
+                'codigo': 'PROV-USER-02',
                 'nit': '123456-7',
                 'razonSocial': 'Proveedor Usuario Test',
             }),
             content_type='application/json',
         )
-        self.assertEqual(crear_res.status_code, 201)
-        proveedor_id = crear_res.json()['id']
+        self.assertEqual(crear_res.status_code, 403)
 
-        # 2. Editar proveedor (PUT)
         editar_res = self.client.put(
-            reverse('api_proveedor_detalle', args=[proveedor_id]),
+            reverse('api_proveedor_detalle', args=[proveedor.id]),
             data=json.dumps({
                 'codigo': 'PROV-USER-01',
                 'nit': '123456-7',
@@ -1378,16 +1547,93 @@ class UsuarioRolePermissionsTests(TestCase):
             }),
             content_type='application/json',
         )
-        self.assertEqual(editar_res.status_code, 200)
-        proveedor = Proveedor.objects.get(id=proveedor_id)
-        self.assertEqual(proveedor.razon_social, 'Proveedor Usuario Modificado')
+        self.assertEqual(editar_res.status_code, 403)
+        proveedor.refresh_from_db()
+        self.assertEqual(proveedor.razon_social, 'Proveedor Usuario Test')
 
-        # 3. Eliminar proveedor (DELETE) -> Debe estar BLOQUEADO (403)
         eliminar_res = self.client.delete(
-            reverse('api_proveedor_detalle', args=[proveedor_id]),
+            reverse('api_proveedor_detalle', args=[proveedor.id]),
         )
         self.assertEqual(eliminar_res.status_code, 403)
-        self.assertTrue(Proveedor.objects.filter(id=proveedor_id).exists())
+        self.assertTrue(Proveedor.objects.filter(id=proveedor.id).exists())
+
+    def test_usuario_cannot_access_administration_pages_or_sector(self):
+        for route_name in (
+            'configuracion',
+            'datos_registrados',
+            'firmas_autorizadas',
+            'usuarios',
+            'usuarios_creados',
+        ):
+            with self.subTest(route=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 403)
+
+        modules_page = self.client.get(reverse('modulos'))
+        self.assertEqual(modules_page.status_code, 200)
+        self.assertNotContains(modules_page, 'btn-sector-administracion')
+        self.assertNotContains(modules_page, 'id="sector-administracion"')
+
+        direct_sector_page = self.client.get(reverse('modulos'), {'sector': 'administracion'})
+        self.assertEqual(direct_sector_page.status_code, 200)
+        self.assertNotContains(direct_sector_page, 'btn-sector-administracion')
+        self.assertNotContains(direct_sector_page, 'id="sector-administracion"')
+
+    def test_module_navigation_loads_user_groups_once_per_request(self):
+        with CaptureQueriesContext(connection) as captured_queries:
+            response = self.client.get(reverse('modulos'))
+
+        self.assertEqual(response.status_code, 200)
+        group_queries = [
+            query for query in captured_queries
+            if 'auth_user_groups' in query['sql']
+        ]
+        self.assertEqual(len(group_queries), 1)
+
+    def test_usuario_can_access_every_non_administration_module(self):
+        for route_name in (
+            'registros',
+            'registros_data',
+            'validar_registro_operativo',
+            'operacion',
+            'reportes',
+            'indicadores',
+            'despacho_combustible',
+            'consumo_combustible',
+            'tanques_combustible',
+            'ordenes_mantenimiento',
+            'control_horometros',
+            'estado_maquinaria',
+        ):
+            with self.subTest(route=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+
+    def test_admin_can_access_administration_pages_and_all_sectors(self):
+        admin_group, _ = Group.objects.get_or_create(name='Admin')
+        admin = User.objects.create_user(
+            username='administrador-permisos',
+            password='TestPassword@123',
+        )
+        admin.groups.add(admin_group)
+        self.client.force_login(admin)
+        self.client.cookies['jwt_token'] = generate_jwt_token(admin)
+
+        for route_name in (
+            'configuracion',
+            'datos_registrados',
+            'firmas_autorizadas',
+            'usuarios',
+            'usuarios_creados',
+        ):
+            with self.subTest(route=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+
+        modules_page = self.client.get(reverse('modulos'))
+        self.assertContains(modules_page, 'btn-sector-administracion')
+        admin_sector_page = self.client.get(reverse('modulos'), {'sector': 'administracion'})
+        self.assertContains(admin_sector_page, 'id="sector-administracion"')
 
     def test_usuario_can_edit_operational_record_but_cannot_delete(self):
         registro = RegistroOperativo.objects.create(
@@ -1446,3 +1692,32 @@ class UsuarioRolePermissionsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse('editar_registro', args=[registro.id]))
         self.assertNotContains(response, reverse('borrar_registro', args=[registro.id]))
+
+
+class ModuleCatalogCacheTests(TestCase):
+    def test_catalog_cache_is_invalidated_when_auxiliar_changes(self):
+        cache_key = f'{MODULE_CATALOG_CACHE_PREFIX}fincas'
+        cache.delete(cache_key)
+        finca = Auxiliar.objects.create(
+            codigo='FINCA-CACHE-01',
+            nombre='Finca Original',
+            tipo='Finca',
+        )
+        self.assertEqual(
+            catalogo_modulo_en_cache(
+                'fincas',
+                Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre'),
+            )[0].nombre,
+            'Finca Original',
+        )
+
+        finca.nombre = 'Finca Actualizada'
+        finca.save(update_fields=['nombre'])
+
+        self.assertEqual(
+            catalogo_modulo_en_cache(
+                'fincas',
+                Auxiliar.objects.filter(tipo__icontains='finca').order_by('nombre'),
+            )[0].nombre,
+            'Finca Actualizada',
+        )

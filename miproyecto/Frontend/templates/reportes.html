@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Reportes</title>
   {% load static %}
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}?v=20261030" />
   <style>
       .btn-primary, .btn-secondary, .btn-imprimir {
           display: inline-flex;
@@ -86,7 +86,7 @@
         <h1>📄 Reportes</h1>
         <p>Consulta las boletas de servicio por tipo y rango de fechas.</p>
       </div>
-    <a href="{% url 'modulos' %}?sector=reportes" class="btn-volver">Volver a Módulos</a>
+    <a href="{% url 'modulos' %}?sector=reportes" class="btn-volver">← Volver a procesos</a>
     </header>
 
     <section class="form-card" style="margin-bottom: 2rem;">

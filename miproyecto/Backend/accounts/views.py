@@ -2,13 +2,20 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.views import LoginView
+from django.contrib.auth import logout
+from django.contrib.auth.password_validation import validate_password
 from django.conf import settings
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 import json
+import logging
 import re
+from datetime import timedelta
 
 from .jwt_utils import generate_jwt_token
 from .forms import AdminUserCreationForm, CustomAuthenticationForm
@@ -16,8 +23,10 @@ from .signals import registrar_intento_acceso
 from .models import (
     UserProfile, Proveedor, Empleado, Maquinaria, Bodega, Articulo,
     Labor, Cuenta, UnidadMedida, NombrePuesto, Variedad, TipoMaquina, Marca, Municipio, Auxiliar,
-    CAMPOS_IDENTIFICACION, normalizar_texto,
+    LoginAttempt, CAMPOS_IDENTIFICACION, normalizar_texto,
 )
+
+logger = logging.getLogger(__name__)
 
 
 # Vistas de autenticación, registro de usuarios y APIs internas.
@@ -66,25 +75,96 @@ class CustomLoginView(LoginView):
             if not getattr(self.request, '_login_attempt_logged', False):
                 registrar_intento_acceso(
                     self.request,
-                    username=self.request.POST.get('username', ''),
-                    successful=False,
+                    nombre_usuario=self.request.POST.get('username', ''),
+                    exitoso=False,
                 )
             return super().form_invalid(form)
         except Exception:
             return render(self.request, self.template_name, {'form': form})
 
 
+@require_http_methods(['POST'])
+def login_user_lookup(request):
+    username = request.POST.get('username', '').strip()
+    if not username:
+        return JsonResponse({'success': False})
+
+    user = User.objects.filter(username__iexact=username, is_active=True).only(
+        'first_name', 'last_name',
+    ).first()
+    full_name = user.get_full_name().strip() if user else ''
+    response = JsonResponse({
+        'success': bool(full_name),
+        'nombre': full_name,
+    })
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+@require_http_methods(['GET', 'POST'])
+def change_password(request):
+    username = ''
+    errors = []
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        current_password = request.POST.get('current_password', '')
+        new_password = request.POST.get('new_password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+
+        authentication_form = CustomAuthenticationForm(
+            request,
+            data={'username': username, 'password': current_password},
+        )
+        credentials_valid = authentication_form.is_valid()
+        if not credentials_valid:
+            for field_errors in authentication_form.errors.values():
+                errors.extend(str(error) for error in field_errors)
+
+        if not new_password:
+            errors.append('Escribe una nueva contraseña.')
+        if not confirm_password:
+            errors.append('Confirma la nueva contraseña.')
+        elif new_password != confirm_password:
+            errors.append('Las contraseñas nuevas no coinciden.')
+
+        if credentials_valid and new_password and new_password == confirm_password:
+            user = authentication_form.get_user()
+            if user.check_password(new_password):
+                errors.append('La nueva contraseña debe ser diferente a la contraseña actual.')
+            else:
+                try:
+                    validate_password(new_password, user=user)
+                except ValidationError as error:
+                    errors.extend(error.messages)
+
+        if not errors:
+            user = authentication_form.get_user()
+            with transaction.atomic(using='default'):
+                user.set_password(new_password)
+                user.save(using='default', update_fields=['password'])
+            logout(request)
+            response = render(
+                request,
+                'registration/password_change.html',
+                {'password_changed': True},
+            )
+            response.delete_cookie('jwt_token')
+            return response
+
+    return render(request, 'registration/password_change.html', {
+        'username': username,
+        'errors': errors,
+        'password_changed': False,
+    })
+
+
 # Verifica si un usuario tiene permisos de administrador.
 # Un usuario administrador debe estar activo, autenticado y ser superusuario o pertenecer al grupo Admin.
-def is_admin_user(user):
-    return user is not None and user.is_authenticated and user.is_active and (user.is_superuser or user.groups.filter(name='Admin').exists())
-
-
-def is_user_or_admin(user):
-    return user is not None and user.is_authenticated and user.is_active and (
-        is_admin_user(user) or user.groups.filter(name='Usuario').exists()
+def usuario_es_admin(usuario):
+    return usuario is not None and usuario.is_authenticated and usuario.is_active and (
+        usuario.is_superuser or usuario.groups.filter(name='Admin').exists()
     )
-
 
 
 # Endpoint de autenticación para el modal de cambio de usuario / AJAX login.
@@ -136,7 +216,7 @@ def ajax_login(request):
 # Crea usuarios y perfiles asociados, y genera credenciales.
 @login_required
 def signup(request):
-    if not is_admin_user(request.user):
+    if not usuario_es_admin(request.user):
         return redirect('modulos')
 
     mensaje = ''
@@ -218,6 +298,9 @@ def signup(request):
 @login_required
 @require_http_methods(["GET"])
 def buscar_usuario_por_codigo(request):
+    if not usuario_es_admin(request.user):
+        return JsonResponse({'error': 'No autorizado.'}, status=403)
+
     codigo = request.GET.get('codigo', '').strip()
 
     if not codigo:
@@ -254,7 +337,7 @@ def api_usuario(request, user_id):
     if usuario == request.user:
         return JsonResponse({'error': 'No puedes modificar tu propio usuario aquí.'}, status=400)
 
-    if not is_admin_user(request.user):
+    if not usuario_es_admin(request.user):
         return JsonResponse({'error': 'No autorizado.'}, status=403)
 
     try:
@@ -270,6 +353,17 @@ def api_usuario(request, user_id):
             return JsonResponse({'error': 'Solo se pueden bloquear usuarios con rol de Usuario.'}, status=403)
         usuario.is_active = not usuario.is_active
         usuario.save()
+        if usuario.is_active:
+            lockout_window = getattr(settings, 'LOGIN_RATE_LIMIT_LOCKOUT_SECONDS', 300)
+            recent_attempts = LoginAttempt.objects.filter(
+                username_attempt__iexact=usuario.username,
+                successful=False,
+                created_at__gte=timezone.now() - timedelta(seconds=lockout_window),
+                ip_address__isnull=False,
+            ).values_list('ip_address', flat=True).distinct()
+            normalized_username = usuario.username.strip().lower()
+            for ip_address in recent_attempts:
+                cache.delete(f'login_attempts:{ip_address}:{normalized_username}')
         return JsonResponse({'success': True, 'activo': usuario.is_active})
 
     if action == 'delete':
@@ -278,6 +372,56 @@ def api_usuario(request, user_id):
         return JsonResponse({'success': True, 'message': f'Usuario {username} eliminado correctamente.'})
 
     return JsonResponse({'error': 'Acción no válida'}, status=400)
+
+
+@login_required
+@require_http_methods(['POST'])
+def reset_user_password(request, user_id):
+    if not usuario_es_admin(request.user):
+        return JsonResponse({'success': False, 'error': 'No autorizado.'}, status=403)
+
+    try:
+        data = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Solicitud inválida.'}, status=400)
+
+    if not isinstance(data, dict):
+        return JsonResponse({'success': False, 'error': 'Solicitud inválida.'}, status=400)
+
+    new_password = data.get('new_password', '')
+    confirm_password = data.get('confirm_password', '')
+    if not isinstance(new_password, str) or not isinstance(confirm_password, str):
+        return JsonResponse({'success': False, 'error': 'Las contraseñas deben ser texto.'}, status=400)
+    if not new_password or not confirm_password:
+        return JsonResponse({'success': False, 'error': 'Completa y confirma la nueva contraseña.'}, status=400)
+    if new_password != confirm_password:
+        return JsonResponse({'success': False, 'error': 'Las contraseñas no coinciden.'}, status=400)
+
+    try:
+        target_user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Usuario no encontrado.'}, status=404)
+
+    if target_user.is_superuser or target_user.groups.filter(name='Admin').exists():
+        return JsonResponse({'success': False, 'error': 'Solo se pueden restablecer contraseñas del rol Usuario.'}, status=403)
+    if not target_user.groups.filter(name='Usuario').exists():
+        return JsonResponse({'success': False, 'error': 'La cuenta seleccionada no pertenece al rol Usuario.'}, status=403)
+
+    try:
+        validate_password(new_password, user=target_user)
+    except ValidationError as error:
+        return JsonResponse({'success': False, 'error': ' '.join(error.messages)}, status=400)
+
+    with transaction.atomic(using='default'):
+        target_user.set_password(new_password)
+        target_user.save(using='default', update_fields=['password'])
+
+    logger.info(
+        'Admin usuario_id=%s restableció la contraseña de usuario_id=%s.',
+        request.user.pk,
+        target_user.pk,
+    )
+    return JsonResponse({'success': True, 'message': 'Contraseña restablecida correctamente.'})
 
 
 # ==================== API PROVEEDORES ====================
@@ -289,7 +433,7 @@ def api_proveedores(request):
         return JsonResponse(list(proveedores), safe=False)
 
     elif request.method == 'POST':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -321,7 +465,7 @@ def api_proveedor_detalle(request, proveedor_id):
         return JsonResponse({'error': 'Proveedor no encontrado'}, status=404)
 
     if request.method == 'PUT':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -340,7 +484,7 @@ def api_proveedor_detalle(request, proveedor_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
-        if not is_admin_user(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         proveedor.delete()
         return JsonResponse({'success': True, 'message': 'Proveedor eliminado correctamente'})
@@ -352,7 +496,7 @@ def api_proveedor_detalle(request, proveedor_id):
 def api_empleados(request):
     if request.method == 'GET':
         empleados = Empleado.objects.all()
-        if is_admin_user(request.user):
+        if usuario_es_admin(request.user):
             empleados = empleados.values()
         else:
             empleados = empleados.values(
@@ -361,7 +505,7 @@ def api_empleados(request):
         return JsonResponse(list(empleados), safe=False)
 
     elif request.method == 'POST':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -396,7 +540,7 @@ def api_empleado_detalle(request, empleado_id):
         return JsonResponse({'error': 'Empleado no encontrado'}, status=404)
 
     if request.method == 'PUT':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -425,7 +569,7 @@ def api_empleado_detalle(request, empleado_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
-        if not is_admin_user(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         empleado.delete()
         return JsonResponse({'success': True, 'message': 'Empleado eliminado correctamente'})
@@ -440,7 +584,7 @@ def api_maquinaria(request):
         return JsonResponse(list(maquinaria), safe=False)
 
     elif request.method == 'POST':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -470,7 +614,7 @@ def api_maquinaria_detalle(request, maquinaria_id):
         return JsonResponse({'error': 'Máquina no encontrada'}, status=404)
 
     if request.method == 'PUT':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -488,7 +632,7 @@ def api_maquinaria_detalle(request, maquinaria_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
-        if not is_admin_user(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         maquinaria.delete()
         return JsonResponse({'success': True, 'message': 'Máquina eliminada correctamente'})
@@ -503,7 +647,7 @@ def api_bodegas(request):
         return JsonResponse(list(bodegas), safe=False)
 
     elif request.method == 'POST':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -530,7 +674,7 @@ def api_bodega_detalle(request, bodega_id):
         return JsonResponse({'error': 'Bodega no encontrada'}, status=404)
 
     if request.method == 'PUT':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -545,7 +689,7 @@ def api_bodega_detalle(request, bodega_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
-        if not is_admin_user(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         bodega.delete()
         return JsonResponse({'success': True, 'message': 'Bodega eliminada correctamente'})
@@ -560,7 +704,7 @@ def api_articulos(request):
         return JsonResponse(list(articulos), safe=False)
 
     elif request.method == 'POST':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -587,7 +731,7 @@ def api_articulo_detalle(request, articulo_id):
         return JsonResponse({'error': 'Artículo no encontrado'}, status=404)
 
     if request.method == 'PUT':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -602,7 +746,7 @@ def api_articulo_detalle(request, articulo_id):
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
-        if not is_admin_user(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         articulo.delete()
         return JsonResponse({'success': True, 'message': 'Artículo eliminado correctamente'})
@@ -615,7 +759,7 @@ def _api_catalogo_list_create(request, ModelClass, required_fields, create_fn):
         items = list(ModelClass.objects.all().values())
         return JsonResponse(items, safe=False)
 
-    if not is_user_or_admin(request.user):
+    if not usuario_es_admin(request.user):
         return JsonResponse({'error': 'No autorizado.'}, status=403)
 
     try:
@@ -637,7 +781,7 @@ def _api_catalogo_detail(request, ModelClass, obj_id, update_fn, nombre='Registr
         return JsonResponse({'error': f'{nombre} no encontrado'}, status=404)
 
     if request.method == 'PUT':
-        if not is_user_or_admin(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         try:
             data = json.loads(request.body)
@@ -648,7 +792,7 @@ def _api_catalogo_detail(request, ModelClass, obj_id, update_fn, nombre='Registr
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     elif request.method == 'DELETE':
-        if not is_admin_user(request.user):
+        if not usuario_es_admin(request.user):
             return JsonResponse({'error': 'No autorizado.'}, status=403)
         obj.delete()
         return JsonResponse({'success': True})

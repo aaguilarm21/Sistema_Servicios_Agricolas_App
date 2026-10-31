@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Usuarios Creados</title>
   {% load static %}
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=12" />
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
 </head>
 
 <body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
@@ -28,6 +28,9 @@
           </select>
           <button id="usuarios-btn-estado" class="btn-secondary" type="button" disabled>Cambiar estado</button>
           <button id="usuarios-btn-eliminar" class="btn-secondary" type="button" disabled>Eliminar</button>
+          {% if can_reset_user_passwords %}
+            <button id="usuarios-btn-reset-password" class="btn-secondary" type="button" disabled>Restablecer contraseña</button>
+          {% endif %}
         </div>
       {% endif %}
       <div class="data-grid">
@@ -49,7 +52,15 @@
                 <td>{{ usuario.nombre }}</td>
                 <td>{{ usuario.email }}</td>
                 <td>{{ usuario.grupos }}</td>
-                <td class="usuario-activo">{{ usuario.activo }}</td>
+                <td class="usuario-activo" data-active="{{ usuario.is_active|yesno:'true,false' }}">
+                  {% if usuario.is_active %}
+                    <span class="estado-icono estado-activo" aria-hidden="true">✓</span>
+                    <span class="estado-texto">Activado</span>
+                  {% else %}
+                    <span class="estado-icono estado-inactivo" aria-hidden="true">✕</span>
+                    <span class="estado-texto">Bloqueado</span>
+                  {% endif %}
+                </td>
                 <td>{{ usuario.fecha|date:'d/m/Y H:i' }}</td>
               </tr>
             {% empty %}
@@ -62,8 +73,26 @@
       </div>
     </section>
   </div>
+  {% if can_reset_user_passwords %}
+    <div class="reset-password-overlay" id="resetPasswordOverlay" hidden>
+      <section class="reset-password-modal" role="dialog" aria-modal="true" aria-labelledby="resetPasswordTitle">
+        <h2 id="resetPasswordTitle">Restablecer contraseña</h2>
+        <p id="resetPasswordUsername"></p>
+        <label for="resetNewPassword">Nueva contraseña</label>
+        <input type="password" id="resetNewPassword" autocomplete="new-password" />
+        <small>Mín. 8 caracteres (mayúscula, minúscula, número y carácter especial: !@#$%^&amp;*...)</small>
+        <label for="resetConfirmPassword">Confirmar nueva contraseña</label>
+        <input type="password" id="resetConfirmPassword" autocomplete="new-password" />
+        <p id="resetPasswordError" class="error-message" role="alert"></p>
+        <div class="reset-password-actions">
+          <button id="resetPasswordCancel" class="btn-secondary" type="button">Cancelar</button>
+          <button id="resetPasswordSubmit" class="btn" type="button">Guardar contraseña</button>
+        </div>
+      </section>
+    </div>
+  {% endif %}
   <script src="{% static 'js/common.js' %}"></script>
-  <script src="{% static 'js/notificaciones.js' %}"></script>
-  <script src="{% static 'js/usuarios_creados.js' %}?v=4"></script>
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030"></script>
+  <script src="{% static 'js/usuarios_creados.js' %}?v=6"></script>
 </body>
 </html>

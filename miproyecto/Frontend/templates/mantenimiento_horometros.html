@@ -6,12 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mantenimiento - Control de Horómetros y Servicios</title>
   {% load static %}
-  <script src="{% static 'js/notificaciones.js' %}" defer></script>
+  <script src="{% static 'js/notificaciones.js' %}?v=20261030" defer></script>
   {% load l10n %}
-  <link rel="stylesheet" href="{% static 'css/modulos.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/registros.css' %}" />
+  <link rel="stylesheet" href="{% static 'css/modulos.css' %}?v=20261030" />
+  <link rel="stylesheet" href="{% static 'css/registros.css' %}?v=20261030" />
   <link rel="stylesheet" href="{% static 'css/mensajes.css' %}" />
-  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}?v=green-20261002" />
+  <link rel="stylesheet" href="{% static 'css/mantenimiento.css' %}?v=20261030" />
   <style>
     /* Estructura y acciones superiores */
     .actions-bar {
@@ -349,7 +349,7 @@
         <p>Monitoreo preventivo por horas trabajadas y programación de mantenimientos</p>
       </div>
       <div class="header-actions">
-        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-top-action btn-top-secondary">← Volver a Módulos</a>
+        <a href="{% url 'modulos' %}?sector=mantenimiento" class="btn-top-action btn-top-secondary">← Volver a procesos</a>
       </div>
     </header>
 

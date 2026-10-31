@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registros Operativos</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/registros.css' %}">
+    <link rel="stylesheet" href="{% static 'css/registros.css' %}?v=20261030">
     <link rel="stylesheet" href="{% static 'css/mensajes.css' %}">
 </head>
 <body data-device-type="{{ request.device_type|default:'unknown' }}" data-mobile-device="{{ request.is_mobile_device|yesno:'true,false' }}">
@@ -15,7 +15,7 @@
                 <h1>📝 Registros Operativos</h1>
                 <p>Registro de servicio</p>
             </div>
-            <a href="{% url 'modulos' %}?sector=agricola" class="btn-volver">Volver a Módulos</a>
+            <a href="{% url 'modulos' %}?sector=agricola" class="btn-volver">← Volver a procesos</a>
         </div>
 
         <div class="form-wrapper">
@@ -511,7 +511,7 @@
             }
         }
     </script>
-    <script src="{% static 'js/notificaciones.js' %}"></script>
+    <script src="{% static 'js/notificaciones.js' %}?v=20261030"></script>
     <script>
         // Mostrar notificaciones personalizadas para mensajes de Django
         document.addEventListener('DOMContentLoaded', function() {
